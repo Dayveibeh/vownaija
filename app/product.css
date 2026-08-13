@@ -126,7 +126,7 @@
 .quote-success p { max-width:430px; color:#77696d; font-size:12px; line-height:1.6; }
 .quote-success .button { margin-top:16px; }
 .review-modal form { display:flex; flex-direction:column; gap:7px; }
-.star-picker span { font-size:30px; cursor:pointer; }
+.star-picker span { display:flex; gap:2px; font-size:30px; }.star-picker span button { padding:0; color:#c9c2b8; background:transparent; border:0; font-size:30px; cursor:pointer; }.star-picker span button.selected { color:#dfa12d; }
 
 /* Vendor dashboard */
 .dashboard-shell { min-height:100vh; display:grid; grid-template-columns:245px 1fr; background:#f7f4f2; color:#292124; }
