@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowLeft, BadgeCheck, Check, ChevronRight, Heart, Instagram, MapPin, MessageCircle, Play, Share2, Star, X } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Brand } from "../../components/Brand";
 
 const gallery = [
@@ -17,6 +17,14 @@ export default function VendorProfilePage() {
   const [saved, setSaved] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewSent, setReviewSent] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = window.setTimeout(() => setNotice(""), 2600);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
 
   function sendQuote(event: FormEvent) {
     event.preventDefault();
@@ -32,7 +40,7 @@ export default function VendorProfilePage() {
       </header>
 
       <section className="profile-gallery">
-        <div className="gallery-main"><img src={gallery[0]} alt="Aurora Events luxury wedding decoration" /><button><Play size={18} fill="currentColor" /> Watch showreel</button></div>
+        <div className="gallery-main"><img src={gallery[0]} alt="Aurora Events luxury wedding decoration" /><button onClick={() => setNotice("Showreel preview opened")}><Play size={18} fill="currentColor" /> Watch showreel</button></div>
         <div><img src={gallery[1]} alt="Elegant reception tablescape" /><img src={gallery[2]} alt="Luxury wedding details" /></div>
         <span className="gallery-count">12 photos · 3 videos</span>
       </section>
@@ -43,7 +51,7 @@ export default function VendorProfilePage() {
             <p className="vendor-category">Wedding planning & décor</p>
             <h1>Aurora Events NG <BadgeCheck size={25} /></h1>
             <div className="profile-subline"><span><MapPin size={15} /> Lekki, Lagos · Travels nationwide</span><span><Star size={15} fill="currentColor" /> <strong>4.9</strong> · 86 reviews</span></div>
-            <div className="profile-actions"><button className={saved ? "saved" : ""} onClick={() => setSaved((value) => !value)}><Heart size={17} fill={saved ? "currentColor" : "none"} /> {saved ? "Saved" : "Save"}</button><button><Share2 size={17} /> Share</button><a href="https://instagram.com" target="_blank" rel="noreferrer"><Instagram size={17} /> Instagram</a></div>
+            <div className="profile-actions"><button className={saved ? "saved" : ""} onClick={() => setSaved((value) => !value)}><Heart size={17} fill={saved ? "currentColor" : "none"} /> {saved ? "Saved" : "Save"}</button><button onClick={() => { navigator.clipboard.writeText(window.location.href).then(() => setNotice("Profile link copied")).catch(() => setNotice("Share this page from your browser menu")); }}><Share2 size={17} /> Share</button><a href="https://instagram.com" target="_blank" rel="noreferrer"><Instagram size={17} /> Instagram</a></div>
           </div>
 
           <div className="profile-divider" />
@@ -99,9 +107,10 @@ export default function VendorProfilePage() {
       {reviewOpen && <div className="modal-backdrop" onMouseDown={() => setReviewOpen(false)}>
         <section className="quote-modal review-modal" role="dialog" aria-modal="true" aria-label="Write a review" onMouseDown={(event) => event.stopPropagation()}>
           <button className="modal-close" onClick={() => setReviewOpen(false)} aria-label="Close"><X /></button>
-          {!reviewSent ? <form onSubmit={(event) => { event.preventDefault(); setReviewSent(true); }}><p className="eyebrow"><span /> Your experience</p><h2>Review Aurora Events</h2><label className="star-picker">Your rating<span>★★★★★</span></label><label>Review title<input required placeholder="Sum up your experience" /></label><label>Your review<textarea required rows={5} placeholder="What did you love? What should other couples know?" /></label><button className="button button-primary" type="submit">Submit review</button></form> : <div className="quote-success"><div><Check size={30} /></div><h2>Thank you!</h2><p>Your review has been submitted for verification.</p><button className="button button-dark" onClick={() => setReviewOpen(false)}>Done</button></div>}
+          {!reviewSent ? <form onSubmit={(event) => { event.preventDefault(); setReviewSent(true); }}><p className="eyebrow"><span /> Your experience</p><h2>Review Aurora Events</h2><label className="star-picker">Your rating<span>{[1, 2, 3, 4, 5].map((star) => <button type="button" key={star} className={rating >= star ? "selected" : ""} onClick={() => setRating(star)} aria-label={`${star} star rating`}>★</button>)}</span></label><label>Review title<input required placeholder="Sum up your experience" /></label><label>Your review<textarea required rows={5} placeholder="What did you love? What should other couples know?" /></label><button className="button button-primary" type="submit">Submit {rating}-star review</button></form> : <div className="quote-success"><div><Check size={30} /></div><h2>Thank you!</h2><p>Your review has been submitted for verification.</p><button className="button button-dark" onClick={() => setReviewOpen(false)}>Done</button></div>}
         </section>
       </div>}
+      {notice && <div className="dashboard-toast">{notice}</div>}
     </main>
   );
 }
