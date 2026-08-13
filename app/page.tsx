@@ -16,7 +16,9 @@ import {
   Search,
   Sparkles,
   Star,
+  UserRound,
   Utensils,
+  WalletCards,
   X,
 } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
@@ -29,6 +31,8 @@ const vendors = [
     rating: "4.9",
     reviews: 86,
     price: "From ₦850,000",
+    priceMin: 850000,
+    tier: "Mid-range",
     tag: "Most booked",
     image: "https://ikejabird.com/wp-content/uploads/2025/10/2022-02-01-1.jpg",
   },
@@ -39,6 +43,8 @@ const vendors = [
     rating: "4.8",
     reviews: 54,
     price: "From ₦180,000",
+    priceMin: 180000,
+    tier: "Budget-friendly",
     tag: "Responds fast",
     image: "https://i.pinimg.com/originals/33/9b/0f/339b0f6a388202ad731f89715e91e442.jpg",
   },
@@ -49,8 +55,46 @@ const vendors = [
     rating: "4.9",
     reviews: 112,
     price: "From ₦250,000",
+    priceMin: 250000,
+    tier: "Budget-friendly",
     tag: "Top rated",
     image: "https://gallery.dripplescakes.com/assets/images/traditional-marriage-cake-by-dripplescakes-2024-15-1000x1333.webp",
+  },
+  {
+    name: "Lagos Lens Co.",
+    category: "Photography",
+    location: "Victoria Island, Lagos",
+    rating: "4.8",
+    reviews: 73,
+    price: "From ₦450,000",
+    priceMin: 450000,
+    tier: "Mid-range",
+    tag: "Great value",
+    image: "https://static.wixstatic.com/media/fdf893_120788a0b4fa499fb373d950cc86501e~mv2.jpg/v1/fill/w_980%2Ch_980%2Cal_c%2Cq_85%2Cusm_0.66_1.00_0.01%2Cenc_avif%2Cquality_auto/fdf893_120788a0b4fa499fb373d950cc86501e~mv2.jpg",
+  },
+  {
+    name: "Grand Marquee Lagos",
+    category: "Venues",
+    location: "Ikeja, Lagos",
+    rating: "4.9",
+    reviews: 128,
+    price: "From ₦3,500,000",
+    priceMin: 3500000,
+    tier: "Luxury",
+    tag: "Premium pick",
+    image: "https://naphtalirentals.com/wp-content/uploads/2022/07/291952015_993524448004434_4768468144911484061_n.jpg",
+  },
+  {
+    name: "Buka & Bubbles",
+    category: "Catering",
+    location: "Lekki, Lagos",
+    rating: "4.7",
+    reviews: 61,
+    price: "From ₦6,500 per guest",
+    priceMin: 6500,
+    tier: "Budget-friendly",
+    tag: "Couples’ choice",
+    image: "https://www.eventdesignbybe.com/wp-content/uploads/2024/08/Modern-Nigerian-Wedding-Cake-Designs.jpg",
   },
 ];
 
@@ -69,6 +113,7 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [location, setLocation] = useState("Lagos");
   const [category, setCategory] = useState("All vendors");
+  const [budget, setBudget] = useState("Any budget");
   const [searchMessage, setSearchMessage] = useState("");
   const [saved, setSaved] = useState<string[]>([]);
 
@@ -76,15 +121,20 @@ export default function Home() {
     return vendors.filter((vendor) => {
       const locationMatch = location === "Nigeria" || vendor.location.toLowerCase().includes(location.toLowerCase());
       const categoryMatch = category === "All vendors" || vendor.category.toLowerCase().includes(category.toLowerCase());
-      return locationMatch && categoryMatch;
+      const budgetMatch = budget === "Any budget"
+        || (budget === "Under ₦250k" && vendor.priceMin < 250000)
+        || (budget === "₦250k – ₦1m" && vendor.priceMin >= 250000 && vendor.priceMin <= 1000000)
+        || (budget === "₦1m – ₦3m" && vendor.priceMin > 1000000 && vendor.priceMin <= 3000000)
+        || (budget === "₦3m+" && vendor.priceMin > 3000000);
+      return locationMatch && categoryMatch && budgetMatch;
     });
-  }, [category, location]);
+  }, [budget, category, location]);
 
   function runSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSearchMessage(
       visibleVendors.length
-        ? `Showing ${visibleVendors.length} trusted match${visibleVendors.length > 1 ? "es" : ""} in ${location}.`
+        ? `Showing ${visibleVendors.length} trusted match${visibleVendors.length > 1 ? "es" : ""} in ${location} for ${budget.toLowerCase()}.`
         : `We’re growing in ${location}. Try “All vendors” or another city.`,
     );
     document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" });
@@ -105,13 +155,16 @@ export default function Home() {
         <nav className={menuOpen ? "nav-links is-open" : "nav-links"} aria-label="Main navigation">
           <a href="#categories">Find vendors</a>
           <a href="#how-it-works">How it works</a>
+          <Link href="/couples/match">AI recommendations</Link>
           <a href="#inspiration">Inspiration</a>
-          <Link href="/vendor/aurora-events">Vendor profile</Link>
+          <Link href="/couples/sign-up" className="mobile-auth-link">Couple sign in</Link>
+          <Link href="/dashboard" className="mobile-auth-link">Vendor sign in</Link>
         </nav>
 
         <div className="header-actions">
-          <Link href="/dashboard" className="text-link">Vendor sign in</Link>
-          <Link href="/onboarding" className="button button-dark button-small">List your business</Link>
+          <Link href="/couples/sign-up" className="couple-sign-in"><UserRound size={15} /> Couple sign in</Link>
+          <Link href="/dashboard" className="text-link vendor-sign-in">Vendor sign in</Link>
+          <Link href="/onboarding" className="button button-dark button-small">Join as vendor</Link>
         </div>
 
         <button className="menu-button" onClick={() => setMenuOpen((value) => !value)} aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen}>
@@ -147,6 +200,20 @@ export default function Home() {
                 <select value={location} onChange={(event) => setLocation(event.target.value)}>
                   <option>Nigeria</option>
                   {locations.map((item) => <option key={item}>{item}</option>)}
+                </select>
+                <ChevronDown size={16} />
+              </div>
+            </label>
+            <label>
+              <span>Your budget</span>
+              <div className="select-wrap">
+                <WalletCards size={19} />
+                <select value={budget} onChange={(event) => setBudget(event.target.value)}>
+                  <option>Any budget</option>
+                  <option>Under ₦250k</option>
+                  <option>₦250k – ₦1m</option>
+                  <option>₦1m – ₦3m</option>
+                  <option>₦3m+</option>
                 </select>
                 <ChevronDown size={16} />
               </div>
@@ -199,7 +266,7 @@ export default function Home() {
                 <img src={vendor.image} alt={`${vendor.name} wedding work`} /><span className="vendor-tag">{vendor.tag}</span>
                 <button className={saved.includes(vendor.name) ? "save-button saved" : "save-button"} onClick={() => toggleSaved(vendor.name)} aria-label={`${saved.includes(vendor.name) ? "Remove" : "Save"} ${vendor.name}`}><Heart size={18} fill={saved.includes(vendor.name) ? "currentColor" : "none"} /></button>
               </div>
-              <div className="vendor-info"><p className="vendor-category">{vendor.category}</p><div className="vendor-title-row"><h3>{vendor.name}</h3><BadgeCheck size={18} /></div><p className="vendor-location"><MapPin size={14} /> {vendor.location}</p><div className="vendor-meta"><span><Star size={14} fill="currentColor" /> <strong>{vendor.rating}</strong> ({vendor.reviews})</span><strong>{vendor.price}</strong></div></div>
+              <div className="vendor-info"><div className="vendor-category-line"><p className="vendor-category">{vendor.category}</p><span>{vendor.tier}</span></div><div className="vendor-title-row"><h3>{vendor.name}</h3><BadgeCheck size={18} /></div><p className="vendor-location"><MapPin size={14} /> {vendor.location}</p><div className="vendor-meta"><span><Star size={14} fill="currentColor" /> <strong>{vendor.rating}</strong> ({vendor.reviews})</span><strong>{vendor.price}</strong></div></div>
             </article>
           ))}
         </div>
@@ -210,7 +277,22 @@ export default function Home() {
         <div className="story-copy">
           <p className="eyebrow"><span /> How it works</p><h2>Less stress.<br /><em>More celebration.</em></h2>
           <div className="steps"><div><span>01</span><p><strong>Discover your favourites</strong>Search by service, city, style and budget.</p></div><div><span>02</span><p><strong>Compare with confidence</strong>See real work, packages and verified reviews.</p></div><div><span>03</span><p><strong>Request a personal quote</strong>Tell vendors what you need and manage replies in one place.</p></div></div>
-          <Link href="/onboarding" className="button button-primary">Start planning <ArrowRight size={18} /></Link>
+          <Link href="/couples/sign-up" className="button button-primary">Start planning <ArrowRight size={18} /></Link>
+        </div>
+      </section>
+
+      <section className="ai-match-cta">
+        <div className="ai-match-orbit" aria-hidden="true"><span><Sparkles /></span><i /><i /><i /></div>
+        <div>
+          <p className="eyebrow light"><span /> Vowi AI matchmaker</p>
+          <h2>Not sure where to start?<br /><em>Let us build your shortlist.</em></h2>
+          <p>Answer a few quick questions about your location, budget and wedding style. Vowi will recommend vendors that fit—whether you’re keeping costs lean or planning something luxurious.</p>
+          <div className="ai-match-actions"><Link href="/couples/match" className="button button-primary">Find my matches <Sparkles size={17} /></Link><span>Takes about 2 minutes · You can skip this step</span></div>
+        </div>
+        <div className="match-preview-stack">
+          <article><span>94% match</span><strong>Planning & décor</strong><p>Aurora Events NG</p><small>Fits your Lagos location and mid-range budget</small></article>
+          <article><span>91% match</span><strong>Photography</strong><p>Lagos Lens Co.</p><small>Strong value and documentary style</small></article>
+          <article><span>88% match</span><strong>Bridal beauty</strong><p>The Bridal Chair</p><small>Budget-friendly and highly rated</small></article>
         </div>
       </section>
 
