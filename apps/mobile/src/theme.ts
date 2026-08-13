@@ -1,21 +1,21 @@
 export const colors = {
-  ink: "#12130F",
-  muted: "#69705F",
+  ink: "#0A0A0A",
+  muted: "#666666",
   plum: "#000000",
   plumDark: "#000000",
-  coral: "#717B5C",
-  blush: "#F1F4E8",
-  cream: "#FAFBF5",
+  coral: "#66734F",
+  blush: "#F3F6EE",
+  cream: "#FAFAFA",
   white: "#FFFFFF",
-  border: "#DDE2D2",
-  green: "#65705A",
-  gold: "#DFA02B"
+  border: "#EAEAEA",
+  green: "#536044",
+  gold: "#A66A00"
 };
 
 export const cardShadow = {
   shadowColor: "#000000",
-  shadowOpacity: 0.1,
-  shadowRadius: 18,
-  shadowOffset: { width: 0, height: 8 },
-  elevation: 4
+  shadowOpacity: 0.045,
+  shadowRadius: 10,
+  shadowOffset: { width: 0, height: 4 },
+  elevation: 2
 };
