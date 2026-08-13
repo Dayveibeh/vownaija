@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "apps/mobile",
     "packages/*"
   ],
   "engines": {
@@ -19,9 +18,10 @@
     "validate:artifact": "bash scripts/validate-artifact.sh",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate",
-    "mobile": "npm run start --workspace @vownaija/mobile",
-    "mobile:ios": "npm run ios --workspace @vownaija/mobile",
-    "typecheck:mobile": "npm run typecheck --workspace @vownaija/mobile"
+    "mobile:install": "npm --prefix apps/mobile install",
+    "mobile": "npm --prefix apps/mobile run start",
+    "mobile:ios": "npm --prefix apps/mobile run ios",
+    "typecheck:mobile": "npm --prefix apps/mobile run typecheck"
   },
   "dependencies": {
     "@vownaija/shared": "*",
