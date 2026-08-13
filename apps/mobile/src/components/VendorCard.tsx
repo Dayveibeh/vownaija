@@ -53,29 +53,29 @@ export function VendorCard({ vendor, saved, onSave, onView, fullWidth = false, s
 }
 
 const styles = StyleSheet.create({
-  card: { width: 286, overflow: "hidden", borderRadius: 20, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, ...cardShadow },
+  card: { width: 286, overflow: "hidden", borderRadius: 12, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, ...cardShadow },
   fullWidth: { width: "100%" },
   imageWrap: { height: 188, position: "relative", backgroundColor: colors.blush },
   fullImage: { height: 215 },
   image: { width: "100%", height: "100%" },
   badge: { position: "absolute", top: 11, left: 11, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 20, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.94)" },
-  badgeText: { color: colors.plum, fontSize: 8, lineHeight: 11, fontWeight: "900", textTransform: "uppercase", letterSpacing: 0.6 },
+  badgeText: { color: colors.plum, fontSize: 8, lineHeight: 11, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 },
   saveButton: { position: "absolute", right: 11, top: 11, width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.94)" },
   saveButtonActive: { backgroundColor: colors.plum },
   body: { padding: 16 },
   metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  category: { color: colors.coral, fontSize: 9, fontWeight: "900", textTransform: "uppercase", letterSpacing: 0.8 },
-  tier: { color: colors.muted, fontSize: 8, paddingVertical: 4, paddingHorizontal: 7, borderRadius: 10, backgroundColor: "#F3EBE7" },
+  category: { color: colors.muted, fontSize: 9, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.7 },
+  tier: { color: colors.muted, fontSize: 8, paddingVertical: 4, paddingHorizontal: 7, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: "#FAFAFA" },
   name: { color: colors.ink, fontFamily: appFont, fontSize: 20, fontWeight: "600", marginTop: 9 },
   detailRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6 },
   locationRow: { flexDirection: "row", alignItems: "center", gap: 3 },
   location: { color: colors.muted, fontSize: 10 },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 3 },
-  rating: { color: colors.gold, fontSize: 10, fontWeight: "900" },
+  rating: { color: colors.gold, fontSize: 10, fontWeight: "700" },
   reviews: { color: colors.muted, fontWeight: "400" },
   reason: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 12 },
   footer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 13, marginTop: 13 },
   price: { color: colors.ink, fontFamily: appFont, fontSize: 13, fontWeight: "600" },
   viewButton: { flexDirection: "row", alignItems: "center", gap: 2 },
-  viewText: { color: colors.coral, fontSize: 9, fontWeight: "800" }
+  viewText: { color: colors.ink, fontSize: 9, fontWeight: "600" }
 });
