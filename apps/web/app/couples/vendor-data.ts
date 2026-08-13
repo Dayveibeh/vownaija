@@ -4,5 +4,5 @@ export {
   serviceOptions,
   styleOptions,
   weddingLocations,
-} from "@vownaija/shared";
-export type { CoupleVendor, VendorMatchPreferences } from "@vownaija/shared";
+} from "@smitten/shared";
+export type { CoupleVendor, VendorMatchPreferences } from "@smitten/shared";

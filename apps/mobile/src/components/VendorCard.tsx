@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import type { CoupleVendor } from "@vownaija/shared";
+import type { CoupleVendor } from "@smitten/shared";
 import { cardShadow, colors } from "../theme";
 
 type Props = {
