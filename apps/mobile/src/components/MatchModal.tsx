@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { serviceOptions, styleOptions, weddingLocations, type VendorMatchPreferences } from "@smitten/shared";
 import { colors } from "../theme";
+
+const appFont = Platform.OS === "ios" ? "System" : "sans-serif";
 
 export function MatchModal({ visible, onClose, onComplete }: { visible: boolean; onClose: () => void; onComplete: (preferences: VendorMatchPreferences) => void }) {
   const [step, setStep] = useState(0);
@@ -78,7 +80,7 @@ const styles = StyleSheet.create({
   progressFill: { height: 4, backgroundColor: colors.coral },
   content: { padding: 22, paddingBottom: 42 },
   stepLabel: { color: colors.coral, fontSize: 9, fontWeight: "900", letterSpacing: 1.1 },
-  title: { color: colors.ink, fontFamily: "Georgia", fontSize: 34, lineHeight: 39, letterSpacing: -1, fontWeight: "600", marginTop: 10 },
+  title: { color: colors.ink, fontFamily: appFont, fontSize: 33, lineHeight: 39, letterSpacing: -0.9, fontWeight: "600", marginTop: 10 },
   subtitle: { color: colors.muted, fontSize: 12, lineHeight: 19, marginTop: 8, marginBottom: 23 },
   options: { gap: 9 },
   choice: { minHeight: 56, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, paddingHorizontal: 15, flexDirection: "row", alignItems: "center", gap: 9 },
