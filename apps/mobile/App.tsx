@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { coupleVendors, recommendCoupleVendors, serviceOptions, type CoupleVendor } from "@vownaija/shared";
+import { coupleVendors, recommendCoupleVendors, serviceOptions, weddingLocations, type CoupleVendor } from "@vownaija/shared";
 import { MatchModal } from "./src/components/MatchModal";
 import { VendorCard } from "./src/components/VendorCard";
 import { colors } from "./src/theme";
@@ -11,32 +11,52 @@ import { colors } from "./src/theme";
 type Tab = "Home" | "Discover" | "Saved" | "Planning" | "Profile";
 
 const heroImage = "https://static.wixstatic.com/media/fdf893_120788a0b4fa499fb373d950cc86501e~mv2.jpg/v1/fill/w_980%2Ch_980%2Cal_c%2Cq_85%2Cusm_0.66_1.00_0.01%2Cenc_avif%2Cquality_auto/fdf893_120788a0b4fa499fb373d950cc86501e~mv2.jpg";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const smittenWordmark = require("./assets/smitten-wordmark.png");
 
 export default function App() {
-  return <SafeAreaProvider><StatusBar style="dark" /><VowNaija /></SafeAreaProvider>;
+  return <SafeAreaProvider><StatusBar style="dark" /><SmittenApp /></SafeAreaProvider>;
 }
 
-function VowNaija() {
+function SmittenApp() {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>("Home");
   const [saved, setSaved] = useState<string[]>([]);
   const [matches, setMatches] = useState<(CoupleVendor & { score: number })[] | null>(null);
   const [matchVisible, setMatchVisible] = useState(false);
   const [authVisible, setAuthVisible] = useState(false);
+  const [locationVisible, setLocationVisible] = useState(false);
+  const [location, setLocation] = useState("Lagos");
+  const [homeQuery, setHomeQuery] = useState("");
+  const [homeCategory, setHomeCategory] = useState("All");
+  const [selectedVendor, setSelectedVendor] = useState<CoupleVendor | null>(null);
+  const [notice, setNotice] = useState("");
+  const [signedIn, setSignedIn] = useState(false);
+  const [checklist, setChecklist] = useState([true, false, false, false, false]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = setTimeout(() => setNotice(""), 2600);
+    return () => clearTimeout(timeout);
+  }, [notice]);
 
   function toggleSaved(name: string) {
     setSaved((current) => current.includes(name) ? current.filter((item) => item !== name) : [...current, name]);
   }
 
+  function showNotice(message: string) {
+    setNotice(message);
+  }
+
   const screen = tab === "Home"
-    ? <HomeScreen saved={saved} matches={matches} onSave={toggleSaved} openMatch={() => setMatchVisible(true)} openAuth={() => setAuthVisible(true)} />
+    ? <HomeScreen saved={saved} matches={matches} location={location} query={homeQuery} category={homeCategory} onQuery={setHomeQuery} onCategory={setHomeCategory} onSave={toggleSaved} onView={setSelectedVendor} openLocation={() => setLocationVisible(true)} openMatch={() => setMatchVisible(true)} openAuth={() => setAuthVisible(true)} openDiscover={() => setTab("Discover")} />
     : tab === "Discover"
-      ? <DiscoverScreen saved={saved} onSave={toggleSaved} />
+      ? <DiscoverScreen saved={saved} onSave={toggleSaved} onView={setSelectedVendor} />
       : tab === "Saved"
-        ? <SavedScreen saved={saved} onSave={toggleSaved} />
+        ? <SavedScreen saved={saved} onSave={toggleSaved} onView={setSelectedVendor} openDiscover={() => setTab("Discover")} />
         : tab === "Planning"
-          ? <PlanningScreen openMatch={() => setMatchVisible(true)} />
-          : <ProfileScreen openAuth={() => setAuthVisible(true)} />;
+          ? <PlanningScreen checklist={checklist} onToggle={(index) => setChecklist((current) => current.map((item, itemIndex) => itemIndex === index ? !item : item))} openMatch={() => setMatchVisible(true)} />
+          : <ProfileScreen signedIn={signedIn} openAuth={() => setAuthVisible(true)} onAction={showNotice} />;
 
   return (
     <View style={styles.app}>
@@ -55,12 +75,22 @@ function VowNaija() {
           setTab("Home");
         }}
       />
-      <AuthModal visible={authVisible} onClose={() => setAuthVisible(false)} />
+      <AuthModal visible={authVisible} onClose={() => setAuthVisible(false)} onComplete={() => { setSignedIn(true); setAuthVisible(false); showNotice("You’re signed in to Smitten"); }} />
+      <LocationModal visible={locationVisible} selected={location} onClose={() => setLocationVisible(false)} onSelect={(city) => { setLocation(city); setLocationVisible(false); showNotice(`Location changed to ${city}`); }} />
+      <VendorModal vendor={selectedVendor} saved={selectedVendor ? saved.includes(selectedVendor.name) : false} onClose={() => setSelectedVendor(null)} onSave={() => selectedVendor && toggleSaved(selectedVendor.name)} onQuote={() => { if (selectedVendor) showNotice(`Enquiry started for ${selectedVendor.name}`); setSelectedVendor(null); }} />
+      {notice ? <View accessibilityLiveRegion="polite" style={[styles.toast, { bottom: 82 + insets.bottom }]}><Ionicons name="checkmark-circle" size={18} color={colors.white} /><Text style={styles.toastText}>{notice}</Text></View> : null}
     </View>
   );
 }
 
-function HomeScreen({ saved, matches, onSave, openMatch, openAuth }: { saved: string[]; matches: (CoupleVendor & { score: number })[] | null; onSave: (name: string) => void; openMatch: () => void; openAuth: () => void }) {
+function HomeScreen({ saved, matches, location, query, category, onQuery, onCategory, onSave, onView, openLocation, openMatch, openAuth, openDiscover }: { saved: string[]; matches: (CoupleVendor & { score: number })[] | null; location: string; query: string; category: string; onQuery: (value: string) => void; onCategory: (value: string) => void; onSave: (name: string) => void; onView: (vendor: CoupleVendor) => void; openLocation: () => void; openMatch: () => void; openAuth: () => void; openDiscover: () => void }) {
+  const vendors = useMemo(() => (matches ?? coupleVendors).filter((vendor) => {
+    const locationMatch = vendor.location === location;
+    const categoryMatch = category === "All" || vendor.category === category;
+    const queryMatch = !query.trim() || `${vendor.name} ${vendor.category}`.toLowerCase().includes(query.trim().toLowerCase());
+    return locationMatch && categoryMatch && queryMatch;
+  }), [category, location, matches, query]);
+
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <SafeAreaView edges={["top"]}>
@@ -77,34 +107,34 @@ function HomeScreen({ saved, matches, onSave, openMatch, openAuth }: { saved: st
       </View>
       <View style={styles.searchBar}>
         <Ionicons name="search" size={19} color={colors.plum} />
-        <TextInput placeholder="Photographer, venue, caterer..." placeholderTextColor={colors.muted} style={styles.searchInput} />
+        <TextInput value={query} onChangeText={onQuery} placeholder="Photographer, venue, caterer..." placeholderTextColor={colors.muted} style={styles.searchInput} returnKeyType="search" />
         <View style={styles.searchDivider} />
-        <Ionicons name="location-outline" size={18} color={colors.plum} /><Text style={styles.searchLocation}>Lagos</Text>
+        <Pressable onPress={openLocation} accessibilityRole="button" accessibilityLabel={`Change location, currently ${location}`} style={styles.locationButton}><Ionicons name="location-outline" size={18} color={colors.plum} /><Text numberOfLines={1} style={styles.searchLocation}>{location}</Text><Ionicons name="chevron-down" size={13} color={colors.muted} /></Pressable>
       </View>
       <Pressable onPress={openMatch} accessibilityRole="button" style={styles.vowiCard}>
         <View style={styles.vowiIcon}><Ionicons name="sparkles" size={20} color={colors.white} /></View>
-        <View style={styles.vowiCopy}><Text style={styles.vowiKicker}>NOT SURE WHERE TO START?</Text><Text style={styles.vowiTitle}>Let Vowi find your best matches</Text></View>
+        <View style={styles.vowiCopy}><Text style={styles.vowiKicker}>NOT SURE WHERE TO START?</Text><Text style={styles.vowiTitle}>Let Smitten find your best matches</Text></View>
         <Ionicons name="arrow-forward" size={20} color={colors.plum} />
       </Pressable>
       <SectionTitle kicker="BROWSE BY SERVICE" title="Everything you need, all in one place." />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
-        {serviceOptions.map((category, index) => (
-          <Pressable key={category} style={[styles.categoryCard, index === 0 && styles.categoryCardActive]}>
-            <Ionicons name={categoryIcon(category)} size={21} color={index === 0 ? colors.white : colors.plum} />
-            <Text style={[styles.categoryText, index === 0 && styles.categoryTextActive]}>{category}</Text>
+        {["All", ...serviceOptions].map((item) => (
+          <Pressable key={item} onPress={() => onCategory(item)} accessibilityRole="button" accessibilityState={{ selected: category === item }} style={[styles.categoryCard, category === item && styles.categoryCardActive]}>
+            <Ionicons name={item === "All" ? "grid-outline" : categoryIcon(item)} size={21} color={category === item ? colors.white : colors.plum} />
+            <Text style={[styles.categoryText, category === item && styles.categoryTextActive]}>{item === "All" ? "All services" : item}</Text>
           </Pressable>
         ))}
       </ScrollView>
       <View style={styles.sectionRow}>
-        <SectionTitle kicker={matches ? "CHOSEN AROUND YOUR PLANS" : "CURATED FOR YOU"} title={matches ? "Your Vowi shortlist" : "Popular around Lagos"} compact />
-        <Pressable accessibilityRole="button"><Text style={styles.seeAll}>See all</Text></Pressable>
+        <SectionTitle kicker={matches ? "CHOSEN AROUND YOUR PLANS" : "CURATED FOR YOU"} title={matches ? "Your Smitten shortlist" : `Popular around ${location}`} compact />
+        <Pressable onPress={openDiscover} accessibilityRole="button"><Text style={styles.seeAll}>See all</Text></Pressable>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.vendorScroll}>
-        {(matches ?? coupleVendors).map((vendor) => {
+      {vendors.length > 0 ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.vendorScroll}>
+        {vendors.map((vendor) => {
           const score = matches ? (vendor as CoupleVendor & { score: number }).score : undefined;
-          return <VendorCard key={vendor.name} vendor={vendor} saved={saved.includes(vendor.name)} score={score} onSave={() => onSave(vendor.name)} />;
+          return <VendorCard key={vendor.name} vendor={vendor} saved={saved.includes(vendor.name)} score={score} onSave={() => onSave(vendor.name)} onView={() => onView(vendor)} />;
         })}
-      </ScrollView>
+      </ScrollView> : <View style={styles.inlineEmpty}><Ionicons name="location-outline" size={25} color={colors.coral} /><Text style={styles.inlineEmptyTitle}>No exact matches in {location} yet</Text><Text style={styles.inlineEmptyText}>Try another service or tap the location above to browse another city.</Text></View>}
       <View style={styles.trustCard}>
         <Text style={styles.trustKicker}>PLAN WITH CONFIDENCE</Text><Text style={styles.trustTitle}>Clear choices for your kind of wedding.</Text>
         <View style={styles.trustList}><TrustItem icon="checkmark-circle" text="Verified vendor profiles" /><TrustItem icon="wallet-outline" text="Options for every budget" /><TrustItem icon="chatbubble-ellipses-outline" text="Simple, protected enquiries" /></View>
@@ -113,7 +143,7 @@ function HomeScreen({ saved, matches, onSave, openMatch, openAuth }: { saved: st
   );
 }
 
-function DiscoverScreen({ saved, onSave }: { saved: string[]; onSave: (name: string) => void }) {
+function DiscoverScreen({ saved, onSave, onView }: { saved: string[]; onSave: (name: string) => void; onView: (vendor: CoupleVendor) => void }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const results = useMemo(() => coupleVendors.filter((vendor) => {
@@ -131,76 +161,99 @@ function DiscoverScreen({ saved, onSave }: { saved: string[]; onSave: (name: str
           {["All", ...serviceOptions].map((item) => <Pressable key={item} onPress={() => setCategory(item)} style={[styles.filterChip, category === item && styles.filterChipActive]}><Text style={[styles.filterText, category === item && styles.filterTextActive]}>{item}</Text></Pressable>)}
         </ScrollView>
         <Text style={styles.resultCount}>{results.length} trusted vendors</Text>
-        <View style={styles.verticalList}>{results.map((vendor) => <VendorCard key={vendor.name} fullWidth vendor={vendor} saved={saved.includes(vendor.name)} onSave={() => onSave(vendor.name)} />)}</View>
+        {results.length > 0 ? <View style={styles.verticalList}>{results.map((vendor) => <VendorCard key={vendor.name} fullWidth vendor={vendor} saved={saved.includes(vendor.name)} onSave={() => onSave(vendor.name)} onView={() => onView(vendor)} />)}</View> : <View style={styles.emptyState}><View style={styles.emptyIcon}><Ionicons name="search-outline" size={30} color={colors.plum} /></View><Text style={styles.emptyTitle}>No matches yet</Text><Text style={styles.emptyText}>Try a broader search or choose All services.</Text></View>}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function SavedScreen({ saved, onSave }: { saved: string[]; onSave: (name: string) => void }) {
+function SavedScreen({ saved, onSave, onView, openDiscover }: { saved: string[]; onSave: (name: string) => void; onView: (vendor: CoupleVendor) => void; openDiscover: () => void }) {
   const savedVendors = coupleVendors.filter((vendor) => saved.includes(vendor.name));
   return (
     <SafeAreaView style={styles.safeScreen} edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.pagePadding}>
         <PageHeader title="Saved" subtitle="Keep your favourite vendors close." />
         {savedVendors.length > 0
-          ? <View style={styles.verticalList}>{savedVendors.map((vendor) => <VendorCard key={vendor.name} fullWidth vendor={vendor} saved onSave={() => onSave(vendor.name)} />)}</View>
-          : <View style={styles.emptyState}><View style={styles.emptyIcon}><Ionicons name="heart-outline" size={30} color={colors.plum} /></View><Text style={styles.emptyTitle}>Your shortlist starts here</Text><Text style={styles.emptyText}>Tap the heart on any vendor to save them and compare your favourites.</Text></View>}
+          ? <View style={styles.verticalList}>{savedVendors.map((vendor) => <VendorCard key={vendor.name} fullWidth vendor={vendor} saved onSave={() => onSave(vendor.name)} onView={() => onView(vendor)} />)}</View>
+          : <View style={styles.emptyState}><View style={styles.emptyIcon}><Ionicons name="heart-outline" size={30} color={colors.plum} /></View><Text style={styles.emptyTitle}>Your shortlist starts here</Text><Text style={styles.emptyText}>Tap the heart on any vendor to save them and compare your favourites.</Text><Pressable onPress={openDiscover} style={styles.emptyButton}><Text style={styles.emptyButtonText}>Discover vendors</Text></Pressable></View>}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function PlanningScreen({ openMatch }: { openMatch: () => void }) {
+function PlanningScreen({ checklist, onToggle, openMatch }: { checklist: boolean[]; onToggle: (index: number) => void; openMatch: () => void }) {
+  const labels = ["Set an overall budget", "Choose a venue", "Book photography", "Confirm catering", "Find your music & DJ"];
   return (
     <SafeAreaView style={styles.safeScreen} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.pagePadding} showsVerticalScrollIndicator={false}>
         <PageHeader title="Planning" subtitle="One calm place for all the details." />
-        <View style={styles.planHero}><Ionicons name="sparkles" size={23} color={colors.white} /><Text style={styles.planHeroTitle}>Build your vendor shortlist with Vowi</Text><Text style={styles.planHeroText}>Three quick questions turn your plans into personal recommendations.</Text><Pressable onPress={openMatch} style={styles.creamButton}><Text style={styles.creamButtonText}>Find my matches</Text><Ionicons name="arrow-forward" size={17} color={colors.plum} /></Pressable></View>
+        <View style={styles.planHero}><Ionicons name="sparkles" size={23} color={colors.white} /><Text style={styles.planHeroTitle}>Build your vendor shortlist with Smitten</Text><Text style={styles.planHeroText}>Three quick questions turn your plans into personal recommendations.</Text><Pressable onPress={openMatch} style={styles.creamButton}><Text style={styles.creamButtonText}>Find my matches</Text><Ionicons name="arrow-forward" size={17} color={colors.plum} /></Pressable></View>
         <SectionTitle kicker="YOUR WEDDING" title="Planning checklist" />
-        <View style={styles.checklist}><ChecklistItem checked label="Set an overall budget" /><ChecklistItem label="Choose a venue" /><ChecklistItem label="Book photography" /><ChecklistItem label="Confirm catering" /><ChecklistItem label="Find your music & DJ" /></View>
+        <View style={styles.checklist}>{labels.map((label, index) => <ChecklistItem key={label} checked={checklist[index]} label={label} onPress={() => onToggle(index)} />)}</View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function ProfileScreen({ openAuth }: { openAuth: () => void }) {
+function ProfileScreen({ signedIn, openAuth, onAction }: { signedIn: boolean; openAuth: () => void; onAction: (message: string) => void }) {
   return (
     <SafeAreaView style={styles.safeScreen} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.pagePadding}>
-        <PageHeader title="Your VowNaija" subtitle="Save plans and make the app yours." />
-        <View style={styles.profileCard}><View style={styles.profileIcon}><Ionicons name="person-outline" size={29} color={colors.plum} /></View><Text style={styles.profileTitle}>Sign in to keep planning</Text><Text style={styles.profileText}>Sync your saved vendors, Vowi shortlist and wedding checklist across devices.</Text><Pressable onPress={openAuth} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Sign in or create account</Text></Pressable></View>
-        <View style={styles.profileLinks}><ProfileLink icon="briefcase-outline" text="I’m a wedding vendor" /><ProfileLink icon="help-circle-outline" text="Help & support" /><ProfileLink icon="shield-checkmark-outline" text="Privacy & safety" /></View>
+        <PageHeader title="Your Smitten" subtitle="Save plans and make the app yours." />
+        <View style={styles.profileCard}><View style={styles.profileIcon}><Ionicons name={signedIn ? "checkmark" : "person-outline"} size={29} color={colors.plum} /></View><Text style={styles.profileTitle}>{signedIn ? "You’re signed in" : "Sign in to keep planning"}</Text><Text style={styles.profileText}>{signedIn ? "Your favourites, Smitten shortlist and checklist are ready on this device." : "Sync your saved vendors, Smitten shortlist and wedding checklist across devices."}</Text><Pressable onPress={signedIn ? () => onAction("Your Smitten profile is up to date") : openAuth} style={styles.primaryButton}><Text style={styles.primaryButtonText}>{signedIn ? "View account status" : "Sign in or create account"}</Text></Pressable></View>
+        <View style={styles.profileLinks}><ProfileLink icon="briefcase-outline" text="I’m a wedding vendor" onPress={() => onAction("Vendor onboarding will open on smitten.ng")}/><ProfileLink icon="help-circle-outline" text="Help & support" onPress={() => onAction("Support request started")}/><ProfileLink icon="shield-checkmark-outline" text="Privacy & safety" onPress={() => onAction("Privacy & safety centre opened")}/></View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function AuthModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+function AuthModal({ visible, onClose, onComplete }: { visible: boolean; onClose: () => void; onComplete: () => void }) {
   const [role, setRole] = useState<"couple" | "vendor">("couple");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  function submit() {
+    if (!email.includes("@") || password.length < 6) {
+      setError("Enter a valid email and at least 6 password characters.");
+      return;
+    }
+    setError("");
+    onComplete();
+  }
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.authScreen}>
         <View style={styles.authTop}><Brand /><Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" style={styles.closeButton}><Ionicons name="close" size={22} color={colors.ink} /></Pressable></View>
         <ScrollView contentContainerStyle={styles.authContent}>
-          <Text style={styles.authKicker}>WELCOME TO VOWNAIJA</Text><Text style={styles.authTitle}>Plan beautifully, together.</Text><Text style={styles.authSubtitle}>Choose how you use VowNaija to continue.</Text>
+          <Text style={styles.authKicker}>WELCOME TO SMITTEN</Text><Text style={styles.authTitle}>Plan beautifully, together.</Text><Text style={styles.authSubtitle}>Choose how you use Smitten to continue.</Text>
           <View style={styles.roleRow}><RoleCard icon="heart-outline" label="Planning a wedding" selected={role === "couple"} onPress={() => setRole("couple")} /><RoleCard icon="briefcase-outline" label="Wedding vendor" selected={role === "vendor"} onPress={() => setRole("vendor")} /></View>
-          <Text style={styles.inputLabel}>EMAIL ADDRESS</Text><TextInput style={styles.authInput} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none" />
-          <Text style={styles.inputLabel}>PASSWORD</Text><TextInput style={styles.authInput} placeholder="••••••••" secureTextEntry />
-          <Pressable onPress={onClose} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Continue</Text><Ionicons name="arrow-forward" size={18} color={colors.white} /></Pressable>
-          <Text style={styles.terms}>By continuing, you agree to VowNaija’s Terms and Privacy Policy.</Text>
+          <Text style={styles.inputLabel}>EMAIL ADDRESS</Text><TextInput value={email} onChangeText={setEmail} style={styles.authInput} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none" />
+          <Text style={styles.inputLabel}>PASSWORD</Text><TextInput value={password} onChangeText={setPassword} style={styles.authInput} placeholder="••••••••" secureTextEntry />
+          {error ? <Text style={styles.formError}>{error}</Text> : null}
+          <Pressable onPress={submit} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Continue</Text><Ionicons name="arrow-forward" size={18} color={colors.white} /></Pressable>
+          <Text style={styles.terms}>By continuing, you agree to Smitten’s Terms and Privacy Policy.</Text>
         </ScrollView>
       </SafeAreaView>
     </Modal>
   );
 }
 
-function Brand() { return <View style={styles.brand}><View style={styles.brandMark}><Ionicons name="heart" size={16} color={colors.white} /></View><Text style={styles.brandName}>VowNaija</Text></View>; }
+function LocationModal({ visible, selected, onClose, onSelect }: { visible: boolean; selected: string; onClose: () => void; onSelect: (city: string) => void }) {
+  return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}><Pressable style={styles.sheetBackdrop} onPress={onClose}><SafeAreaView style={styles.sheet} onStartShouldSetResponder={() => true}><View style={styles.sheetHandle} /><View style={styles.sheetHeader}><View><Text style={styles.sheetKicker}>YOUR LOCATION</Text><Text style={styles.sheetTitle}>Where are you planning?</Text></View><Pressable onPress={onClose} style={styles.closeButton}><Ionicons name="close" size={22} color={colors.ink} /></Pressable></View><View style={styles.locationOptions}>{weddingLocations.map((city) => <Pressable key={city} onPress={() => onSelect(city)} style={[styles.locationOption, selected === city && styles.locationOptionActive]}><Ionicons name="location-outline" size={19} color={colors.plum} /><Text style={styles.locationOptionText}>{city}</Text>{selected === city && <Ionicons name="checkmark-circle" size={20} color={colors.coral} />}</Pressable>)}</View></SafeAreaView></Pressable></Modal>;
+}
+
+function VendorModal({ vendor, saved, onClose, onSave, onQuote }: { vendor: CoupleVendor | null; saved: boolean; onClose: () => void; onSave: () => void; onQuote: () => void }) {
+  return <Modal visible={Boolean(vendor)} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>{vendor && <SafeAreaView style={styles.vendorModal}><View style={styles.vendorModalTop}><Brand /><Pressable onPress={onClose} style={styles.closeButton}><Ionicons name="close" size={22} color={colors.ink} /></Pressable></View><ScrollView showsVerticalScrollIndicator={false}><Image source={{ uri: vendor.image }} style={styles.vendorModalImage} alt={`${vendor.name} portfolio`} /><View style={styles.vendorModalContent}><Text style={styles.vendorModalCategory}>{vendor.category}</Text><Text style={styles.vendorModalTitle}>{vendor.name}</Text><View style={styles.vendorModalMeta}><Text><Ionicons name="location-outline" size={14} /> {vendor.location}</Text><Text>★ {vendor.rating} ({vendor.reviews})</Text></View><Text style={styles.vendorModalReason}>{vendor.reason}</Text><View style={styles.vendorModalFacts}><View><Text>Starting price</Text><Text>{vendor.price}</Text></View><View><Text>Service level</Text><Text>{vendor.tier}</Text></View></View><View style={styles.vendorModalActions}><Pressable onPress={onSave} style={styles.secondaryButton}><Ionicons name={saved ? "heart" : "heart-outline"} size={18} color={colors.plum} /><Text style={styles.secondaryButtonText}>{saved ? "Saved" : "Save"}</Text></Pressable><Pressable onPress={onQuote} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Request a quote</Text><Ionicons name="arrow-forward" size={17} color={colors.white} /></Pressable></View></View></ScrollView></SafeAreaView>}</Modal>;
+}
+
+function Brand() { return <View style={styles.brand}><View style={styles.brandLogoShell}><Image source={smittenWordmark} style={styles.brandLogo} resizeMode="contain" accessibilityLabel="Smitten" alt="Smitten" /></View></View>; }
 function PageHeader({ title, subtitle }: { title: string; subtitle: string }) { return <View style={styles.pageHeader}><Text style={styles.pageTitle}>{title}</Text><Text style={styles.pageSubtitle}>{subtitle}</Text></View>; }
 function SectionTitle({ kicker, title, compact = false }: { kicker: string; title: string; compact?: boolean }) { return <View style={[styles.sectionHeading, compact && styles.sectionHeadingCompact]}><Text style={styles.sectionKicker}>{kicker}</Text><Text style={[styles.sectionTitle, compact && styles.sectionTitleCompact]}>{title}</Text></View>; }
 function TrustItem({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) { return <View style={styles.trustItem}><Ionicons name={icon} size={18} color="#F4B4A9" /><Text style={styles.trustText}>{text}</Text></View>; }
-function ChecklistItem({ label, checked = false }: { label: string; checked?: boolean }) { return <View style={styles.checkRow}><View style={[styles.checkCircle, checked && styles.checkCircleDone]}>{checked && <Ionicons name="checkmark" size={14} color={colors.white} />}</View><Text style={[styles.checkLabel, checked && styles.checkLabelDone]}>{label}</Text><Ionicons name="chevron-forward" size={17} color={colors.muted} /></View>; }
-function ProfileLink({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) { return <Pressable style={styles.profileLink}><Ionicons name={icon} size={21} color={colors.plum} /><Text style={styles.profileLinkText}>{text}</Text><Ionicons name="chevron-forward" size={17} color={colors.muted} /></Pressable>; }
+function ChecklistItem({ label, checked = false, onPress }: { label: string; checked?: boolean; onPress: () => void }) { return <Pressable onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked }} style={styles.checkRow}><View style={[styles.checkCircle, checked && styles.checkCircleDone]}>{checked && <Ionicons name="checkmark" size={14} color={colors.white} />}</View><Text style={[styles.checkLabel, checked && styles.checkLabelDone]}>{label}</Text><Ionicons name="chevron-forward" size={17} color={colors.muted} /></Pressable>; }
+function ProfileLink({ icon, text, onPress }: { icon: keyof typeof Ionicons.glyphMap; text: string; onPress: () => void }) { return <Pressable onPress={onPress} style={styles.profileLink}><Ionicons name={icon} size={21} color={colors.plum} /><Text style={styles.profileLinkText}>{text}</Text><Ionicons name="chevron-forward" size={17} color={colors.muted} /></Pressable>; }
 function RoleCard({ icon, label, selected, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; selected: boolean; onPress: () => void }) { return <Pressable onPress={onPress} style={[styles.roleCard, selected && styles.roleCardSelected]}><Ionicons name={icon} size={24} color={colors.plum} /><Text style={styles.roleLabel}>{label}</Text>{selected && <Ionicons name="checkmark-circle" size={18} color={colors.coral} style={styles.roleCheck} />}</Pressable>; }
 
 function TabButton({ tab, active, savedCount, onPress }: { tab: Tab; active: boolean; savedCount: number; onPress: () => void }) {
@@ -225,9 +278,9 @@ const styles = StyleSheet.create({
   safeScreen: { flex: 1, backgroundColor: colors.cream },
   pagePadding: { paddingHorizontal: 18, paddingBottom: 42 },
   header: { height: 61, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  brand: { flexDirection: "row", alignItems: "center", gap: 9 },
-  brandMark: { width: 32, height: 32, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: colors.plum },
-  brandName: { color: colors.plum, fontFamily: "Georgia", fontSize: 22, fontWeight: "700", letterSpacing: -0.5 },
+  brand: { flexDirection: "row", alignItems: "center" },
+  brandLogoShell: { width: 116, height: 36, paddingHorizontal: 10, paddingVertical: 9, borderRadius: 7, backgroundColor: colors.plum },
+  brandLogo: { width: "100%", height: "100%" },
   avatar: { width: 38, height: 38, borderRadius: 20, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
   hero: { height: 344, marginHorizontal: 15, overflow: "hidden", position: "relative", borderRadius: 25, backgroundColor: colors.plumDark },
   heroImage: { position: "absolute", width: "100%", height: "100%" },
@@ -239,7 +292,8 @@ const styles = StyleSheet.create({
   searchBar: { minHeight: 59, marginHorizontal: 27, marginTop: -19, paddingHorizontal: 15, borderRadius: 16, backgroundColor: colors.white, flexDirection: "row", alignItems: "center", gap: 8, shadowColor: colors.plumDark, shadowOpacity: 0.14, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 5 },
   searchInput: { flex: 1, color: colors.ink, fontSize: 11, paddingVertical: 12 },
   searchDivider: { width: 1, height: 25, backgroundColor: colors.border },
-  searchLocation: { color: colors.ink, fontSize: 10, fontWeight: "800" },
+  locationButton: { maxWidth: 112, minHeight: 40, flexDirection: "row", alignItems: "center", gap: 4 },
+  searchLocation: { maxWidth: 68, color: colors.ink, fontSize: 10, fontWeight: "800" },
   vowiCard: { marginHorizontal: 18, marginTop: 25, padding: 15, borderRadius: 18, borderWidth: 1, borderColor: "#E5C8D2", backgroundColor: colors.blush, flexDirection: "row", alignItems: "center", gap: 11 },
   vowiIcon: { width: 42, height: 42, borderRadius: 13, backgroundColor: colors.plum, alignItems: "center", justifyContent: "center" },
   vowiCopy: { flex: 1 },
@@ -258,6 +312,9 @@ const styles = StyleSheet.create({
   sectionRow: { marginTop: 16, marginRight: 18, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
   seeAll: { color: colors.coral, fontSize: 10, fontWeight: "900", paddingBottom: 3, borderBottomWidth: 1, borderBottomColor: colors.coral },
   vendorScroll: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 25, gap: 14 },
+  inlineEmpty: { margin: 18, padding: 25, alignItems: "center", borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
+  inlineEmptyTitle: { color: colors.ink, fontFamily: "Georgia", fontSize: 20, fontWeight: "600", marginTop: 10 },
+  inlineEmptyText: { color: colors.muted, fontSize: 10, lineHeight: 16, textAlign: "center", marginTop: 6 },
   trustCard: { marginHorizontal: 18, padding: 23, borderRadius: 22, backgroundColor: colors.plumDark },
   trustKicker: { color: "#F4B4A9", fontSize: 8, fontWeight: "900", letterSpacing: 1.2 },
   trustTitle: { color: colors.white, fontFamily: "Georgia", fontSize: 25, lineHeight: 30, marginTop: 6 },
@@ -285,6 +342,8 @@ const styles = StyleSheet.create({
   emptyIcon: { width: 68, height: 68, borderRadius: 34, alignItems: "center", justifyContent: "center", backgroundColor: colors.blush },
   emptyTitle: { color: colors.ink, fontFamily: "Georgia", fontSize: 26, fontWeight: "600", marginTop: 20 },
   emptyText: { color: colors.muted, fontSize: 11, lineHeight: 18, textAlign: "center", marginTop: 8 },
+  emptyButton: { minHeight: 43, marginTop: 20, paddingHorizontal: 20, borderRadius: 22, backgroundColor: colors.plum, alignItems: "center", justifyContent: "center" },
+  emptyButtonText: { color: colors.white, fontSize: 11, fontWeight: "900" },
   planHero: { padding: 24, marginBottom: 4, borderRadius: 22, backgroundColor: colors.plum },
   planHeroTitle: { color: colors.white, fontFamily: "Georgia", fontSize: 29, lineHeight: 34, fontWeight: "600", marginTop: 18 },
   planHeroText: { color: "rgba(255,255,255,0.72)", fontSize: 11, lineHeight: 18, marginTop: 8 },
@@ -319,5 +378,30 @@ const styles = StyleSheet.create({
   roleCheck: { position: "absolute", right: 11, top: 11 },
   inputLabel: { color: colors.ink, fontSize: 8, fontWeight: "900", letterSpacing: 1, marginTop: 13, marginBottom: 6 },
   authInput: { height: 52, paddingHorizontal: 15, marginBottom: 4, borderRadius: 13, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, color: colors.ink },
-  terms: { color: colors.muted, fontSize: 8, lineHeight: 14, textAlign: "center", paddingHorizontal: 20, marginTop: 16 }
+  formError: { color: "#9F332C", fontSize: 10, lineHeight: 15, marginVertical: 9 },
+  terms: { color: colors.muted, fontSize: 8, lineHeight: 14, textAlign: "center", paddingHorizontal: 20, marginTop: 16 },
+  toast: { minHeight: 48, position: "absolute", left: 18, right: 18, zIndex: 20, paddingHorizontal: 15, borderRadius: 13, backgroundColor: colors.plum, flexDirection: "row", alignItems: "center", gap: 8, shadowColor: "#000", shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 7 }, elevation: 8 },
+  toastText: { flex: 1, color: colors.white, fontSize: 11, fontWeight: "800" },
+  sheetBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" },
+  sheet: { paddingHorizontal: 19, paddingTop: 9, paddingBottom: 20, borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: colors.cream },
+  sheetHandle: { width: 42, height: 4, alignSelf: "center", marginBottom: 18, borderRadius: 2, backgroundColor: colors.border },
+  sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 18 },
+  sheetKicker: { color: colors.coral, fontSize: 8, fontWeight: "900", letterSpacing: 1.2 },
+  sheetTitle: { color: colors.ink, fontFamily: "Georgia", fontSize: 27, fontWeight: "600", marginTop: 4 },
+  locationOptions: { gap: 8 },
+  locationOption: { minHeight: 54, paddingHorizontal: 15, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, flexDirection: "row", alignItems: "center", gap: 9 },
+  locationOptionActive: { borderColor: colors.coral, backgroundColor: colors.blush },
+  locationOptionText: { flex: 1, color: colors.ink, fontSize: 12, fontWeight: "800" },
+  vendorModal: { flex: 1, backgroundColor: colors.cream },
+  vendorModalTop: { minHeight: 58, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  vendorModalImage: { width: "100%", height: 330, backgroundColor: colors.blush },
+  vendorModalContent: { padding: 22, paddingBottom: 42 },
+  vendorModalCategory: { color: colors.coral, fontSize: 9, fontWeight: "900", letterSpacing: 1, textTransform: "uppercase" },
+  vendorModalTitle: { color: colors.ink, fontFamily: "Georgia", fontSize: 35, lineHeight: 41, fontWeight: "600", marginTop: 7 },
+  vendorModalMeta: { marginTop: 9, flexDirection: "row", justifyContent: "space-between" },
+  vendorModalReason: { color: colors.muted, fontSize: 12, lineHeight: 19, marginTop: 20 },
+  vendorModalFacts: { marginTop: 22, paddingVertical: 17, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border, flexDirection: "row", gap: 35 },
+  vendorModalActions: { gap: 10, marginTop: 22 },
+  secondaryButton: { width: "100%", minHeight: 49, borderRadius: 25, borderWidth: 1, borderColor: colors.plum, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+  secondaryButtonText: { color: colors.plum, fontSize: 11, fontWeight: "900" }
 });

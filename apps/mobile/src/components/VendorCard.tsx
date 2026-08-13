@@ -7,18 +7,19 @@ type Props = {
   vendor: CoupleVendor;
   saved: boolean;
   onSave: () => void;
+  onView: () => void;
   fullWidth?: boolean;
   score?: number;
 };
 
-export function VendorCard({ vendor, saved, onSave, fullWidth = false, score }: Props) {
+export function VendorCard({ vendor, saved, onSave, onView, fullWidth = false, score }: Props) {
   return (
     <View style={[styles.card, fullWidth && styles.fullWidth]}>
       <View style={[styles.imageWrap, fullWidth && styles.fullImage]}>
         <Image source={{ uri: vendor.image }} style={styles.image} resizeMode="cover" alt={`${vendor.name} wedding portfolio`} />
         <View style={styles.badge}>
           <Ionicons name={score ? "sparkles" : "checkmark-circle"} size={12} color={colors.plum} />
-          <Text style={styles.badgeText}>{score ? `${score}% Vowi match` : vendor.tier}</Text>
+          <Text style={styles.badgeText}>{score ? `${score}% Smitten match` : vendor.tier}</Text>
         </View>
         <Pressable
           onPress={onSave}
@@ -42,7 +43,7 @@ export function VendorCard({ vendor, saved, onSave, fullWidth = false, score }: 
         {fullWidth && <Text style={styles.reason} numberOfLines={2}>{vendor.reason}</Text>}
         <View style={styles.footer}>
           <Text style={styles.price}>{vendor.price}</Text>
-          <Pressable accessibilityRole="button" style={styles.viewButton}><Text style={styles.viewText}>View profile</Text><Ionicons name="chevron-forward" size={15} color={colors.coral} /></Pressable>
+          <Pressable onPress={onView} accessibilityRole="button" accessibilityLabel={`View ${vendor.name} profile`} style={styles.viewButton}><Text style={styles.viewText}>View profile</Text><Ionicons name="chevron-forward" size={15} color={colors.coral} /></Pressable>
         </View>
       </View>
     </View>

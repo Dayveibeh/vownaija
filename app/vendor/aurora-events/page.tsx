@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, BadgeCheck, Check, ChevronRight, Heart, Instagram, MapPin, MessageCircle, Play, Share2, Star, X } from "lucide-react";
 import { FormEvent, useState } from "react";
+import { Brand } from "../../components/Brand";
 
 const gallery = [
   "https://ikejabird.com/wp-content/uploads/2025/10/2022-02-01-1.jpg",
@@ -25,7 +26,7 @@ export default function VendorProfilePage() {
   return (
     <main className="profile-page">
       <header className="profile-header">
-        <Link href="/" className="brand"><span className="brand-mark"><Heart size={16} /></span><span>VowNaija</span></Link>
+        <Brand />
         <nav><Link href="/"><ArrowLeft size={16} /> Back to search</Link><a href="#about">About</a><a href="#packages">Packages</a><a href="#reviews">Reviews</a></nav>
         <button className="button button-primary button-small" onClick={() => setQuoteOpen(true)}>Request a quote</button>
       </header>

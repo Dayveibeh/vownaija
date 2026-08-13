@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronRight, Heart, MapPin, Sparkles, Star, UsersRound, WalletCards, WandSparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { recommendCoupleVendors, serviceOptions, styleOptions, weddingLocations } from "../vendor-data";
+import { Brand } from "../../components/Brand";
 
 export default function CoupleMatchPage() {
   const [step, setStep] = useState(0);
@@ -13,6 +14,7 @@ export default function CoupleMatchPage() {
   const [budget, setBudget] = useState("₦1m–₦3m");
   const [services, setServices] = useState(["Planning & décor", "Photography", "Cakes & desserts"]);
   const [style, setStyle] = useState("Modern");
+  const [saved, setSaved] = useState<string[]>([]);
 
   const matches = useMemo(() => {
     const ceiling = budget === "Under ₦1m" ? 500000 : budget === "₦1m–₦3m" ? 1000000 : budget === "₦3m–₦7m" ? 2200000 : Number.POSITIVE_INFINITY;
@@ -23,10 +25,14 @@ export default function CoupleMatchPage() {
     setServices((current) => current.includes(service) ? current.filter((item) => item !== service) : [...current, service]);
   }
 
+  function toggleSaved(name: string) {
+    setSaved((current) => current.includes(name) ? current.filter((item) => item !== name) : [...current, name]);
+  }
+
   return (
     <main className="match-shell">
       <header className="match-header">
-        <Link href="/" className="brand"><span className="brand-mark"><Heart size={16} /></span><span>VowNaija</span></Link>
+        <Brand />
         {step > 0 && step < 4 && <div className="match-progress"><span>Step {step} of 3</span><i><b style={{ width: `${(step / 3) * 100}%` }} /></i></div>}
         <Link href="/couples/dashboard" className="skip-match">Skip for now <ArrowRight size={15} /></Link>
       </header>
@@ -35,7 +41,7 @@ export default function CoupleMatchPage() {
         <div className="match-spark"><WandSparkles size={38} /><i /><i /><i /></div>
         <p className="eyebrow"><span /> Meet your AI matchmaker</p>
         <h1>Let’s find vendors who<br /><em>fit your kind of wedding.</em></h1>
-        <p>Tell Vowi a little about your plans. We’ll balance budget, location, style, reviews and availability to build a personalised shortlist.</p>
+        <p>Tell Smitten AI a little about your plans. We’ll balance budget, location, style, reviews and availability to build a personalised shortlist.</p>
         <div className="match-feature-row"><span><MapPin /> Your location</span><span><WalletCards /> Your budget</span><span><Sparkles /> Your style</span></div>
         <button className="button button-primary" onClick={() => setStep(1)}>Find my matches <ArrowRight size={18} /></button>
         <Link href="/couples/dashboard">No thanks, take me to my dashboard</Link>
@@ -56,17 +62,17 @@ export default function CoupleMatchPage() {
         {step === 3 && <div className="match-step">
           <div className="question-icon"><Sparkles /></div><p className="step-label">The feeling</p><h2>What should your wedding feel like?</h2><p>Pick the style closest to your vision. You can always mix and change this later.</p>
           <div className="style-options">{styleOptions.map((item) => <button key={item} className={style === item ? "selected" : ""} onClick={() => setStyle(item)}><span className={`style-swatch ${item.toLowerCase()}`} /><strong>{item}</strong>{style === item && <Check />}</button>)}</div>
-          <div className="priority-box"><Sparkles /><div><strong>Vowi will prioritise:</strong><p>Strong reviews · {location} availability · {budget} budget · {style.toLowerCase()} style · {guestCount.toLowerCase()}</p></div></div>
+          <div className="priority-box"><Sparkles /><div><strong>Smitten AI will prioritise:</strong><p>Strong reviews · {location} availability · {budget} budget · {style.toLowerCase()} style · {guestCount.toLowerCase()}</p></div></div>
         </div>}
 
         <div className="match-step-actions"><button onClick={() => setStep((current) => current - 1)}><ArrowLeft size={16} /> Back</button><button className="button button-primary" onClick={() => setStep((current) => current + 1)}>{step === 3 ? "Build my shortlist" : "Continue"} {step === 3 ? <Sparkles size={17} /> : <ArrowRight size={17} />}</button></div>
       </section>}
 
       {step === 4 && <section className="match-results">
-        <div className="results-heading"><div><p className="eyebrow"><span /> Your Vowi shortlist</p><h1>We found your<br /><em>strongest matches.</em></h1><p>Based on a {weddingType.toLowerCase()} in {location}, a {budget} vendor budget and your {style.toLowerCase()} style.</p></div><div className="result-summary"><span><strong>{matches.length}</strong>top matches</span><span><strong>{services.length}</strong>services</span><span><strong>{location}</strong>location</span></div></div>
+        <div className="results-heading"><div><p className="eyebrow"><span /> Your Smitten shortlist</p><h1>We found your<br /><em>strongest matches.</em></h1><p>Based on a {weddingType.toLowerCase()} in {location}, a {budget} vendor budget and your {style.toLowerCase()} style.</p></div><div className="result-summary"><span><strong>{matches.length}</strong>top matches</span><span><strong>{services.length}</strong>services</span><span><strong>{location}</strong>location</span></div></div>
         <div className="match-result-grid">{matches.map((vendor, index) => <article key={vendor.name}>
-          <div className="result-image"><img src={vendor.image} alt={`${vendor.name} wedding portfolio`} /><span>{vendor.score}% match</span><button aria-label={`Save ${vendor.name}`}><Heart size={17} /></button></div>
-          <div className="result-card-body"><div className="result-tier"><span>{vendor.category}</span><i>{vendor.tier}</i></div><h2>{vendor.name}</h2><p className="result-location"><MapPin size={14} /> {vendor.location} <span><Star size={13} fill="currentColor" /> {vendor.rating} ({vendor.reviews})</span></p><div className="match-reason"><Sparkles size={15} /><p><strong>Why Vowi picked this</strong>{vendor.reason}</p></div><div className="result-footer"><strong>{vendor.price}</strong>{index === 0 ? <Link href="/vendor/aurora-events">View profile <ChevronRight size={16} /></Link> : <button>View profile <ChevronRight size={16} /></button>}</div></div>
+          <div className="result-image"><img src={vendor.image} alt={`${vendor.name} wedding portfolio`} /><span>{vendor.score}% match</span><button className={saved.includes(vendor.name) ? "saved" : ""} onClick={() => toggleSaved(vendor.name)} aria-label={`${saved.includes(vendor.name) ? "Remove" : "Save"} ${vendor.name}`}><Heart size={17} fill={saved.includes(vendor.name) ? "currentColor" : "none"} /></button></div>
+          <div className="result-card-body"><div className="result-tier"><span>{vendor.category}</span><i>{vendor.tier}</i></div><h2>{vendor.name}</h2><p className="result-location"><MapPin size={14} /> {vendor.location} <span><Star size={13} fill="currentColor" /> {vendor.rating} ({vendor.reviews})</span></p><div className="match-reason"><Sparkles size={15} /><p><strong>Why Smitten picked this</strong>{vendor.reason}</p></div><div className="result-footer"><strong>{vendor.price}</strong>{index === 0 ? <Link href="/vendor/aurora-events">View profile <ChevronRight size={16} /></Link> : <Link href={`/couples/sign-up?vendor=${encodeURIComponent(vendor.name)}`}>Enquire <ChevronRight size={16} /></Link>}</div></div>
         </article>)}</div>
         <div className="results-bottom"><Link href="/couples/dashboard" className="button button-dark">Save shortlist & continue <ArrowRight size={17} /></Link><button onClick={() => setStep(1)}>Change my answers</button></div>
       </section>}

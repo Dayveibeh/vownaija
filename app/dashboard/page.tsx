@@ -10,7 +10,6 @@ import {
   ChevronDown,
   CircleDollarSign,
   FileText,
-  Heart,
   ImagePlus,
   Instagram,
   LayoutDashboard,
@@ -31,6 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
+import { Brand } from "../components/Brand";
 
 type Tab = "Overview" | "Enquiries" | "Quotes" | "Messages" | "Portfolio" | "Reviews";
 
@@ -41,10 +41,10 @@ const leads = [
 ];
 
 const initialQuotes = [
-  { id: "VN-1042", client: "Amara & Tunde", title: "Full Celebration Package", amount: 3750000, status: "Viewed", date: "12 Aug 2026" },
-  { id: "VN-1039", client: "Nneka & Ifeanyi", title: "Signature Styling", amount: 1250000, status: "Sent", date: "10 Aug 2026" },
-  { id: "VN-1034", client: "Bisi & Femi", title: "Day Coordination", amount: 650000, status: "Accepted", date: "06 Aug 2026" },
-  { id: "VN-1028", client: "Zainab & Musa", title: "Traditional Wedding Décor", amount: 980000, status: "Draft", date: "02 Aug 2026" },
+  { id: "SM-1042", client: "Amara & Tunde", title: "Full Celebration Package", amount: 3750000, status: "Viewed", date: "12 Aug 2026" },
+  { id: "SM-1039", client: "Nneka & Ifeanyi", title: "Signature Styling", amount: 1250000, status: "Sent", date: "10 Aug 2026" },
+  { id: "SM-1034", client: "Bisi & Femi", title: "Day Coordination", amount: 650000, status: "Accepted", date: "06 Aug 2026" },
+  { id: "SM-1028", client: "Zainab & Musa", title: "Traditional Wedding Décor", amount: 980000, status: "Draft", date: "02 Aug 2026" },
 ];
 
 const messages = [
@@ -93,7 +93,7 @@ export default function DashboardPage() {
     if (editQuote) {
       setQuotes((current) => current.map((quote) => quote.id === editQuote.id ? { ...quote, amount: quoteTotal, status: sendNow ? "Sent" : quote.status } : quote));
     } else {
-      setQuotes((current) => [{ id: `VN-${1043 + current.length}`, client: "Amara & Tunde", title: "Custom Wedding Package", amount: quoteTotal, status: sendNow ? "Sent" : "Draft", date: "13 Aug 2026" }, ...current]);
+      setQuotes((current) => [{ id: `SM-${1043 + current.length}`, client: "Amara & Tunde", title: "Custom Wedding Package", amount: quoteTotal, status: sendNow ? "Sent" : "Draft", date: "13 Aug 2026" }, ...current]);
     }
     setQuoteOpen(false);
     showToast(sendNow ? "Quote sent to the client" : "Quote saved as a draft");
@@ -109,7 +109,7 @@ export default function DashboardPage() {
   return (
     <main className="dashboard-shell">
       <aside className={mobileNav ? "dashboard-sidebar mobile-open" : "dashboard-sidebar"}>
-        <div className="dash-brand-row"><Link href="/" className="brand"><span className="brand-mark"><Heart size={16} /></span><span>VowNaija</span></Link><button onClick={() => setMobileNav(false)}><X size={20} /></button></div>
+        <div className="dash-brand-row"><Brand /><button onClick={() => setMobileNav(false)}><X size={20} /></button></div>
         <div className="vendor-switcher"><span>AE</span><div><strong>Aurora Events NG</strong><small>Premium plan</small></div><ChevronDown size={16} /></div>
         <nav>
           <small>Workspace</small>
@@ -126,7 +126,7 @@ export default function DashboardPage() {
       </aside>
 
       <section className="dashboard-main">
-        <header className="dashboard-topbar"><button className="dash-menu" onClick={() => setMobileNav(true)}><Menu /></button><div className="dash-search"><Search size={17} /><input placeholder="Search clients, quotes, messages…" /><kbd>⌘ K</kbd></div><div><button className="ai-top-button" onClick={() => setAiOpen(true)}><Sparkles size={16} /> Ask Vowi AI</button><button className="notification-button"><Bell size={19} /><span /></button><span className="user-avatar">AO</span></div></header>
+        <header className="dashboard-topbar"><button className="dash-menu" onClick={() => setMobileNav(true)}><Menu /></button><div className="dash-search"><Search size={17} /><input placeholder="Search clients, quotes, messages…" /><kbd>⌘ K</kbd></div><div><button className="ai-top-button" onClick={() => setAiOpen(true)}><Sparkles size={16} /> Ask Smitten AI</button><button className="notification-button" onClick={() => showToast("You have 2 unread messages")}><Bell size={19} /><span /></button><span className="user-avatar">AO</span></div></header>
 
         <div className="dashboard-content">
           {tab === "Overview" && <Overview setTab={setTab} openQuote={() => openQuote()} />}
@@ -138,9 +138,9 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <button className="floating-ai" onClick={() => setAiOpen(true)} aria-label="Open AI assistant"><Sparkles size={20} /><span>Vowi AI</span></button>
+      <button className="floating-ai" onClick={() => setAiOpen(true)} aria-label="Open AI assistant"><Sparkles size={20} /><span>Smitten AI</span></button>
       {aiOpen && <aside className="ai-panel">
-        <header><div><span><Bot size={19} /></span><div><strong>Vowi AI</strong><small>Business co-pilot</small></div></div><button onClick={() => setAiOpen(false)}><X /></button></header>
+        <header><div><span><Bot size={19} /></span><div><strong>Smitten AI</strong><small>Business co-pilot</small></div></div><button onClick={() => setAiOpen(false)}><X /></button></header>
         <div className="ai-thread">{aiMessages.map((message, index) => <div key={`${index}-${message.slice(0, 8)}`} className={index % 2 ? "ai-user-message" : "ai-bot-message"}>{index % 2 === 0 && <span><Sparkles size={14} /></span>}<p>{message}</p></div>)}</div>
         <div className="ai-suggestions"><button onClick={() => askAi("Draft a warm reply to my newest enquiry")}>Reply to an enquiry</button><button onClick={() => askAi("Suggest improvements to my latest quote")}>Improve a quote</button></div>
         <div className="ai-input"><input value={aiInput} onChange={(event) => setAiInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") askAi(); }} placeholder="Ask anything about your business…" /><button onClick={() => askAi()}><Send size={17} /></button></div>
@@ -174,7 +174,7 @@ function Overview({ setTab, openQuote }: { setTab: (tab: Tab) => void; openQuote
     <PageHeading eyebrow="Thursday, 13 August" title="Good afternoon, Adaeze" text="Here’s what’s happening with Aurora Events today." action={<button className="button button-primary" onClick={openQuote}><Plus size={17} /> Create quote</button>} />
     <div className="stat-grid"><article><span className="stat-icon coral"><Users /></span><div><p>New enquiries</p><strong>12</strong><small>↑ 20% this month</small></div></article><article><span className="stat-icon plum"><FileText /></span><div><p>Open quotes</p><strong>8</strong><small>₦9.4m potential</small></div></article><article><span className="stat-icon green"><CircleDollarSign /></span><div><p>Bookings</p><strong>5</strong><small>↑ 2 this month</small></div></article><article><span className="stat-icon gold"><Star /></span><div><p>Profile rating</p><strong>4.9</strong><small>86 reviews</small></div></article></div>
     <div className="overview-grid"><section className="dash-card recent-enquiries"><div className="dash-card-title"><div><h2>New enquiries</h2><p>Couples waiting to hear from you</p></div><button onClick={() => setTab("Enquiries")}>View all <ArrowRight size={15} /></button></div>{leads.map((lead) => <article key={lead.name}><span className={`lead-avatar ${lead.tone}`}>{lead.initials}</span><div><strong>{lead.name}</strong><small>{lead.service} · {lead.date}</small></div><span>{lead.budget}</span><small>{lead.age}</small><button><MoreHorizontal /></button></article>)}</section><section className="dash-card profile-strength"><div className="dash-card-title"><div><h2>Profile strength</h2><p>You’re almost there</p></div><strong>82%</strong></div><div className="strength-bar"><span /></div><ul><li className="done"><Check /> Business details</li><li className="done"><Check /> Portfolio uploaded</li><li><Plus /> Add 2 more packages</li><li><Plus /> Connect TikTok</li></ul><button onClick={() => setTab("Portfolio")}>Complete profile <ArrowRight size={15} /></button></section></div>
-    <div className="overview-grid bottom-overview"><section className="dash-card"><div className="dash-card-title"><div><h2>Quote activity</h2><p>Performance over the last 30 days</p></div><button onClick={() => setTab("Quotes")}>Manage quotes</button></div><div className="activity-bars"><div><span>Sent</span><i><b style={{ width: "86%" }} /></i><strong>14</strong></div><div><span>Viewed</span><i><b style={{ width: "67%" }} /></i><strong>11</strong></div><div><span>Accepted</span><i><b style={{ width: "41%" }} /></i><strong>7</strong></div></div></section><section className="dash-card ai-insight-card"><span><Sparkles /></span><p>Vowi’s tip</p><h3>Your quotes with a personal note are 34% more likely to be accepted.</h3><button>See suggested template <ArrowRight size={15} /></button></section></div>
+    <div className="overview-grid bottom-overview"><section className="dash-card"><div className="dash-card-title"><div><h2>Quote activity</h2><p>Performance over the last 30 days</p></div><button onClick={() => setTab("Quotes")}>Manage quotes</button></div><div className="activity-bars"><div><span>Sent</span><i><b style={{ width: "86%" }} /></i><strong>14</strong></div><div><span>Viewed</span><i><b style={{ width: "67%" }} /></i><strong>11</strong></div><div><span>Accepted</span><i><b style={{ width: "41%" }} /></i><strong>7</strong></div></div></section><section className="dash-card ai-insight-card"><span><Sparkles /></span><p>Smitten’s tip</p><h3>Your quotes with a personal note are 34% more likely to be accepted.</h3><button onClick={() => setTab("Messages")}>See suggested template <ArrowRight size={15} /></button></section></div>
   </>;
 }
 
@@ -192,7 +192,7 @@ function Messages({ selected, setSelected, emailText, setEmailText, showToast }:
 }
 
 function Portfolio({ uploaded, setUploaded, showToast }: { uploaded: string[]; setUploaded: (value: string[]) => void; showToast: (message: string) => void }) {
-  return <><PageHeading eyebrow="Your storefront" title="Portfolio & social" text="Show couples what makes your work special." action={<label className="button button-primary upload-button"><Upload size={17} /> Upload media<input type="file" multiple accept="image/*,video/*" onChange={(event) => { const names = Array.from(event.target.files ?? []).map((file) => file.name); setUploaded([...uploaded, ...names]); showToast(`${names.length} media file${names.length === 1 ? "" : "s"} added`); }} /></label>} /><section className="portfolio-layout"><div className="dash-card portfolio-card"><div className="dash-card-title"><div><h2>Gallery</h2><p>12 photos · 3 videos</p></div><button>Reorder</button></div><div className="portfolio-grid">{portfolioImages.map((image, index) => <div key={image}><img src={image} alt={`Aurora Events portfolio ${index + 1}`} />{index === 1 && <span>Cover</span>}</div>)}{uploaded.map((name) => <div className="new-upload" key={name}><ImagePlus /><span>{name}</span></div>)}<label className="portfolio-add"><Plus /><span>Add media</span><input type="file" accept="image/*,video/*" onChange={(event) => { const name = event.target.files?.[0]?.name; if (name) { setUploaded([...uploaded, name]); showToast("Media added to your portfolio"); } }} /></label></div></div><aside><section className="dash-card social-card"><div className="dash-card-title"><div><h2>Social connections</h2><p>Help couples see more of your work</p></div></div><div><span className="instagram-icon"><Instagram /></span><p><strong>Instagram</strong><small>@auroraeventsng</small></p><i>Connected</i></div><div><span className="tiktok-icon">♪</span><p><strong>TikTok</strong><small>Not connected</small></p><button>Connect</button></div><div><span className="whatsapp-icon">W</span><p><strong>WhatsApp</strong><small>+234 803 456 7890</small></p><i>Connected</i></div></section><section className="dash-card profile-copy-card"><div><Sparkles /></div><h3>Need help with your profile copy?</h3><p>Vowi can turn a few notes into an engaging business description in your voice.</p><button>Write with AI <ArrowRight size={15} /></button></section></aside></section></>;
+  return <><PageHeading eyebrow="Your storefront" title="Portfolio & social" text="Show couples what makes your work special." action={<label className="button button-primary upload-button"><Upload size={17} /> Upload media<input type="file" multiple accept="image/*,video/*" onChange={(event) => { const names = Array.from(event.target.files ?? []).map((file) => file.name); setUploaded([...uploaded, ...names]); showToast(`${names.length} media file${names.length === 1 ? "" : "s"} added`); }} /></label>} /><section className="portfolio-layout"><div className="dash-card portfolio-card"><div className="dash-card-title"><div><h2>Gallery</h2><p>12 photos · 3 videos</p></div><button onClick={() => showToast("Drag-to-reorder is ready in the production workspace")}>Reorder</button></div><div className="portfolio-grid">{portfolioImages.map((image, index) => <div key={image}><img src={image} alt={`Aurora Events portfolio ${index + 1}`} />{index === 1 && <span>Cover</span>}</div>)}{uploaded.map((name) => <div className="new-upload" key={name}><ImagePlus /><span>{name}</span></div>)}<label className="portfolio-add"><Plus /><span>Add media</span><input type="file" accept="image/*,video/*" onChange={(event) => { const name = event.target.files?.[0]?.name; if (name) { setUploaded([...uploaded, name]); showToast("Media added to your portfolio"); } }} /></label></div></div><aside><section className="dash-card social-card"><div className="dash-card-title"><div><h2>Social connections</h2><p>Help couples see more of your work</p></div></div><div><span className="instagram-icon"><Instagram /></span><p><strong>Instagram</strong><small>@auroraeventsng</small></p><i>Connected</i></div><div><span className="tiktok-icon">♪</span><p><strong>TikTok</strong><small>Not connected</small></p><button onClick={() => showToast("TikTok connection started")}>Connect</button></div><div><span className="whatsapp-icon">W</span><p><strong>WhatsApp</strong><small>+234 803 456 7890</small></p><i>Connected</i></div></section><section className="dash-card profile-copy-card"><div><Sparkles /></div><h3>Need help with your profile copy?</h3><p>Smitten AI can turn a few notes into an engaging business description in your voice.</p><button onClick={() => showToast("Smitten AI opened a profile-copy draft")}>Write with AI <ArrowRight size={15} /></button></section></aside></section></>;
 }
 
 function Reviews({ showToast }: { showToast: (message: string) => void }) {

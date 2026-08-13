@@ -1,17 +1,29 @@
 {
   "expo": {
-    "name": "VowNaija",
+    "name": "Smitten",
     "slug": "vownaija",
     "version": "1.0.0",
+    "scheme": "smitten",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "backgroundColor": "#fffaf7",
+    "backgroundColor": "#EDF1E2",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
     "ios": {
       "supportsTablet": true,
+      "icon": "./assets/icon.png",
       "bundleIdentifier": "com.vownaija.app"
     },
     "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#000000"
+      },
       "package": "com.vownaija.app"
     }
   }
