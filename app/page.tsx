@@ -157,12 +157,12 @@ export default function Home() {
           <a href="#how-it-works">How it works</a>
           <Link href="/couples/match">AI recommendations</Link>
           <a href="#inspiration">Inspiration</a>
-          <Link href="/couples/sign-up" className="mobile-auth-link">Couple sign in</Link>
+          <Link href="/couples/sign-up" className="mobile-auth-link">Sign in</Link>
           <Link href="/dashboard" className="mobile-auth-link">Vendor sign in</Link>
         </nav>
 
         <div className="header-actions">
-          <Link href="/couples/sign-up" className="couple-sign-in"><UserRound size={15} /> Couple sign in</Link>
+          <Link href="/couples/sign-up" className="couple-sign-in"><UserRound size={15} /> Sign in</Link>
           <Link href="/dashboard" className="text-link vendor-sign-in">Vendor sign in</Link>
           <Link href="/onboarding" className="button button-dark button-small">Join as vendor</Link>
         </div>
