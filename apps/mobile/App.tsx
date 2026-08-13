@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { coupleVendors, recommendCoupleVendors, serviceOptions, weddingLocations, type CoupleVendor } from "@smitten/shared";
 import { MatchModal } from "./src/components/MatchModal";
@@ -9,8 +9,18 @@ import { VendorCard } from "./src/components/VendorCard";
 import { colors } from "./src/theme";
 
 type Tab = "Home" | "Discover" | "Saved" | "Planning" | "Profile";
+type TabIconSet = { base: keyof typeof Ionicons.glyphMap; active: keyof typeof Ionicons.glyphMap; accent: keyof typeof Ionicons.glyphMap };
+
+const tabIcons: Record<Tab, TabIconSet> = {
+  Home: { base: "home-outline", active: "home", accent: "heart" },
+  Discover: { base: "compass-outline", active: "compass", accent: "sparkles" },
+  Saved: { base: "heart-outline", active: "heart", accent: "bookmark" },
+  Planning: { base: "calendar-outline", active: "calendar", accent: "checkmark-circle" },
+  Profile: { base: "person-circle-outline", active: "person-circle", accent: "settings" },
+};
 
 const heroImage = "https://static.wixstatic.com/media/fdf893_120788a0b4fa499fb373d950cc86501e~mv2.jpg/v1/fill/w_980%2Ch_980%2Cal_c%2Cq_85%2Cusm_0.66_1.00_0.01%2Cenc_avif%2Cquality_auto/fdf893_120788a0b4fa499fb373d950cc86501e~mv2.jpg";
+const appFont = Platform.OS === "ios" ? "System" : "sans-serif";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const smittenWordmark = require("./assets/smitten-wordmark.png");
 
@@ -91,7 +101,7 @@ function SmittenApp() {
     <View style={[styles.app, darkMode && styles.appDark]}>
       <StatusBar style={darkMode ? "light" : "dark"} />
       <View style={styles.screen}>{screen}</View>
-      <View style={[styles.tabBar, darkMode && styles.tabBarDark, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+      <View style={[styles.tabBar, darkMode && styles.tabBarDark, { bottom: Math.max(insets.bottom, 10) }]}>
         {(["Home", "Discover", "Saved", "Planning", "Profile"] as Tab[]).map((item) => (
           <TabButton key={item} darkMode={darkMode} tab={item} active={tab === item} savedCount={item === "Saved" ? saved.length : 0} onPress={() => setTab(item)} />
         ))}
@@ -378,10 +388,21 @@ function ProfileLink({ icon, text, onPress }: { icon: keyof typeof Ionicons.glyp
 function RoleCard({ icon, label, selected, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; selected: boolean; onPress: () => void }) { return <Pressable onPress={onPress} style={[styles.roleCard, selected && styles.roleCardSelected]}><Ionicons name={icon} size={24} color={colors.plum} /><Text style={styles.roleLabel}>{label}</Text>{selected && <Ionicons name="checkmark-circle" size={18} color={colors.coral} style={styles.roleCheck} />}</Pressable>; }
 
 function TabButton({ tab, active, savedCount, darkMode, onPress }: { tab: Tab; active: boolean; savedCount: number; darkMode: boolean; onPress: () => void }) {
-  const icons: Record<Tab, keyof typeof Ionicons.glyphMap> = { Home: "home-outline", Discover: "search-outline", Saved: "heart-outline", Planning: "calendar-outline", Profile: "person-outline" };
-  const activeIcons: Record<Tab, keyof typeof Ionicons.glyphMap> = { Home: "home", Discover: "search", Saved: "heart", Planning: "calendar", Profile: "person" };
   const iconColor = active ? (darkMode ? "#DCE4CA" : colors.plum) : (darkMode ? "#999E92" : "#978A8F");
-  return <Pressable onPress={onPress} accessibilityRole="tab" accessibilityState={{ selected: active }} style={styles.tabButton}><View>{savedCount > 0 && <View style={styles.countBadge}><Text style={styles.countText}>{savedCount}</Text></View>}<Ionicons name={active ? activeIcons[tab] : icons[tab]} size={21} color={iconColor} /></View><Text style={[styles.tabLabel, darkMode && styles.tabLabelDark, active && styles.tabLabelActive, active && darkMode && styles.tabLabelActiveDark]}>{tab}</Text></Pressable>;
+  return <Pressable onPress={onPress} accessibilityRole="tab" accessibilityLabel={`${tab} tab`} accessibilityState={{ selected: active }} style={[styles.tabButton, active && styles.tabButtonActive, active && darkMode && styles.tabButtonActiveDark]}><View>{savedCount > 0 && <View style={styles.countBadge}><Text style={styles.countText}>{savedCount}</Text></View>}<TabVectorIcon tab={tab} active={active} color={iconColor} /></View><Text numberOfLines={1} style={[styles.tabLabel, darkMode && styles.tabLabelDark, active && styles.tabLabelActive, active && darkMode && styles.tabLabelActiveDark]}>{tab}</Text></Pressable>;
+}
+
+function TabVectorIcon({ tab, active, color }: { tab: Tab; active: boolean; color: string }) {
+  const icon = tabIcons[tab];
+
+  return (
+    <View style={[styles.tabIcon, active && styles.tabIconActive]}>
+      <Ionicons name={active ? icon.active : icon.base} size={active ? 24 : 22} color={color} />
+      <View style={[styles.tabIconAccent, { backgroundColor: active ? colors.coral : (color === "#999E92" ? "#34372F" : colors.white) }]}>
+        <Ionicons name={icon.accent} size={7} color={active ? colors.white : color} />
+      </View>
+    </View>
+  );
 }
 
 function categoryIcon(category: string): keyof typeof Ionicons.glyphMap {
@@ -398,9 +419,9 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   scroll: { flex: 1, backgroundColor: colors.cream },
   darkScreen: { backgroundColor: "#11120F" },
-  scrollContent: { paddingBottom: 36 },
+  scrollContent: { paddingBottom: 132 },
   safeScreen: { flex: 1, backgroundColor: colors.cream },
-  pagePadding: { paddingHorizontal: 18, paddingBottom: 42 },
+  pagePadding: { paddingHorizontal: 18, paddingBottom: 132 },
   header: { height: 61, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   brand: { flexDirection: "row", alignItems: "center" },
@@ -415,7 +436,7 @@ const styles = StyleSheet.create({
   heroShade: { position: "absolute", inset: 0, backgroundColor: "rgba(47,9,25,0.5)" },
   heroCopy: { position: "absolute", left: 23, right: 23, bottom: 26 },
   heroKicker: { color: "#F4B4A9", fontSize: 8, fontWeight: "900", letterSpacing: 1.4 },
-  heroTitle: { maxWidth: 315, color: colors.white, fontFamily: "Georgia", fontSize: 37, lineHeight: 40, fontWeight: "600", letterSpacing: -1.2, marginTop: 8 },
+  heroTitle: { maxWidth: 315, color: colors.white, fontFamily: appFont, fontSize: 35, lineHeight: 40, fontWeight: "600", letterSpacing: -1.1, marginTop: 8 },
   heroText: { maxWidth: 285, color: "rgba(255,255,255,0.8)", fontSize: 11, lineHeight: 17, marginTop: 8 },
   searchBar: { minHeight: 59, marginHorizontal: 27, marginTop: -19, paddingHorizontal: 15, borderRadius: 16, backgroundColor: colors.white, flexDirection: "row", alignItems: "center", gap: 8, shadowColor: colors.plumDark, shadowOpacity: 0.14, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 5 },
   searchInput: { flex: 1, color: colors.ink, fontSize: 11, paddingVertical: 12 },
@@ -430,7 +451,7 @@ const styles = StyleSheet.create({
   sectionHeading: { marginHorizontal: 18, marginTop: 27, marginBottom: 15 },
   sectionHeadingCompact: { marginBottom: 0 },
   sectionKicker: { color: colors.coral, fontSize: 8, fontWeight: "900", letterSpacing: 1.2 },
-  sectionTitle: { color: colors.ink, fontFamily: "Georgia", fontSize: 28, lineHeight: 33, fontWeight: "600", letterSpacing: -0.7, marginTop: 5 },
+  sectionTitle: { color: colors.ink, fontFamily: appFont, fontSize: 27, lineHeight: 33, fontWeight: "600", letterSpacing: -0.6, marginTop: 5 },
   sectionTitleCompact: { fontSize: 25, lineHeight: 30 },
   categoryScroll: { paddingHorizontal: 18, paddingBottom: 8, gap: 10 },
   categoryCard: { width: 116, height: 91, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, justifyContent: "space-between" },
@@ -441,25 +462,30 @@ const styles = StyleSheet.create({
   seeAll: { color: colors.coral, fontSize: 10, fontWeight: "900", paddingBottom: 3, borderBottomWidth: 1, borderBottomColor: colors.coral },
   vendorScroll: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 25, gap: 14 },
   inlineEmpty: { margin: 18, padding: 25, alignItems: "center", borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
-  inlineEmptyTitle: { color: colors.ink, fontFamily: "Georgia", fontSize: 20, fontWeight: "600", marginTop: 10 },
+  inlineEmptyTitle: { color: colors.ink, fontFamily: appFont, fontSize: 20, fontWeight: "600", marginTop: 10 },
   inlineEmptyText: { color: colors.muted, fontSize: 10, lineHeight: 16, textAlign: "center", marginTop: 6 },
   trustCard: { marginHorizontal: 18, padding: 23, borderRadius: 22, backgroundColor: colors.plumDark },
   trustKicker: { color: "#F4B4A9", fontSize: 8, fontWeight: "900", letterSpacing: 1.2 },
-  trustTitle: { color: colors.white, fontFamily: "Georgia", fontSize: 25, lineHeight: 30, marginTop: 6 },
+  trustTitle: { color: colors.white, fontFamily: appFont, fontSize: 24, lineHeight: 30, fontWeight: "600", marginTop: 6 },
   trustList: { gap: 12, marginTop: 20 },
   trustItem: { flexDirection: "row", alignItems: "center", gap: 9 },
   trustText: { color: "rgba(255,255,255,0.76)", fontSize: 10 },
-  tabBar: { minHeight: 69, paddingTop: 9, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.white, flexDirection: "row", alignItems: "flex-start" },
-  tabBarDark: { backgroundColor: "#191A17", borderTopColor: "#34362F" },
-  tabButton: { flex: 1, alignItems: "center", gap: 3 },
-  tabLabel: { color: "#978A8F", fontSize: 8, fontWeight: "700" },
-  tabLabelActive: { color: colors.plum, fontWeight: "900" },
+  tabBar: { height: 74, position: "absolute", left: 12, right: 12, zIndex: 12, padding: 7, borderWidth: 1, borderColor: "#EEF0E9", borderRadius: 38, backgroundColor: "rgba(255,255,255,0.98)", flexDirection: "row", alignItems: "center", shadowColor: "#000000", shadowOpacity: 0.13, shadowRadius: 22, shadowOffset: { width: 0, height: 9 }, elevation: 12 },
+  tabBarDark: { backgroundColor: "rgba(28,29,25,0.98)", borderColor: "#34362F" },
+  tabButton: { flex: 1, height: 58, minWidth: 0, borderRadius: 30, alignItems: "center", justifyContent: "center", gap: 2 },
+  tabButtonActive: { flex: 1.48, paddingHorizontal: 7, backgroundColor: "#ECEEE8" },
+  tabButtonActiveDark: { backgroundColor: "#33362E" },
+  tabIcon: { width: 28, height: 28, alignItems: "center", justifyContent: "center" },
+  tabIconActive: { transform: [{ translateY: -1 }] },
+  tabIconAccent: { width: 13, height: 13, position: "absolute", right: -2, top: -1, borderRadius: 7, borderWidth: 1.5, borderColor: colors.white, alignItems: "center", justifyContent: "center" },
+  tabLabel: { maxWidth: "100%", color: "#817D7F", fontFamily: appFont, fontSize: 9, fontWeight: "500", letterSpacing: -0.1 },
+  tabLabelActive: { color: colors.coral, fontWeight: "700" },
   tabLabelDark: { color: "#999E92" },
   tabLabelActiveDark: { color: "#DCE4CA" },
   countBadge: { minWidth: 14, height: 14, paddingHorizontal: 3, position: "absolute", zIndex: 2, right: -8, top: -4, borderRadius: 7, backgroundColor: colors.coral, alignItems: "center", justifyContent: "center" },
   countText: { color: colors.white, fontSize: 8, fontWeight: "900" },
   pageHeader: { paddingTop: 24, paddingBottom: 25 },
-  pageTitle: { color: colors.ink, fontFamily: "Georgia", fontSize: 40, lineHeight: 46, fontWeight: "600", letterSpacing: -1.1 },
+  pageTitle: { color: colors.ink, fontFamily: appFont, fontSize: 36, lineHeight: 43, fontWeight: "500", letterSpacing: -1 },
   pageSubtitle: { color: colors.muted, fontSize: 12, marginTop: 4 },
   pageTitleDark: { color: "#F8F9F2" },
   pageSubtitleDark: { color: "#A8ADA0" },
@@ -474,12 +500,12 @@ const styles = StyleSheet.create({
   verticalList: { gap: 17 },
   emptyState: { alignItems: "center", paddingTop: 90, paddingHorizontal: 27 },
   emptyIcon: { width: 68, height: 68, borderRadius: 34, alignItems: "center", justifyContent: "center", backgroundColor: colors.blush },
-  emptyTitle: { color: colors.ink, fontFamily: "Georgia", fontSize: 26, fontWeight: "600", marginTop: 20 },
+  emptyTitle: { color: colors.ink, fontFamily: appFont, fontSize: 25, fontWeight: "600", marginTop: 20 },
   emptyText: { color: colors.muted, fontSize: 11, lineHeight: 18, textAlign: "center", marginTop: 8 },
   emptyButton: { minHeight: 43, marginTop: 20, paddingHorizontal: 20, borderRadius: 22, backgroundColor: colors.plum, alignItems: "center", justifyContent: "center" },
   emptyButtonText: { color: colors.white, fontSize: 11, fontWeight: "900" },
   planHero: { padding: 24, marginBottom: 4, borderRadius: 22, backgroundColor: colors.plum },
-  planHeroTitle: { color: colors.white, fontFamily: "Georgia", fontSize: 29, lineHeight: 34, fontWeight: "600", marginTop: 18 },
+  planHeroTitle: { color: colors.white, fontFamily: appFont, fontSize: 28, lineHeight: 34, fontWeight: "600", marginTop: 18 },
   planHeroText: { color: "rgba(255,255,255,0.72)", fontSize: 11, lineHeight: 18, marginTop: 8 },
   creamButton: { minHeight: 46, marginTop: 20, paddingHorizontal: 18, alignSelf: "flex-start", borderRadius: 23, backgroundColor: "#FFF3EC", flexDirection: "row", alignItems: "center", gap: 8 },
   creamButtonText: { color: colors.plum, fontSize: 11, fontWeight: "900" },
@@ -491,7 +517,7 @@ const styles = StyleSheet.create({
   checkLabelDone: { color: colors.muted, textDecorationLine: "line-through" },
   profileCard: { alignItems: "center", padding: 28, borderRadius: 22, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
   profileIcon: { width: 66, height: 66, borderRadius: 33, backgroundColor: colors.blush, alignItems: "center", justifyContent: "center" },
-  profileTitle: { color: colors.ink, fontFamily: "Georgia", fontSize: 27, fontWeight: "600", marginTop: 18 },
+  profileTitle: { color: colors.ink, fontFamily: appFont, fontSize: 26, fontWeight: "600", marginTop: 18 },
   profileText: { color: colors.muted, fontSize: 11, lineHeight: 18, textAlign: "center", marginTop: 8, marginBottom: 20 },
   primaryButton: { width: "100%", minHeight: 51, borderRadius: 26, backgroundColor: colors.plum, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   primaryButtonText: { color: colors.white, fontSize: 12, fontWeight: "900" },
@@ -504,7 +530,7 @@ const styles = StyleSheet.create({
   closeButtonDark: { backgroundColor: "#292B26", borderColor: "#41443B" },
   authContent: { padding: 22, paddingTop: 55 },
   authKicker: { color: colors.coral, fontSize: 8, fontWeight: "900", letterSpacing: 1.3, textAlign: "center" },
-  authTitle: { color: colors.ink, fontFamily: "Georgia", fontSize: 36, lineHeight: 42, fontWeight: "600", textAlign: "center", marginTop: 8 },
+  authTitle: { color: colors.ink, fontFamily: appFont, fontSize: 34, lineHeight: 41, fontWeight: "500", textAlign: "center", marginTop: 8 },
   authSubtitle: { color: colors.muted, fontSize: 11, textAlign: "center", marginTop: 6, marginBottom: 26 },
   roleRow: { flexDirection: "row", gap: 10, marginBottom: 22 },
   roleCard: { flex: 1, minHeight: 106, padding: 15, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, justifyContent: "space-between" },
@@ -521,7 +547,7 @@ const styles = StyleSheet.create({
   modalHeading: { flexDirection: "row", alignItems: "center", gap: 12 },
   modalHeadingIcon: { width: 43, height: 43, borderRadius: 14, backgroundColor: colors.plum, alignItems: "center", justifyContent: "center" },
   modalKicker: { color: colors.coral, fontSize: 8, fontWeight: "900", letterSpacing: 1.2 },
-  modalTitle: { color: colors.ink, fontFamily: "Georgia", fontSize: 29, lineHeight: 34, fontWeight: "600", marginTop: 2 },
+  modalTitle: { color: colors.ink, fontFamily: appFont, fontSize: 28, lineHeight: 34, fontWeight: "600", marginTop: 2 },
   modalTitleDark: { color: "#F8F9F2" },
   modalBodyDark: { color: "#A8ADA0" },
   modalMutedDark: { color: "#AEB999" },
@@ -562,7 +588,7 @@ const styles = StyleSheet.create({
   sheetHandle: { width: 42, height: 4, alignSelf: "center", marginBottom: 18, borderRadius: 2, backgroundColor: colors.border },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 18 },
   sheetKicker: { color: colors.coral, fontSize: 8, fontWeight: "900", letterSpacing: 1.2 },
-  sheetTitle: { color: colors.ink, fontFamily: "Georgia", fontSize: 27, fontWeight: "600", marginTop: 4 },
+  sheetTitle: { color: colors.ink, fontFamily: appFont, fontSize: 26, fontWeight: "600", marginTop: 4 },
   locationOptions: { gap: 8 },
   locationOption: { minHeight: 54, paddingHorizontal: 15, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, flexDirection: "row", alignItems: "center", gap: 9 },
   locationOptionActive: { borderColor: colors.coral, backgroundColor: colors.blush },
@@ -572,7 +598,7 @@ const styles = StyleSheet.create({
   vendorModalImage: { width: "100%", height: 330, backgroundColor: colors.blush },
   vendorModalContent: { padding: 22, paddingBottom: 42 },
   vendorModalCategory: { color: colors.coral, fontSize: 9, fontWeight: "900", letterSpacing: 1, textTransform: "uppercase" },
-  vendorModalTitle: { color: colors.ink, fontFamily: "Georgia", fontSize: 35, lineHeight: 41, fontWeight: "600", marginTop: 7 },
+  vendorModalTitle: { color: colors.ink, fontFamily: appFont, fontSize: 33, lineHeight: 40, fontWeight: "600", marginTop: 7 },
   vendorModalMeta: { marginTop: 9, flexDirection: "row", justifyContent: "space-between" },
   vendorModalReason: { color: colors.muted, fontSize: 12, lineHeight: 19, marginTop: 20 },
   vendorModalFacts: { marginTop: 22, paddingVertical: 17, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border, flexDirection: "row", gap: 35 },

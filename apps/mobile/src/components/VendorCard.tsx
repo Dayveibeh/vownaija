@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import type { CoupleVendor } from "@smitten/shared";
 import { cardShadow, colors } from "../theme";
+
+const appFont = Platform.OS === "ios" ? "System" : "sans-serif";
 
 type Props = {
   vendor: CoupleVendor;
@@ -64,14 +66,14 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   category: { color: colors.coral, fontSize: 9, fontWeight: "900", textTransform: "uppercase", letterSpacing: 0.8 },
   tier: { color: colors.muted, fontSize: 8, paddingVertical: 4, paddingHorizontal: 7, borderRadius: 10, backgroundColor: "#F3EBE7" },
-  name: { color: colors.ink, fontFamily: "Georgia", fontSize: 21, fontWeight: "600", marginTop: 9 },
+  name: { color: colors.ink, fontFamily: appFont, fontSize: 20, fontWeight: "600", marginTop: 9 },
   detailRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6 },
   location: { color: colors.muted, fontSize: 10 },
   rating: { color: colors.gold, fontSize: 10, fontWeight: "900" },
   reviews: { color: colors.muted, fontWeight: "400" },
   reason: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 12 },
   footer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 13, marginTop: 13 },
-  price: { color: colors.ink, fontFamily: "Georgia", fontSize: 13, fontWeight: "600" },
+  price: { color: colors.ink, fontFamily: appFont, fontSize: 13, fontWeight: "600" },
   viewButton: { flexDirection: "row", alignItems: "center", gap: 2 },
   viewText: { color: colors.coral, fontSize: 9, fontWeight: "800" }
 });
