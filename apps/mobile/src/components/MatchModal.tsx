@@ -1,7 +1,7 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { serviceOptions, styleOptions, weddingLocations, type VendorMatchPreferences } from "@smitten/shared";
+import { AppSymbol, type AppSymbolFallback, type AppSymbolName } from "./AppSymbol";
 import { colors } from "../theme";
 
 const appFont = Platform.OS === "ios" ? "System" : "sans-serif";
@@ -27,7 +27,7 @@ export function MatchModal({ visible, onClose, onComplete }: { visible: boolean;
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={styles.screen}>
         <View style={styles.header}>
-          <View style={styles.vowiMark}><Ionicons name="sparkles" size={20} color={colors.white} /></View>
+          <View style={styles.vowiMark}><AppSymbol name="wand.and.stars" fallback="sparkles" size={21} color={colors.white} type="hierarchical" weight="semibold" /></View>
           <View style={styles.headerCopy}><Text style={styles.kicker}>MEET SMITTEN AI</Text><Text style={styles.headerTitle}>Your wedding matchmaker</Text></View>
           <Pressable onPress={onClose} accessibilityRole="button"><Text style={styles.skip}>Skip for now</Text></Pressable>
         </View>
@@ -37,7 +37,7 @@ export function MatchModal({ visible, onClose, onComplete }: { visible: boolean;
           {step === 0 && <>
             <Text style={styles.title}>Where are you celebrating?</Text>
             <Text style={styles.subtitle}>We’ll prioritise vendors who work in your area.</Text>
-            <View style={styles.options}>{weddingLocations.map((item) => <Choice key={item} label={item} selected={location === item} icon="location-outline" onPress={() => setLocation(item)} />)}</View>
+            <View style={styles.options}>{weddingLocations.map((item) => <Choice key={item} label={item} selected={location === item} symbol="location.fill" fallback="location-outline" onPress={() => setLocation(item)} />)}</View>
           </>}
           {step === 1 && <>
             <Text style={styles.title}>What are you comfortable spending?</Text>
@@ -49,14 +49,14 @@ export function MatchModal({ visible, onClose, onComplete }: { visible: boolean;
           {step === 2 && <>
             <Text style={styles.title}>What should your wedding feel like?</Text>
             <Text style={styles.subtitle}>Pick the style closest to your vision.</Text>
-            <View style={styles.options}>{styleOptions.map((item) => <Choice key={item} label={item} selected={style === item} icon="sparkles-outline" onPress={() => setStyle(item)} />)}</View>
-            <View style={styles.summary}><Ionicons name="sparkles" size={17} color={colors.plum} /><Text style={styles.summaryText}>Smitten will prioritise {location}, {style.toLowerCase()} style, your chosen budget and strong reviews.</Text></View>
+            <View style={styles.options}>{styleOptions.map((item) => <Choice key={item} label={item} selected={style === item} symbol="sparkles" fallback="sparkles-outline" onPress={() => setStyle(item)} />)}</View>
+            <View style={styles.summary}><AppSymbol name="wand.and.stars" fallback="sparkles" size={17} color={colors.plum} type="hierarchical" weight="medium" /><Text style={styles.summaryText}>Smitten will prioritise {location}, {style.toLowerCase()} style, your chosen budget and strong reviews.</Text></View>
           </>}
         </ScrollView>
         <View style={styles.actions}>
           {step > 0 ? <Pressable onPress={() => setStep(step - 1)} style={styles.back}><Text style={styles.backText}>Back</Text></Pressable> : <View />}
           <Pressable onPress={() => step < 2 ? setStep(step + 1) : onComplete({ location, budgetCeiling, services, style })} style={styles.continue}>
-            <Text style={styles.continueText}>{step < 2 ? "Continue" : "Build my shortlist"}</Text><Ionicons name={step < 2 ? "arrow-forward" : "sparkles"} size={17} color={colors.white} />
+            <Text style={styles.continueText}>{step < 2 ? "Continue" : "Build my shortlist"}</Text><AppSymbol name={step < 2 ? "arrow.right" : "wand.and.stars"} fallback={step < 2 ? "arrow-forward" : "sparkles"} size={16} color={colors.white} weight="semibold" type={step < 2 ? "monochrome" : "hierarchical"} />
           </Pressable>
         </View>
       </View>
@@ -64,8 +64,8 @@ export function MatchModal({ visible, onClose, onComplete }: { visible: boolean;
   );
 }
 
-function Choice({ label, detail, selected, onPress, icon }: { label: string; detail?: string; selected: boolean; onPress: () => void; icon?: keyof typeof Ionicons.glyphMap }) {
-  return <Pressable onPress={onPress} style={[styles.choice, selected && styles.choiceSelected]}>{icon && <Ionicons name={icon} size={17} color={selected ? colors.plum : colors.muted} />}<View style={styles.choiceCopy}><Text style={[styles.choiceText, selected && styles.choiceTextSelected]}>{label}</Text>{detail && <Text style={styles.choiceDetail}>{detail}</Text>}</View>{selected && <Ionicons name="checkmark-circle" size={18} color={colors.coral} />}</Pressable>;
+function Choice({ label, detail, selected, onPress, symbol, fallback }: { label: string; detail?: string; selected: boolean; onPress: () => void; symbol?: AppSymbolName; fallback?: AppSymbolFallback }) {
+  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected }} style={[styles.choice, selected && styles.choiceSelected]}>{symbol && fallback ? <AppSymbol name={symbol} fallback={fallback} size={17} color={selected ? colors.plum : colors.muted} type={selected ? "hierarchical" : "monochrome"} weight={selected ? "medium" : "regular"} /> : null}<View style={styles.choiceCopy}><Text style={[styles.choiceText, selected && styles.choiceTextSelected]}>{label}</Text>{detail ? <Text style={styles.choiceDetail}>{detail}</Text> : null}</View>{selected ? <AppSymbol name="checkmark.circle.fill" fallback="checkmark-circle" size={18} color={colors.coral} weight="semibold" /> : null}</Pressable>;
 }
 
 const styles = StyleSheet.create({
