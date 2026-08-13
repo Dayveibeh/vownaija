@@ -46,7 +46,15 @@ npm run build
 Start the iOS app on macOS with Xcode Simulator:
 
 ```bash
+npm run mobile:install
 npm run mobile:ios
 ```
 
-Alternatively, run `npm run mobile` and open the project with Expo Go on an iPhone. Validate the native project with `npm run typecheck:mobile` and `npm run export:ios --workspace @vownaija/mobile`.
+Alternatively, install the mobile dependencies once, start Expo, and scan the QR code with an iPhone running Expo Go:
+
+```bash
+npm run mobile:install
+npm run mobile
+```
+
+Validate the native project with `npm run typecheck:mobile` and `npm --prefix apps/mobile run export:ios`.
