@@ -25,8 +25,9 @@ export function sites(): Plugin {
       root = config.root;
     },
     async closeBundle() {
-      const outputDirectory = resolve(root, "dist", ".openai");
-      const hostingConfig = resolve(root, ".openai", "hosting.json");
+      const repositoryRoot = resolve(root, "../..");
+      const outputDirectory = resolve(repositoryRoot, "dist", ".openai");
+      const hostingConfig = resolve(repositoryRoot, ".openai", "hosting.json");
       const drizzleSource = resolve(root, "drizzle");
 
       await rm(outputDirectory, { recursive: true, force: true });

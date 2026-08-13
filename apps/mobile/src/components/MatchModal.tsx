@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { serviceOptions, styleOptions, weddingLocations, type VendorMatchPreferences } from "@vownaija/shared";
+import { serviceOptions, styleOptions, weddingLocations, type VendorMatchPreferences } from "@smitten/shared";
 import { colors } from "../theme";
 
 export function MatchModal({ visible, onClose, onComplete }: { visible: boolean; onClose: () => void; onComplete: (preferences: VendorMatchPreferences) => void }) {

@@ -1,11 +1,11 @@
 # Smitten
 
-A Nigerian wedding-vendor marketplace for discovering trusted vendors by service, location and budget. The repository contains the web marketplace and the native iOS app in one workspace.
+A Nigerian wedding-vendor marketplace for discovering trusted vendors by service, location and budget. The web and native applications live in separate project folders, with only matching data and types shared between them.
 
 ## Codebase
 
-- `app/` — Next.js web marketplace, customer account, Smitten AI matching and vendor portal
-- `apps/mobile/` — Expo/React Native app for iPhone
+- `apps/web/` — Next.js web marketplace, customer account, Smitten AI matching and vendor portal
+- `apps/mobile/` — Expo/React Native app for iPhone, including notifications and account settings
 - `packages/shared/` — vendor data, types and matching logic shared by web and iOS
 
 ## Included experiences
@@ -32,29 +32,35 @@ The current workflows use representative data. Production deployment will requir
 
 Requires Node.js 22.13 or newer.
 
+Install the web workspace and start Next.js:
+
 ```bash
-npm run install:ci
-npm run dev
+npm install
+npm run web
 ```
 
 Create a production build with:
 
 ```bash
-npm run build
+npm run build:web
 ```
+
+The repository-level `npm run dev` and `npm run build` commands remain available for the Sites preview and deployment workflow.
 
 Start the iOS app on macOS with Xcode Simulator:
 
 ```bash
-npm run mobile:install
-npm run mobile:ios
+cd apps/mobile
+npm ci
+npx expo start --ios
 ```
 
 Alternatively, install the mobile dependencies once, start Expo, and scan the QR code with an iPhone running Expo Go:
 
 ```bash
-npm run mobile:install
-npm run mobile
+cd apps/mobile
+npm ci
+npx expo start --clear
 ```
 
-Validate the native project with `npm run typecheck:mobile` and `npm --prefix apps/mobile run export:ios`.
+From the repository root, validate the native project with `npm run typecheck:mobile` and `npm --prefix apps/mobile run export:ios`.

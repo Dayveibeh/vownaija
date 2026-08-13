@@ -9,7 +9,7 @@ const config = getDefaultConfig(projectRoot);
 config.watchFolders = [sharedPackageRoot];
 config.resolver.extraNodeModules = {
   ...config.resolver.extraNodeModules,
-  "@vownaija/shared": sharedPackageRoot,
+  "@smitten/shared": sharedPackageRoot,
 };
 
 module.exports = config;
