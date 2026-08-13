@@ -1,6 +1,12 @@
 # VowNaija
 
-A Nigerian wedding-vendor marketplace for discovering trusted vendors by service and location.
+A Nigerian wedding-vendor marketplace for discovering trusted vendors by service, location and budget. The repository contains the web marketplace and the native iOS app in one workspace.
+
+## Codebase
+
+- `app/` — Next.js web marketplace, customer account, Vowi matching and vendor portal
+- `apps/mobile/` — Expo/React Native app for iPhone
+- `packages/shared/` — vendor data, types and matching logic shared by web and iOS
 
 ## Included experiences
 
@@ -13,6 +19,8 @@ A Nigerian wedding-vendor marketplace for discovering trusted vendors by service
 - AI-assisted business support
 - Customer reviews and vendor responses
 - Responsive desktop and mobile layouts
+- Native iOS Home, Discover, Saved, Planning and Profile tabs
+- Shared Vowi recommendations across the web and iOS experiences
 
 ## Current status
 
@@ -34,3 +42,11 @@ Create a production build with:
 ```bash
 npm run build
 ```
+
+Start the iOS app on macOS with Xcode Simulator:
+
+```bash
+npm run mobile:ios
+```
+
+Alternatively, run `npm run mobile` and open the project with Expo Go on an iPhone. Validate the native project with `npm run typecheck:mobile` and `npm run export:ios --workspace @vownaija/mobile`.

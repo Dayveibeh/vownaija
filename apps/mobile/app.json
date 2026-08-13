@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "VowNaija",
+    "slug": "vownaija",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "backgroundColor": "#fffaf7",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vownaija.app"
+    },
+    "android": {
+      "package": "com.vownaija.app"
+    }
+  }
+}

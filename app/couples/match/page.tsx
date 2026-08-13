@@ -3,10 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronRight, Heart, MapPin, Sparkles, Star, UsersRound, WalletCards, WandSparkles } from "lucide-react";
 import { useMemo, useState } from "react";
-import { coupleVendors } from "../vendor-data";
-
-const serviceOptions = ["Planning & décor", "Photography", "Bridal beauty", "Cakes & desserts", "Venues"];
-const styleOptions = ["Modern", "Traditional", "Romantic", "Minimal", "Glamorous"];
+import { recommendCoupleVendors, serviceOptions, styleOptions, weddingLocations } from "../vendor-data";
 
 export default function CoupleMatchPage() {
   const [step, setStep] = useState(0);
@@ -19,14 +16,7 @@ export default function CoupleMatchPage() {
 
   const matches = useMemo(() => {
     const ceiling = budget === "Under ₦1m" ? 500000 : budget === "₦1m–₦3m" ? 1000000 : budget === "₦3m–₦7m" ? 2200000 : Number.POSITIVE_INFINITY;
-    return coupleVendors.map((vendor) => {
-      let score = 72;
-      if (vendor.location === location) score += 9;
-      if (services.includes(vendor.category)) score += 8;
-      if (vendor.priceMin <= ceiling) score += 7;
-      if (vendor.style.includes(style)) score += 4;
-      return { ...vendor, score: Math.min(score, 98) };
-    }).sort((a, b) => b.score - a.score).slice(0, 4);
+    return recommendCoupleVendors({ location, budgetCeiling: ceiling, services, style }).slice(0, 4);
   }, [budget, location, services, style]);
 
   function toggleService(service: string) {
@@ -54,7 +44,7 @@ export default function CoupleMatchPage() {
       {step > 0 && step < 4 && <section className="match-question-card">
         {step === 1 && <div className="match-step">
           <div className="question-icon"><CalendarDays /></div><p className="step-label">The basics</p><h2>Tell us about your celebration</h2><p>This helps us prioritise vendors who work in your area and at your scale.</p>
-          <div className="match-fields"><label>Wedding location<div className="field-with-icon"><MapPin /><select value={location} onChange={(event) => setLocation(event.target.value)}><option>Lagos</option><option>Abuja</option><option>Port Harcourt</option><option>Ibadan</option><option>Benin City</option><option>Enugu</option></select></div></label><label>Wedding type<select value={weddingType} onChange={(event) => setWeddingType(event.target.value)}><option>Traditional wedding</option><option>White wedding</option><option>Traditional & white wedding</option><option>Civil ceremony</option><option>Destination wedding</option></select></label><label>Approximate date<input type="month" defaultValue="2026-12" /></label><label>Guest count<div className="field-with-icon"><UsersRound /><select value={guestCount} onChange={(event) => setGuestCount(event.target.value)}><option>Under 100 guests</option><option>100–200 guests</option><option>201–350 guests</option><option>351–500 guests</option><option>500+ guests</option></select></div></label></div>
+          <div className="match-fields"><label>Wedding location<div className="field-with-icon"><MapPin /><select value={location} onChange={(event) => setLocation(event.target.value)}>{weddingLocations.map((item) => <option key={item}>{item}</option>)}</select></div></label><label>Wedding type<select value={weddingType} onChange={(event) => setWeddingType(event.target.value)}><option>Traditional wedding</option><option>White wedding</option><option>Traditional & white wedding</option><option>Civil ceremony</option><option>Destination wedding</option></select></label><label>Approximate date<input type="month" defaultValue="2026-12" /></label><label>Guest count<div className="field-with-icon"><UsersRound /><select value={guestCount} onChange={(event) => setGuestCount(event.target.value)}><option>Under 100 guests</option><option>100–200 guests</option><option>201–350 guests</option><option>351–500 guests</option><option>500+ guests</option></select></div></label></div>
         </div>}
 
         {step === 2 && <div className="match-step">
