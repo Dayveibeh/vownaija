@@ -1,10 +1,10 @@
-# VowNaija
+# Smitten
 
 A Nigerian wedding-vendor marketplace for discovering trusted vendors by service, location and budget. The repository contains the web marketplace and the native iOS app in one workspace.
 
 ## Codebase
 
-- `app/` — Next.js web marketplace, customer account, Vowi matching and vendor portal
+- `app/` — Next.js web marketplace, customer account, Smitten AI matching and vendor portal
 - `apps/mobile/` — Expo/React Native app for iPhone
 - `packages/shared/` — vendor data, types and matching logic shared by web and iOS
 
@@ -20,11 +20,11 @@ A Nigerian wedding-vendor marketplace for discovering trusted vendors by service
 - Customer reviews and vendor responses
 - Responsive desktop and mobile layouts
 - Native iOS Home, Discover, Saved, Planning and Profile tabs
-- Shared Vowi recommendations across the web and iOS experiences
+- Shared Smitten recommendations across the web and iOS experiences
 
 ## Current status
 
-This repository contains the interactive MVP. The live demo is available at [vownaija.ehebarighe.chatgpt.site](https://vownaija.ehebarighe.chatgpt.site).
+This repository contains the interactive MVP. The live demo is available at [vownaija.vercel.app](https://vownaija.vercel.app).
 
 The current workflows use representative data. Production deployment will require external authentication, persistent database and object storage, transactional email, and a live AI service.
 

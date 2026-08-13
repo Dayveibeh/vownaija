@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Check, Heart, ImagePlus, Instagram, MapPin, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ImagePlus, Instagram, MapPin, Sparkles } from "lucide-react";
 import { useState } from "react";
+import { Brand } from "../components/Brand";
 
 const services = ["Planning & coordination", "Décor & styling", "Photography", "Catering", "Bridal beauty", "Music & entertainment", "Cakes", "Venues"];
 
@@ -14,7 +15,7 @@ export default function OnboardingPage() {
   return (
     <main className="onboarding-shell">
       <aside className="onboarding-aside">
-        <Link href="/" className="brand brand-light"><span className="brand-mark"><Heart size={16} /></span><span>VowNaija</span></Link>
+        <Brand light />
         <div>
           <p className="eyebrow light"><span /> Grow with us</p>
           <h1>Let more couples find your <em>best work.</em></h1>
@@ -94,7 +95,7 @@ export default function OnboardingPage() {
             <div className="success-step">
               <div className="success-icon"><Check size={34} /></div>
               <p className="eyebrow"><span /> You’re all set</p>
-              <h2>Welcome to VowNaija!</h2>
+              <h2>Welcome to Smitten!</h2>
               <p>Your vendor profile is ready to personalise. Add your packages, portfolio and availability to start receiving enquiries.</p>
               <Link href="/dashboard" className="button button-primary">Open my dashboard <ArrowRight size={18} /></Link>
               <Link href="/vendor/aurora-events" className="preview-profile-link">Preview my public profile</Link>

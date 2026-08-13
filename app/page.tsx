@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Brand } from "./components/Brand";
 import {
   ArrowRight,
   BadgeCheck,
@@ -109,6 +110,12 @@ const categories = [
 
 const locations = ["Lagos", "Abuja", "Port Harcourt", "Ibadan", "Benin City", "Enugu"];
 
+const categoryAliases: Record<string, string> = {
+  Photographers: "Photography",
+  "Planners & décor": "Planning & décor",
+  Cakes: "Cakes & desserts",
+};
+
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [location, setLocation] = useState("Lagos");
@@ -116,11 +123,13 @@ export default function Home() {
   const [budget, setBudget] = useState("Any budget");
   const [searchMessage, setSearchMessage] = useState("");
   const [saved, setSaved] = useState<string[]>([]);
+  const [activeVendor, setActiveVendor] = useState<(typeof vendors)[number] | null>(null);
 
   const visibleVendors = useMemo(() => {
     return vendors.filter((vendor) => {
       const locationMatch = location === "Nigeria" || vendor.location.toLowerCase().includes(location.toLowerCase());
-      const categoryMatch = category === "All vendors" || vendor.category.toLowerCase().includes(category.toLowerCase());
+      const normalizedCategory = categoryAliases[category] ?? category;
+      const categoryMatch = category === "All vendors" || vendor.category === normalizedCategory;
       const budgetMatch = budget === "Any budget"
         || (budget === "Under ₦250k" && vendor.priceMin < 250000)
         || (budget === "₦250k – ₦1m" && vendor.priceMin >= 250000 && vendor.priceMin <= 1000000)
@@ -147,10 +156,7 @@ export default function Home() {
   return (
     <main>
       <header className="site-header">
-        <Link href="/" className="brand" aria-label="VowNaija home">
-          <span className="brand-mark"><Heart size={16} strokeWidth={2.4} /></span>
-          <span>VowNaija</span>
-        </Link>
+        <Brand priority />
 
         <nav className={menuOpen ? "nav-links is-open" : "nav-links"} aria-label="Main navigation">
           <a href="#categories">Find vendors</a>
@@ -223,7 +229,7 @@ export default function Home() {
 
           <div className="hero-proof">
             <div className="avatar-stack" aria-hidden="true"><span>AO</span><span>TF</span><span>NK</span><span>+2k</span></div>
-            <p><strong>2,000+ couples</strong><br />planning with VowNaija</p>
+            <p><strong>2,000+ couples</strong><br />planning with Smitten</p>
             <div className="proof-rating"><Star size={15} fill="currentColor" /> 4.9</div>
           </div>
         </div>
@@ -246,7 +252,7 @@ export default function Home() {
         </div>
         <div className="category-grid">
           {categories.map(({ name, icon: Icon, count }) => (
-            <button className="category-card" key={name} onClick={() => { setCategory(name === "Planners & décor" ? "Planning & décor" : name); document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" }); }}>
+            <button className="category-card" key={name} onClick={() => { setCategory(categoryAliases[name] ?? name); setSearchMessage(`Showing ${name.toLowerCase()} around ${location}.`); document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" }); }}>
               <span className="category-icon"><Icon size={24} /></span><span><strong>{name}</strong><small>{count} vendors</small></span><ArrowRight size={19} />
             </button>
           ))}
@@ -256,20 +262,20 @@ export default function Home() {
       <section className="section featured-section" id="featured">
         <div className="section-heading row-heading">
           <div><p className="eyebrow light"><span /> Curated for you</p><h2>Popular around <em>{location}</em></h2></div>
-          <button className="underlined-button" onClick={() => setLocation("Nigeria")}>View all vendors <ArrowRight size={17} /></button>
+          <button className="underlined-button" onClick={() => { setLocation("Nigeria"); setCategory("All vendors"); setBudget("Any budget"); setSearchMessage("Showing all trusted vendors across Nigeria."); }}>View all vendors <ArrowRight size={17} /></button>
         </div>
         {searchMessage && <div className="search-feedback" role="status">{searchMessage}</div>}
-        <div className="vendor-grid">
-          {(visibleVendors.length ? visibleVendors : vendors).map((vendor) => (
+        {visibleVendors.length > 0 ? <div className="vendor-grid">
+          {visibleVendors.map((vendor) => (
             <article className="vendor-card" key={vendor.name}>
               <div className="vendor-image">
                 <img src={vendor.image} alt={`${vendor.name} wedding work`} /><span className="vendor-tag">{vendor.tag}</span>
                 <button className={saved.includes(vendor.name) ? "save-button saved" : "save-button"} onClick={() => toggleSaved(vendor.name)} aria-label={`${saved.includes(vendor.name) ? "Remove" : "Save"} ${vendor.name}`}><Heart size={18} fill={saved.includes(vendor.name) ? "currentColor" : "none"} /></button>
               </div>
-              <div className="vendor-info"><div className="vendor-category-line"><p className="vendor-category">{vendor.category}</p><span>{vendor.tier}</span></div><div className="vendor-title-row"><h3>{vendor.name}</h3><BadgeCheck size={18} /></div><p className="vendor-location"><MapPin size={14} /> {vendor.location}</p><div className="vendor-meta"><span><Star size={14} fill="currentColor" /> <strong>{vendor.rating}</strong> ({vendor.reviews})</span><strong>{vendor.price}</strong></div></div>
+              <div className="vendor-info"><div className="vendor-category-line"><p className="vendor-category">{vendor.category}</p><span>{vendor.tier}</span></div><div className="vendor-title-row"><h3>{vendor.name}</h3><BadgeCheck size={18} /></div><p className="vendor-location"><MapPin size={14} /> {vendor.location}</p><div className="vendor-meta"><span><Star size={14} fill="currentColor" /> <strong>{vendor.rating}</strong> ({vendor.reviews})</span><strong>{vendor.price}</strong></div><button className="vendor-profile-button" onClick={() => setActiveVendor(vendor)}>View profile <ArrowRight size={15} /></button></div>
             </article>
           ))}
-        </div>
+        </div> : <div className="vendor-empty" role="status"><Sparkles /><h3>We’re still growing in {location}.</h3><p>No exact match for {category.toLowerCase()} at {budget.toLowerCase()} yet. Try all vendors across Nigeria.</p><button className="button button-primary" onClick={() => { setLocation("Nigeria"); setCategory("All vendors"); setBudget("Any budget"); }}>Show all vendors</button></div>}
       </section>
 
       <section className="story-section" id="how-it-works">
@@ -284,9 +290,9 @@ export default function Home() {
       <section className="ai-match-cta">
         <div className="ai-match-orbit" aria-hidden="true"><span><Sparkles /></span><i /><i /><i /></div>
         <div>
-          <p className="eyebrow light"><span /> Vowi AI matchmaker</p>
+          <p className="eyebrow light"><span /> Smitten AI matchmaker</p>
           <h2>Not sure where to start?<br /><em>Let us build your shortlist.</em></h2>
-          <p>Answer a few quick questions about your location, budget and wedding style. Vowi will recommend vendors that fit—whether you’re keeping costs lean or planning something luxurious.</p>
+          <p>Answer a few quick questions about your location, budget and wedding style. Smitten AI will recommend vendors that fit—whether you’re keeping costs lean or planning something luxurious.</p>
           <div className="ai-match-actions"><Link href="/couples/match" className="button button-primary">Find my matches <Sparkles size={17} /></Link><span>Takes about 2 minutes · You can skip this step</span></div>
         </div>
         <div className="match-preview-stack">
@@ -299,7 +305,7 @@ export default function Home() {
       <section className="section location-section" id="inspiration">
         <div className="location-copy"><p className="eyebrow light"><span /> Near you</p><h2>Find wedding vendors<br /><em>across Nigeria.</em></h2><p>Local expertise matters. Browse professionals who know the venues, traditions and pace of your city.</p></div>
         <div className="location-list">
-          {locations.map((city, index) => <button key={city} onClick={() => { setLocation(city); document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" }); }}><span>0{index + 1}</span><strong>{city}</strong><ArrowRight /></button>)}
+          {locations.map((city, index) => <button key={city} onClick={() => { setLocation(city); setCategory("All vendors"); setBudget("Any budget"); setSearchMessage(`Showing trusted vendors around ${city}.`); document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" }); }}><span>0{index + 1}</span><strong>{city}</strong><ArrowRight /></button>)}
         </div>
       </section>
 
@@ -309,9 +315,17 @@ export default function Home() {
       </section>
 
       <footer>
-        <div className="footer-top"><Link href="/" className="brand brand-light"><span className="brand-mark"><Heart size={16} /></span><span>VowNaija</span></Link><p>Celebrating love, culture and brilliant Nigerian businesses.</p><div className="socials"><a href="#">Instagram</a><a href="#">TikTok</a><a href="#">Pinterest</a></div></div>
-        <div className="footer-bottom"><span>© 2026 VowNaija</span><span>Made with love in Nigeria 🇳🇬</span><span>Privacy · Terms</span></div>
+        <div className="footer-top"><Brand light /><p>Celebrating love, culture and brilliant Nigerian businesses.</p><div className="socials"><a href="https://instagram.com" target="_blank" rel="noreferrer">Instagram</a><a href="https://tiktok.com" target="_blank" rel="noreferrer">TikTok</a><a href="https://pinterest.com" target="_blank" rel="noreferrer">Pinterest</a></div></div>
+        <div className="footer-bottom"><span>© 2026 Smitten</span><span>Made with love in Nigeria 🇳🇬</span><span>Privacy · Terms</span></div>
       </footer>
+
+      {activeVendor && <div className="vendor-modal-backdrop" onMouseDown={() => setActiveVendor(null)}>
+        <section className="vendor-preview-modal" role="dialog" aria-modal="true" aria-label={`${activeVendor.name} profile`} onMouseDown={(event) => event.stopPropagation()}>
+          <button className="vendor-modal-close" onClick={() => setActiveVendor(null)} aria-label="Close vendor profile"><X /></button>
+          <img src={activeVendor.image} alt={`${activeVendor.name} wedding portfolio`} />
+          <div><p className="vendor-category">{activeVendor.category}</p><h2>{activeVendor.name}</h2><p className="vendor-location"><MapPin size={14} /> {activeVendor.location}</p><p>Verified on Smitten with {activeVendor.reviews} couple reviews and packages starting at {activeVendor.price.replace("From ", "")}.</p><div className="vendor-modal-actions">{activeVendor.name === "Aurora Events NG" ? <Link className="button button-dark" href="/vendor/aurora-events">Open full profile</Link> : <button className="button button-dark" onClick={() => setActiveVendor(null)}>Keep browsing</button>}<Link className="button button-primary" href="/couples/sign-up">Request a quote</Link></div></div>
+        </section>
+      </div>}
     </main>
   );
 }

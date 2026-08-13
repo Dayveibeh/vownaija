@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Check, Eye, Heart, LockKeyhole, Mail, Sparkles, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Eye, LockKeyhole, Mail, Sparkles, UserRound } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Brand } from "../../components/Brand";
 
 export default function CoupleSignUpPage() {
   const [mode, setMode] = useState<"signup" | "signin">("signup");
@@ -18,14 +19,14 @@ export default function CoupleSignUpPage() {
   return (
     <main className="couple-auth-shell">
       <section className="couple-auth-visual">
-        <Link href="/" className="brand brand-light"><span className="brand-mark"><Heart size={16} /></span><span>VowNaija</span></Link>
+        <Brand light />
         <div className="auth-visual-copy">
           <p className="eyebrow light"><span /> Plan with confidence</p>
           <h1>Your wedding plans,<br /><em>beautifully organised.</em></h1>
           <p>Shortlist vendors, compare quotes and get recommendations that respect your location, style and budget.</p>
           <div className="auth-benefits"><span><Check /> Recommendations for every budget</span><span><Check /> One place for quotes and messages</span><span><Check /> Real reviews from Nigerian couples</span></div>
         </div>
-        <div className="auth-testimonial"><span>“</span><p>VowNaija made it easy to find vendors we loved without going over budget.</p><small>Chioma & Obinna · Lagos</small></div>
+        <div className="auth-testimonial"><span>“</span><p>Smitten made it easy to find vendors we loved without going over budget.</p><small>Chioma & Obinna · Lagos</small></div>
       </section>
 
       <section className="couple-auth-main">
@@ -42,12 +43,12 @@ export default function CoupleSignUpPage() {
             {mode === "signup" && <label>Your name<div><UserRound size={17} /><input required placeholder="Your full name" defaultValue="Amara Okoye" /></div></label>}
             <label>Email address<div><Mail size={17} /><input required type="email" placeholder="you@email.com" defaultValue={mode === "signin" ? "amara@example.com" : ""} /></div></label>
             <label>Password<div><LockKeyhole size={17} /><input required type={showPassword ? "text" : "password"} placeholder={mode === "signup" ? "Create a password" : "Enter your password"} defaultValue={mode === "signin" ? "weddingplans" : ""} /><button type="button" onClick={() => setShowPassword((value) => !value)} aria-label="Show password"><Eye size={16} /></button></div></label>
-            {mode === "signin" && <div className="auth-form-meta"><label><input type="checkbox" /> Remember me</label><button type="button">Forgot password?</button></div>}
+            {mode === "signin" && <div className="auth-form-meta"><label><input type="checkbox" /> Remember me</label><button type="button" onClick={() => window.alert("Password recovery instructions will be sent to your email.")}>Forgot password?</button></div>}
             <button className="button button-primary auth-submit" type="submit">{mode === "signup" ? "Create my account" : "Sign in"} <ArrowRight size={17} /></button>
           </form>
 
           <div className="auth-next-note"><Sparkles size={16} /><span><strong>Next: optional AI matching</strong>Answer a few quick questions for personalised vendor suggestions—or skip straight to your dashboard.</span></div>
-          <small className="auth-terms">By continuing, you agree to VowNaija’s Terms and Privacy Policy.</small>
+          <small className="auth-terms">By continuing, you agree to Smitten’s Terms and Privacy Policy.</small>
         </div>
       </section>
     </main>

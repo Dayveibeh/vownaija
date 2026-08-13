@@ -7,8 +7,13 @@ import "./couples.css";
 const geist = Geist({ variable: "--font-geist", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "VowNaija",
+  title: "Smitten",
   description: "Find trusted wedding vendors across Nigeria and plan your celebration with confidence.",
+  applicationName: "Smitten",
+  icons: {
+    icon: "/smitten-icon.png",
+    apple: "/apple-touch-icon.png",
+  },
   other: { "codex-preview": "development" },
 };
 

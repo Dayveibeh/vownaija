@@ -26,7 +26,7 @@ export function MatchModal({ visible, onClose, onComplete }: { visible: boolean;
       <View style={styles.screen}>
         <View style={styles.header}>
           <View style={styles.vowiMark}><Ionicons name="sparkles" size={20} color={colors.white} /></View>
-          <View style={styles.headerCopy}><Text style={styles.kicker}>MEET VOWI</Text><Text style={styles.headerTitle}>Your wedding matchmaker</Text></View>
+          <View style={styles.headerCopy}><Text style={styles.kicker}>MEET SMITTEN AI</Text><Text style={styles.headerTitle}>Your wedding matchmaker</Text></View>
           <Pressable onPress={onClose} accessibilityRole="button"><Text style={styles.skip}>Skip for now</Text></Pressable>
         </View>
         <View style={styles.progress}><View style={[styles.progressFill, { width: `${((step + 1) / 3) * 100}%` }]} /></View>
@@ -48,7 +48,7 @@ export function MatchModal({ visible, onClose, onComplete }: { visible: boolean;
             <Text style={styles.title}>What should your wedding feel like?</Text>
             <Text style={styles.subtitle}>Pick the style closest to your vision.</Text>
             <View style={styles.options}>{styleOptions.map((item) => <Choice key={item} label={item} selected={style === item} icon="sparkles-outline" onPress={() => setStyle(item)} />)}</View>
-            <View style={styles.summary}><Ionicons name="sparkles" size={17} color={colors.plum} /><Text style={styles.summaryText}>Vowi will prioritise {location}, {style.toLowerCase()} style, your chosen budget and strong reviews.</Text></View>
+            <View style={styles.summary}><Ionicons name="sparkles" size={17} color={colors.plum} /><Text style={styles.summaryText}>Smitten will prioritise {location}, {style.toLowerCase()} style, your chosen budget and strong reviews.</Text></View>
           </>}
         </ScrollView>
         <View style={styles.actions}>
