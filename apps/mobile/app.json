@@ -5,9 +5,9 @@
     "version": "1.0.0",
     "scheme": "smitten",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "backgroundColor": "#EDF1E2",
+    "backgroundColor": "#FAF9F6",
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/splash.png",

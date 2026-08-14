@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { serviceOptions, styleOptions, weddingLocations, type VendorMatchPreferences } from "@smitten/shared";
 import { AppSymbol, type AppSymbolFallback, type AppSymbolName } from "./AppSymbol";
-import { colors } from "../theme";
+import { cardShadow, colors, fonts } from "../theme";
 
-const appFont = Platform.OS === "ios" ? "System" : "sans-serif";
+const appFont = fonts.regular;
+const mediumFont = fonts.medium;
+const headingFont = fonts.semibold;
 
 export function MatchModal({ visible, onClose, onComplete }: { visible: boolean; onClose: () => void; onComplete: (preferences: VendorMatchPreferences) => void }) {
   const [step, setStep] = useState(0);
@@ -69,37 +71,37 @@ function Choice({ label, detail, selected, onPress, symbol, fallback }: { label:
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.cream, paddingTop: 17 },
-  header: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 19 },
-  vowiMark: { width: 43, height: 43, borderRadius: 8, backgroundColor: colors.plum, alignItems: "center", justifyContent: "center" },
+  screen: { flex: 1, backgroundColor: colors.cream, paddingTop: 18 },
+  header: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 20 },
+  vowiMark: { width: 46, height: 46, borderRadius: 18, backgroundColor: colors.plum, alignItems: "center", justifyContent: "center" },
   headerCopy: { flex: 1 },
-  kicker: { color: colors.muted, fontSize: 8, fontWeight: "600", letterSpacing: 1.1 },
-  headerTitle: { color: colors.ink, fontSize: 12, fontWeight: "700", marginTop: 2 },
-  skip: { color: colors.muted, fontSize: 10, paddingVertical: 10 },
-  progress: { height: 4, marginTop: 19, backgroundColor: colors.border },
-  progressFill: { height: 4, backgroundColor: colors.coral },
-  content: { padding: 22, paddingBottom: 42 },
-  stepLabel: { color: colors.muted, fontSize: 9, fontWeight: "600", letterSpacing: 1 },
-  title: { color: colors.ink, fontFamily: appFont, fontSize: 33, lineHeight: 39, letterSpacing: -0.9, fontWeight: "600", marginTop: 10 },
-  subtitle: { color: colors.muted, fontSize: 12, lineHeight: 19, marginTop: 8, marginBottom: 23 },
-  options: { gap: 9 },
-  choice: { minHeight: 56, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, paddingHorizontal: 15, flexDirection: "row", alignItems: "center", gap: 9 },
-  choiceSelected: { borderColor: colors.ink, backgroundColor: colors.white },
+  kicker: { color: colors.muted, fontFamily: headingFont, fontSize: 8, letterSpacing: 1.1 },
+  headerTitle: { color: colors.ink, fontFamily: mediumFont, fontSize: 12, marginTop: 2 },
+  skip: { color: colors.muted, fontFamily: appFont, fontSize: 10, paddingVertical: 10 },
+  progress: { height: 4, marginTop: 20, backgroundColor: "#E3DFDA" },
+  progressFill: { height: 4, borderTopRightRadius: 2, borderBottomRightRadius: 2, backgroundColor: colors.plum },
+  content: { padding: 22, paddingBottom: 45 },
+  stepLabel: { color: colors.muted, fontFamily: headingFont, fontSize: 9, letterSpacing: 1 },
+  title: { color: colors.ink, fontFamily: headingFont, fontSize: 34, lineHeight: 40, letterSpacing: -0.68, marginTop: 10 },
+  subtitle: { color: colors.muted, fontFamily: appFont, fontSize: 12, lineHeight: 19, marginTop: 8, marginBottom: 24 },
+  options: { gap: 10 },
+  choice: { minHeight: 62, borderRadius: 24, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 10, ...cardShadow },
+  choiceSelected: { borderColor: "rgba(152,111,93,0.2)", backgroundColor: colors.blush },
   choiceCopy: { flex: 1 },
-  choiceText: { color: colors.ink, fontSize: 12, fontWeight: "600" },
-  choiceTextSelected: { color: colors.plum, fontWeight: "700" },
-  choiceDetail: { color: colors.muted, fontSize: 9, marginTop: 2 },
-  fieldTitle: { color: colors.muted, fontSize: 9, fontWeight: "600", letterSpacing: 0.9, marginTop: 25, marginBottom: 11 },
+  choiceText: { color: colors.ink, fontFamily: mediumFont, fontSize: 12 },
+  choiceTextSelected: { color: colors.plum, fontFamily: headingFont },
+  choiceDetail: { color: colors.muted, fontFamily: appFont, fontSize: 9, marginTop: 2 },
+  fieldTitle: { color: colors.muted, fontFamily: headingFont, fontSize: 9, letterSpacing: 0.9, marginTop: 26, marginBottom: 11 },
   pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  pill: { minHeight: 36, paddingHorizontal: 12, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, justifyContent: "center" },
-  pillSelected: { borderColor: colors.coral, backgroundColor: colors.blush },
-  pillText: { color: colors.muted, fontSize: 9, fontWeight: "700" },
+  pill: { minHeight: 39, paddingHorizontal: 13, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: "rgba(255,254,252,0.88)", justifyContent: "center" },
+  pillSelected: { borderColor: "rgba(101,121,103,0.18)", backgroundColor: colors.mint },
+  pillText: { color: colors.muted, fontFamily: mediumFont, fontSize: 9 },
   pillTextSelected: { color: colors.plum },
-  summary: { flexDirection: "row", gap: 9, marginTop: 22, padding: 14, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.blush },
-  summaryText: { flex: 1, color: colors.muted, fontSize: 10, lineHeight: 15 },
-  actions: { minHeight: 78, paddingHorizontal: 18, paddingVertical: 13, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.white, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  summary: { flexDirection: "row", gap: 10, marginTop: 23, padding: 16, borderRadius: 23, backgroundColor: colors.peachSoft },
+  summaryText: { flex: 1, color: colors.ink, fontFamily: appFont, fontSize: 10, lineHeight: 16 },
+  actions: { minHeight: 84, paddingHorizontal: 19, paddingVertical: 15, backgroundColor: colors.white, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   back: { padding: 13 },
-  backText: { color: colors.plum, fontSize: 12, fontWeight: "600" },
-  continue: { minHeight: 48, paddingHorizontal: 21, borderRadius: 8, backgroundColor: colors.plum, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" },
-  continueText: { color: colors.white, fontSize: 12, fontWeight: "600" }
+  backText: { color: colors.plum, fontFamily: mediumFont, fontSize: 12 },
+  continue: { minHeight: 50, paddingHorizontal: 22, borderRadius: 16, backgroundColor: colors.plum, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", shadowColor: colors.ink, shadowOpacity: 0.14, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 5 },
+  continueText: { color: colors.white, fontFamily: headingFont, fontSize: 12 }
 });

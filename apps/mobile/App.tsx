@@ -1,31 +1,48 @@
 import { StatusBar } from "expo-status-bar";
+import { BlurView } from "expo-blur";
+import { useFonts } from "expo-font";
+import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { coupleVendors, recommendCoupleVendors, serviceOptions, weddingLocations, type CoupleVendor } from "@smitten/shared";
 import { AppSymbol, type AppSymbolFallback, type AppSymbolName } from "./src/components/AppSymbol";
 import { MatchModal } from "./src/components/MatchModal";
 import { VendorCard } from "./src/components/VendorCard";
-import { colors } from "./src/theme";
+import { cardShadow, colors, fonts } from "./src/theme";
 
 type Tab = "Home" | "Discover" | "Saved" | "Planning" | "Profile";
 type SymbolPair = { symbol: AppSymbolName; fallback: AppSymbolFallback };
 type TabIconSet = { base: SymbolPair; active: SymbolPair };
 
 const tabIcons: Record<Tab, TabIconSet> = {
-  Home: { base: { symbol: "house", fallback: "home-outline" }, active: { symbol: "house.fill", fallback: "home" } },
-  Discover: { base: { symbol: "safari", fallback: "compass-outline" }, active: { symbol: "safari.fill", fallback: "compass" } },
-  Saved: { base: { symbol: "heart", fallback: "heart-outline" }, active: { symbol: "heart.fill", fallback: "heart" } },
-  Planning: { base: { symbol: "calendar", fallback: "calendar-outline" }, active: { symbol: "calendar.badge.checkmark", fallback: "calendar" } },
-  Profile: { base: { symbol: "person.crop.circle", fallback: "person-circle-outline" }, active: { symbol: "person.crop.circle.fill", fallback: "person-circle" } },
+  Home: { base: { symbol: "house", fallback: "home-outline" }, active: { symbol: "house", fallback: "home-outline" } },
+  Discover: { base: { symbol: "safari", fallback: "compass-outline" }, active: { symbol: "safari", fallback: "compass-outline" } },
+  Saved: { base: { symbol: "heart", fallback: "heart-outline" }, active: { symbol: "heart", fallback: "heart-outline" } },
+  Planning: { base: { symbol: "calendar", fallback: "calendar-outline" }, active: { symbol: "calendar", fallback: "calendar-outline" } },
+  Profile: { base: { symbol: "person.crop.circle", fallback: "person-circle-outline" }, active: { symbol: "person.crop.circle", fallback: "person-circle-outline" } },
 };
 
+const appFont = fonts.regular;
+const mediumFont = fonts.medium;
+const headingFont = fonts.semibold;
+const boldFont = fonts.bold;
 const heroImage = "https://static.wixstatic.com/media/fdf893_120788a0b4fa499fb373d950cc86501e~mv2.jpg/v1/fill/w_980%2Ch_980%2Cal_c%2Cq_85%2Cusm_0.66_1.00_0.01%2Cenc_avif%2Cquality_auto/fdf893_120788a0b4fa499fb373d950cc86501e~mv2.jpg";
-const appFont = Platform.OS === "ios" ? "System" : "sans-serif";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const smittenWordmark = require("./assets/smitten-wordmark.png");
+// Direct font asset imports prevent the unused Inter weights from entering the native bundle.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const interRegular = require("@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const interMedium = require("@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const interSemibold = require("@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const interBold = require("@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf");
 
 export default function App() {
+  const [fontsLoaded] = useFonts({ Inter_400Regular: interRegular, Inter_500Medium: interMedium, Inter_600SemiBold: interSemibold, Inter_700Bold: interBold });
+  if (!fontsLoaded) return null;
   return <SafeAreaProvider><SmittenApp /></SafeAreaProvider>;
 }
 
@@ -96,17 +113,17 @@ function SmittenApp() {
         ? <SavedScreen darkMode={darkMode} saved={saved} onSave={toggleSaved} onView={setSelectedVendor} openDiscover={() => setTab("Discover")} />
         : tab === "Planning"
           ? <PlanningScreen darkMode={darkMode} checklist={checklist} onToggle={(index) => setChecklist((current) => current.map((item, itemIndex) => itemIndex === index ? !item : item))} openMatch={() => setMatchVisible(true)} />
-          : <ProfileScreen darkMode={darkMode} signedIn={signedIn} openAuth={() => setAuthVisible(true)} openSettings={() => setSettingsVisible(true)} onAction={showNotice} />;
+          : <ProfileScreen darkMode={darkMode} signedIn={signedIn} savedCount={saved.length} completedCount={checklist.filter(Boolean).length} matchCount={matches?.length ?? 0} openAuth={() => setAuthVisible(true)} openSettings={() => setSettingsVisible(true)} onAction={showNotice} />;
 
   return (
     <View style={[styles.app, darkMode && styles.appDark]}>
       <StatusBar style={darkMode ? "light" : "dark"} />
       <View style={styles.screen}>{screen}</View>
-      <View style={[styles.tabBar, darkMode && styles.tabBarDark, { bottom: Math.max(insets.bottom, 10) }]}>
+      <BlurView intensity={82} tint={darkMode ? "dark" : "light"} style={[styles.tabBar, darkMode && styles.tabBarDark, { bottom: Math.max(insets.bottom, 10) }]}>
         {(["Home", "Discover", "Saved", "Planning", "Profile"] as Tab[]).map((item) => (
           <TabButton key={item} darkMode={darkMode} tab={item} active={tab === item} savedCount={item === "Saved" ? saved.length : 0} onPress={() => setTab(item)} />
         ))}
-      </View>
+      </BlurView>
       <MatchModal
         visible={matchVisible}
         onClose={() => setMatchVisible(false)}
@@ -139,6 +156,7 @@ function SmittenApp() {
 }
 
 function HomeScreen({ darkMode, unreadNotifications, saved, matches, location, query, category, onQuery, onCategory, onSave, onView, openNotifications, openLocation, openMatch, openAuth, openDiscover }: { darkMode: boolean; unreadNotifications: number; saved: string[]; matches: (CoupleVendor & { score: number })[] | null; location: string; query: string; category: string; onQuery: (value: string) => void; onCategory: (value: string) => void; onSave: (name: string) => void; onView: (vendor: CoupleVendor) => void; openNotifications: () => void; openLocation: () => void; openMatch: () => void; openAuth: () => void; openDiscover: () => void }) {
+  const [searchFocused, setSearchFocused] = useState(false);
   const vendors = useMemo(() => (matches ?? coupleVendors).filter((vendor) => {
     const locationMatch = vendor.location === location;
     const categoryMatch = category === "All" || vendor.category === category;
@@ -149,53 +167,74 @@ function HomeScreen({ darkMode, unreadNotifications, saved, matches, location, q
   return (
     <ScrollView style={[styles.scroll, darkMode && styles.darkScreen]} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <SafeAreaView edges={["top"]}>
-        <View style={styles.header}><Brand /><View style={styles.headerActions}><Pressable onPress={openNotifications} accessibilityRole="button" accessibilityLabel={`${unreadNotifications} unread notifications`} style={[styles.avatar, darkMode && styles.darkIconButton]}><AppSymbol name={unreadNotifications > 0 ? "bell.badge.fill" : "bell"} fallback={unreadNotifications > 0 ? "notifications" : "notifications-outline"} size={20} color={darkMode ? colors.white : colors.plum} type="hierarchical" weight="medium" animationSpec={unreadNotifications > 0 ? { effect: { type: "pulse", wholeSymbol: true }, repeating: false } : undefined} />{unreadNotifications > 0 ? <View style={styles.notificationBadge}><Text style={styles.notificationBadgeText}>{unreadNotifications}</Text></View> : null}</Pressable><Pressable onPress={openAuth} accessibilityRole="button" accessibilityLabel="Sign in" style={[styles.avatar, darkMode && styles.darkIconButton]}><AppSymbol name="person.crop.circle" fallback="person-circle-outline" size={21} color={darkMode ? colors.white : colors.plum} weight="medium" /></Pressable></View></View>
-      </SafeAreaView>
-      <View style={styles.hero}>
-        <Image source={{ uri: heroImage }} style={styles.heroImage} alt="Nigerian couple in traditional wedding attire" />
-        <View style={styles.heroShade} />
-        <View style={styles.heroCopy}>
-          <Text style={styles.heroKicker}>YOUR WEDDING, YOUR WAY</Text>
-          <Text style={styles.heroTitle}>Find the people who’ll make it unforgettable.</Text>
-          <Text style={styles.heroText}>Trusted Nigerian wedding vendors for every celebration and spend.</Text>
+        <View style={styles.header}>
+          <View style={styles.homeIdentity}>
+            <Brand />
+            <Pressable onPress={openLocation} accessibilityRole="button" accessibilityLabel={`Change location, currently ${location}`} style={styles.homeLocation}>
+              <AppSymbol name="location.fill" fallback="location-outline" size={12} color={darkMode ? colors.white : colors.ink} weight="medium" />
+              <Text style={[styles.homeLocationText, darkMode && styles.pageSubtitleDark]}>Planning in {location}</Text>
+              <AppSymbol name="chevron.down" fallback="chevron-down" size={9} color={colors.muted} weight="semibold" />
+            </Pressable>
+          </View>
+          <View style={styles.headerActions}>
+            <Pressable onPress={openNotifications} accessibilityRole="button" accessibilityLabel={`${unreadNotifications} unread notifications`} style={[styles.avatar, darkMode && styles.darkIconButton]}>
+              <AppSymbol name={unreadNotifications > 0 ? "bell.badge.fill" : "bell"} fallback={unreadNotifications > 0 ? "notifications" : "notifications-outline"} size={20} color={darkMode ? colors.white : colors.plum} type="hierarchical" weight="medium" animationSpec={unreadNotifications > 0 ? { effect: { type: "pulse", wholeSymbol: true }, repeating: false } : undefined} />
+              {unreadNotifications > 0 ? <View style={styles.notificationBadge}><Text style={styles.notificationBadgeText}>{unreadNotifications}</Text></View> : null}
+            </Pressable>
+            <Pressable onPress={openAuth} accessibilityRole="button" accessibilityLabel="Sign in" style={[styles.avatar, darkMode && styles.darkIconButton]}><AppSymbol name="person.crop.circle" fallback="person-circle-outline" size={22} color={darkMode ? colors.white : colors.plum} weight="medium" /></Pressable>
+          </View>
         </View>
-      </View>
-      <View style={styles.searchBar}>
-        <AppSymbol name="magnifyingglass" fallback="search" size={18} color={colors.plum} weight="medium" />
-        <TextInput value={query} onChangeText={onQuery} placeholder="Photographer, venue, caterer..." placeholderTextColor={colors.muted} style={styles.searchInput} returnKeyType="search" />
-        <View style={styles.searchDivider} />
-        <Pressable onPress={openLocation} accessibilityRole="button" accessibilityLabel={`Change location, currently ${location}`} style={styles.locationButton}><AppSymbol name="location.fill" fallback="location-outline" size={16} color={colors.plum} weight="medium" /><Text numberOfLines={1} style={styles.searchLocation}>{location}</Text><AppSymbol name="chevron.down" fallback="chevron-down" size={11} color={colors.muted} weight="semibold" /></Pressable>
-      </View>
-      <Pressable onPress={openMatch} accessibilityRole="button" style={styles.vowiCard}>
-        <View style={styles.vowiIcon}><AppSymbol name="wand.and.stars" fallback="sparkles" size={21} color={colors.white} weight="semibold" type="hierarchical" /></View>
-        <View style={styles.vowiCopy}><Text style={styles.vowiKicker}>NOT SURE WHERE TO START?</Text><Text style={styles.vowiTitle}>Let Smitten find your best matches</Text></View>
-        <AppSymbol name="arrow.right" fallback="arrow-forward" size={18} color={colors.plum} weight="semibold" />
+      </SafeAreaView>
+      <Pressable onPress={openMatch} accessibilityRole="button" accessibilityLabel="Start your Smitten match" style={styles.matchHero}>
+        <Image source={{ uri: heroImage }} style={styles.matchHeroImage} resizeMode="cover" alt="Nigerian couple celebrating their wedding" />
+        <LinearGradient colors={["rgba(23,20,18,0.03)", "rgba(23,20,18,0.28)", "rgba(23,20,18,0.9)"]} locations={[0.15, 0.5, 1]} style={styles.matchHeroGradient} />
+        <View style={styles.matchHeroCopy}>
+          <View style={styles.heroGlassBadge}><AppSymbol name="wand.and.stars" fallback="sparkles" size={13} color={colors.white} weight="regular" /><Text style={styles.heroKicker}>SMITTEN MATCH</Text></View>
+          <View style={styles.matchHeroBottom}>
+            <Text style={styles.heroTitle}>Your dream team, beautifully matched.</Text>
+            <Text style={styles.heroText}>Tell us the mood, place and budget. We’ll find vendors who fit.</Text>
+            <View style={styles.matchHeroFooter}>
+              <View style={styles.avatarStack}>
+                {coupleVendors.slice(0, 3).map((vendor, index) => <Image key={vendor.name} source={{ uri: vendor.image }} style={[styles.stackAvatar, { marginLeft: index === 0 ? 0 : -9 }]} />)}
+                <View style={[styles.stackAvatar, styles.stackMore]}><Text style={styles.stackMoreText}>+AI</Text></View>
+              </View>
+              <View style={styles.matchArrow}><AppSymbol name="arrow.up.right" fallback="arrow-up" size={17} color={colors.ink} weight="medium" /></View>
+            </View>
+          </View>
+        </View>
       </Pressable>
-      <SectionTitle darkMode={darkMode} kicker="BROWSE BY SERVICE" title="Everything you need, all in one place." />
+      <BlurView intensity={88} tint="light" style={[styles.searchBar, searchFocused && styles.inputFocused]}>
+        <AppSymbol name="magnifyingglass" fallback="search" size={18} color={colors.plum} weight="medium" />
+        <TextInput value={query} onChangeText={onQuery} onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)} placeholder="Photographer, venue, caterer..." placeholderTextColor="#A8A29E" style={styles.searchInput} returnKeyType="search" />
+        <Pressable onPress={openDiscover} accessibilityRole="button" accessibilityLabel="Open vendor filters" style={styles.searchFilter}><AppSymbol name="slider.horizontal.3" fallback="options-outline" size={17} color={colors.plum} weight="medium" /></Pressable>
+      </BlurView>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
         {["All", ...serviceOptions].map((item) => {
           const icon = categorySymbol(item);
           return (
             <Pressable key={item} onPress={() => onCategory(item)} accessibilityRole="button" accessibilityState={{ selected: category === item }} style={[styles.categoryCard, category === item && styles.categoryCardActive]}>
-              <AppSymbol name={icon.symbol} fallback={icon.fallback} size={21} color={category === item ? colors.white : colors.plum} weight={category === item ? "semibold" : "regular"} type={category === item ? "hierarchical" : "monochrome"} />
+              <AppSymbol name={icon.symbol} fallback={icon.fallback} size={21} color={category === item ? colors.white : colors.plum} weight={category === item ? "medium" : "regular"} type="monochrome" />
               <Text style={[styles.categoryText, category === item && styles.categoryTextActive]}>{item === "All" ? "All services" : item}</Text>
             </Pressable>
           );
         })}
       </ScrollView>
       <View style={styles.sectionRow}>
-        <SectionTitle darkMode={darkMode} kicker={matches ? "CHOSEN AROUND YOUR PLANS" : "CURATED FOR YOU"} title={matches ? "Your Smitten shortlist" : `Popular around ${location}`} compact />
+        <SectionTitle darkMode={darkMode} kicker={matches ? "CHOSEN AROUND YOUR PLANS" : "FOR YOUR DAY"} title={matches ? "Your Smitten shortlist" : `Popular in ${location}`} compact />
         <Pressable onPress={openDiscover} accessibilityRole="button"><Text style={styles.seeAll}>See all</Text></Pressable>
       </View>
-      {vendors.length > 0 ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.vendorScroll}>
-        {vendors.map((vendor) => {
-          const score = matches ? (vendor as CoupleVendor & { score: number }).score : undefined;
-          return <VendorCard key={vendor.name} vendor={vendor} saved={saved.includes(vendor.name)} score={score} onSave={() => onSave(vendor.name)} onView={() => onView(vendor)} />;
-        })}
-      </ScrollView> : <View style={styles.inlineEmpty}><AppSymbol name="mappin.and.ellipse" fallback="location-outline" size={26} color={colors.coral} weight="medium" /><Text style={styles.inlineEmptyTitle}>No exact matches in {location} yet</Text><Text style={styles.inlineEmptyText}>Try another service or tap the location above to browse another city.</Text></View>}
+      {vendors.length > 0 ? (
+        <View style={styles.vendorMosaic}>
+          <VendorPlanCard vendor={vendors[0]} tone="peach" tall saved={saved.includes(vendors[0].name)} score={matches ? (vendors[0] as CoupleVendor & { score: number }).score : undefined} onSave={() => onSave(vendors[0].name)} onView={() => onView(vendors[0])} />
+          <View style={styles.vendorMosaicSide}>
+            {vendors.slice(1, 3).map((vendor, index) => <VendorPlanCard key={vendor.name} vendor={vendor} tone={index === 0 ? "blue" : "mint"} saved={saved.includes(vendor.name)} score={matches ? (vendor as CoupleVendor & { score: number }).score : undefined} onSave={() => onSave(vendor.name)} onView={() => onView(vendor)} />)}
+            {vendors.length < 3 ? <Pressable onPress={openDiscover} style={[styles.vendorPlanCard, styles.vendorPlanBlue, styles.vendorExploreCard]}><View style={styles.vendorExploreIcon}><AppSymbol name="plus" fallback="add" size={20} color={colors.ink} weight="medium" /></View><Text style={styles.vendorPlanName}>Explore more vendors</Text></Pressable> : null}
+          </View>
+        </View>
+      ) : <View style={styles.inlineEmpty}><AppSymbol name="mappin.and.ellipse" fallback="location-outline" size={26} color={colors.coral} weight="medium" /><Text style={styles.inlineEmptyTitle}>No exact matches in {location} yet</Text><Text style={styles.inlineEmptyText}>Try another service or tap the location above to browse another city.</Text></View>}
       <View style={styles.trustCard}>
         <Text style={styles.trustKicker}>PLAN WITH CONFIDENCE</Text><Text style={styles.trustTitle}>Clear choices for your kind of wedding.</Text>
-        <View style={styles.trustList}><TrustItem symbol="checkmark.seal.fill" fallback="checkmark-circle" text="Verified vendor profiles" /><TrustItem symbol="banknote.fill" fallback="wallet-outline" text="Options for every budget" /><TrustItem symbol="message.fill" fallback="chatbubble-ellipses-outline" text="Simple, protected enquiries" /></View>
+        <View style={styles.trustList}><TrustItem symbol="checkmark.seal" fallback="checkmark-circle-outline" text="Verified vendor profiles" /><TrustItem symbol="banknote" fallback="wallet-outline" text="Options for every budget" /><TrustItem symbol="message" fallback="chatbubble-ellipses-outline" text="Simple, protected enquiries" /></View>
       </View>
     </ScrollView>
   );
@@ -204,6 +243,7 @@ function HomeScreen({ darkMode, unreadNotifications, saved, matches, location, q
 function DiscoverScreen({ darkMode, saved, onSave, onView }: { darkMode: boolean; saved: string[]; onSave: (name: string) => void; onView: (vendor: CoupleVendor) => void }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
+  const [searchFocused, setSearchFocused] = useState(false);
   const results = useMemo(() => coupleVendors.filter((vendor) => {
     const categoryMatch = category === "All" || vendor.category === category;
     const queryMatch = !query || `${vendor.name} ${vendor.location} ${vendor.category}`.toLowerCase().includes(query.toLowerCase());
@@ -214,12 +254,12 @@ function DiscoverScreen({ darkMode, saved, onSave, onView }: { darkMode: boolean
     <SafeAreaView style={[styles.safeScreen, darkMode && styles.darkScreen]} edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.pagePadding}>
         <PageHeader darkMode={darkMode} title="Discover" subtitle="Find the people who’ll make your day." />
-        <View style={styles.fullSearch}><AppSymbol name="magnifyingglass" fallback="search" size={18} color={colors.plum} weight="medium" /><TextInput value={query} onChangeText={setQuery} placeholder="Search vendors or locations" placeholderTextColor={colors.muted} style={styles.searchInput} /></View>
+        <View style={[styles.fullSearch, searchFocused && styles.inputFocused]}><AppSymbol name="magnifyingglass" fallback="search" size={18} color={colors.plum} weight="medium" /><TextInput value={query} onChangeText={setQuery} onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)} placeholder="Search vendors or locations" placeholderTextColor="#A8A29E" style={styles.searchInput} /></View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-          {["All", ...serviceOptions].map((item) => <Pressable key={item} onPress={() => setCategory(item)} style={[styles.filterChip, category === item && styles.filterChipActive]}><Text style={[styles.filterText, category === item && styles.filterTextActive]}>{item}</Text></Pressable>)}
+          {["All", ...serviceOptions].map((item) => <Pressable key={item} onPress={() => setCategory(item)} accessibilityRole="button" accessibilityState={{ selected: category === item }} style={[styles.filterChip, category === item && styles.filterChipActive]}><Text style={[styles.filterText, category === item && styles.filterTextActive]}>{item}</Text></Pressable>)}
         </ScrollView>
         <Text style={styles.resultCount}>{results.length} trusted vendors</Text>
-        {results.length > 0 ? <View style={styles.verticalList}>{results.map((vendor) => <VendorCard key={vendor.name} fullWidth vendor={vendor} saved={saved.includes(vendor.name)} onSave={() => onSave(vendor.name)} onView={() => onView(vendor)} />)}</View> : <View style={styles.emptyState}><View style={styles.emptyIcon}><AppSymbol name="magnifyingglass" fallback="search-outline" size={28} color={colors.plum} weight="light" /></View><Text style={styles.emptyTitle}>No matches yet</Text><Text style={styles.emptyText}>Try a broader search or choose All services.</Text></View>}
+        {results.length > 0 ? <View style={styles.verticalList}>{results.map((vendor) => <VendorCard key={vendor.name} fullWidth darkMode={darkMode} vendor={vendor} saved={saved.includes(vendor.name)} onSave={() => onSave(vendor.name)} onView={() => onView(vendor)} />)}</View> : <View style={styles.emptyState}><View style={styles.emptyIcon}><AppSymbol name="magnifyingglass" fallback="search-outline" size={28} color={colors.plum} weight="light" /></View><Text style={styles.emptyTitle}>No matches yet</Text><Text style={styles.emptyText}>Try a broader search or choose All services.</Text></View>}
       </ScrollView>
     </SafeAreaView>
   );
@@ -232,7 +272,7 @@ function SavedScreen({ darkMode, saved, onSave, onView, openDiscover }: { darkMo
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.pagePadding}>
         <PageHeader darkMode={darkMode} title="Saved" subtitle="Keep your favourite vendors close." />
         {savedVendors.length > 0
-          ? <View style={styles.verticalList}>{savedVendors.map((vendor) => <VendorCard key={vendor.name} fullWidth vendor={vendor} saved onSave={() => onSave(vendor.name)} onView={() => onView(vendor)} />)}</View>
+          ? <View style={styles.verticalList}>{savedVendors.map((vendor) => <VendorCard key={vendor.name} fullWidth darkMode={darkMode} vendor={vendor} saved onSave={() => onSave(vendor.name)} onView={() => onView(vendor)} />)}</View>
           : <View style={styles.emptyState}><View style={styles.emptyIcon}><AppSymbol name="heart" fallback="heart-outline" size={29} color={colors.plum} weight="light" /></View><Text style={styles.emptyTitle}>Your shortlist starts here</Text><Text style={styles.emptyText}>Tap the heart on any vendor to save them and compare your favourites.</Text><Pressable onPress={openDiscover} style={styles.emptyButton}><Text style={styles.emptyButtonText}>Discover vendors</Text></Pressable></View>}
       </ScrollView>
     </SafeAreaView>
@@ -241,11 +281,23 @@ function SavedScreen({ darkMode, saved, onSave, onView, openDiscover }: { darkMo
 
 function PlanningScreen({ darkMode, checklist, onToggle, openMatch }: { darkMode: boolean; checklist: boolean[]; onToggle: (index: number) => void; openMatch: () => void }) {
   const labels = ["Set an overall budget", "Choose a venue", "Book photography", "Confirm catering", "Find your music & DJ"];
+  const completed = checklist.filter(Boolean).length;
   return (
     <SafeAreaView style={[styles.safeScreen, darkMode && styles.darkScreen]} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.pagePadding} showsVerticalScrollIndicator={false}>
         <PageHeader darkMode={darkMode} title="Planning" subtitle="One calm place for all the details." />
-        <View style={styles.planHero}><AppSymbol name="wand.and.stars" fallback="sparkles" size={24} color={colors.white} type="hierarchical" weight="semibold" /><Text style={styles.planHeroTitle}>Build your vendor shortlist with Smitten</Text><Text style={styles.planHeroText}>Three quick questions turn your plans into personal recommendations.</Text><Pressable onPress={openMatch} style={styles.creamButton}><Text style={styles.creamButtonText}>Find my matches</Text><AppSymbol name="arrow.right" fallback="arrow-forward" size={15} color={colors.plum} weight="semibold" /></Pressable></View>
+        <View style={styles.planMetrics}>
+          <PlanningMetric tone="mint" label="Completed" value={`${completed} tasks`} />
+          <PlanningMetric tone="blue" label="To do" value={`${checklist.length - completed} tasks`} />
+          <PlanningMetric tone="peach" label="Your pace" value={completed > 2 ? "On track" : "Steady"} />
+        </View>
+        <View style={styles.planHero}>
+          <View style={styles.planHeroIcon}><AppSymbol name="wand.and.stars" fallback="sparkles" size={22} color={colors.ink} type="hierarchical" weight="semibold" /></View>
+          <Text style={styles.planHeroEyebrow}>PERSONAL MATCHING</Text>
+          <Text style={styles.planHeroTitle}>Build your vendor shortlist with Smitten.</Text>
+          <Text style={styles.planHeroText}>Three thoughtful questions turn your plans into personal recommendations.</Text>
+          <Pressable onPress={openMatch} style={styles.creamButton}><Text style={styles.creamButtonText}>Find my matches</Text><AppSymbol name="arrow.up.right" fallback="arrow-up" size={15} color={colors.white} weight="semibold" /></Pressable>
+        </View>
         <SectionTitle darkMode={darkMode} kicker="YOUR WEDDING" title="Planning checklist" />
         <View style={styles.checklist}>{labels.map((label, index) => <ChecklistItem key={label} checked={checklist[index]} label={label} onPress={() => onToggle(index)} />)}</View>
       </ScrollView>
@@ -253,13 +305,27 @@ function PlanningScreen({ darkMode, checklist, onToggle, openMatch }: { darkMode
   );
 }
 
-function ProfileScreen({ darkMode, signedIn, openAuth, openSettings, onAction }: { darkMode: boolean; signedIn: boolean; openAuth: () => void; openSettings: () => void; onAction: (message: string) => void }) {
+function ProfileScreen({ darkMode, signedIn, savedCount, completedCount, matchCount, openAuth, openSettings, onAction }: { darkMode: boolean; signedIn: boolean; savedCount: number; completedCount: number; matchCount: number; openAuth: () => void; openSettings: () => void; onAction: (message: string) => void }) {
   return (
     <SafeAreaView style={[styles.safeScreen, darkMode && styles.darkScreen]} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.pagePadding}>
-        <PageHeader darkMode={darkMode} title="Your Smitten" subtitle="Save plans and make the app yours." />
-        <View style={styles.profileCard}><View style={styles.profileIcon}><AppSymbol name={signedIn ? "checkmark.seal.fill" : "person.crop.circle"} fallback={signedIn ? "checkmark-circle" : "person-outline"} size={30} color={colors.plum} type="hierarchical" weight="medium" /></View><Text style={styles.profileTitle}>{signedIn ? "You’re signed in" : "Sign in to keep planning"}</Text><Text style={styles.profileText}>{signedIn ? "Your favourites, Smitten shortlist and checklist are ready on this device." : "Sync your saved vendors, Smitten shortlist and wedding checklist across devices."}</Text><Pressable onPress={signedIn ? () => onAction("Your Smitten profile is up to date") : openAuth} style={styles.primaryButton}><Text style={styles.primaryButtonText}>{signedIn ? "View account status" : "Sign in or create account"}</Text></Pressable></View>
-        <View style={styles.profileLinks}><ProfileLink symbol="gearshape" fallback="settings-outline" text="Settings" onPress={openSettings}/><ProfileLink symbol="storefront.fill" fallback="briefcase-outline" text="I’m a wedding vendor" onPress={() => onAction("Vendor onboarding will open on smitten.ng")}/><ProfileLink symbol="questionmark.circle.fill" fallback="help-circle-outline" text="Help & support" onPress={() => onAction("Support request started")}/><ProfileLink symbol="hand.raised.fill" fallback="shield-checkmark-outline" text="Privacy & safety" onPress={() => onAction("Privacy & safety centre opened")}/></View>
+      <ScrollView contentContainerStyle={styles.pagePadding} showsVerticalScrollIndicator={false}>
+        <View style={styles.profileHeader}>
+          <View style={styles.profileHeaderSpacer} />
+          <Text style={[styles.profileHeaderTitle, darkMode && styles.pageTitleDark]}>Profile</Text>
+          <Pressable onPress={openSettings} accessibilityRole="button" accessibilityLabel="Open settings" style={[styles.profileSettingsButton, darkMode && styles.darkIconButton]}><AppSymbol name="gearshape" fallback="settings-outline" size={21} color={darkMode ? colors.white : colors.ink} weight="medium" /></Pressable>
+        </View>
+        <View style={styles.profileIdentity}>
+          <View style={styles.profileAvatar}><Text style={styles.profileAvatarText}>S</Text><View style={styles.profileStatusDot} /></View>
+          <View style={styles.profileIdentityCopy}><Text style={[styles.profileName, darkMode && styles.pageTitleDark]}>{signedIn ? "Your Smitten" : "Wedding dreamer"}</Text><Text style={[styles.profileLocation, darkMode && styles.pageSubtitleDark]}>{signedIn ? "Your plans are synced" : "Planning beautifully, one step at a time"}</Text></View>
+          <Pressable onPress={signedIn ? () => onAction("Your Smitten profile is up to date") : openAuth} accessibilityRole="button" style={[styles.profileMiniAction, darkMode && styles.darkIconButton]}><AppSymbol name={signedIn ? "checkmark.seal.fill" : "pencil"} fallback={signedIn ? "checkmark-circle" : "create-outline"} size={18} color={darkMode ? colors.white : colors.ink} type="hierarchical" weight="medium" /></Pressable>
+        </View>
+        <View style={styles.profileMetrics}>
+          <ProfileMetric tone="mint" label="Saved vendors" value={String(savedCount)} />
+          <ProfileMetric tone="blue" label="Tasks done" value={String(completedCount)} />
+          <ProfileMetric tone="peach" label="AI matches" value={String(matchCount)} />
+        </View>
+        {!signedIn ? <View style={styles.profileSignIn}><View style={styles.profileSignInCopy}><Text style={styles.profileSignInTitle}>Keep every plan close.</Text><Text style={styles.profileSignInText}>Sign in to sync favourites and your checklist.</Text></View><Pressable onPress={openAuth} style={styles.profileSignInButton}><Text style={styles.profileSignInButtonText}>Sign in</Text><AppSymbol name="arrow.right" fallback="arrow-forward" size={14} color={colors.white} weight="semibold" /></Pressable></View> : null}
+        <View style={styles.profileLinks}><ProfileLink symbol="storefront" fallback="briefcase-outline" text="I’m a wedding vendor" onPress={() => onAction("Vendor onboarding will open on smitten.ng")}/><ProfileLink symbol="bell.badge" fallback="notifications-outline" text="Notification preferences" onPress={openSettings}/><ProfileLink symbol="questionmark.circle" fallback="help-circle-outline" text="Help & support" onPress={() => onAction("Support request started")}/><ProfileLink symbol="hand.raised" fallback="shield-checkmark-outline" text="Privacy & safety" onPress={() => onAction("Privacy & safety centre opened")}/></View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -270,6 +336,7 @@ function AuthModal({ visible, onClose, onComplete }: { visible: boolean; onClose
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [focusedField, setFocusedField] = useState<"email" | "password" | null>(null);
 
   function submit() {
     if (!email.includes("@") || password.length < 6) {
@@ -287,8 +354,8 @@ function AuthModal({ visible, onClose, onComplete }: { visible: boolean; onClose
         <ScrollView contentContainerStyle={styles.authContent}>
           <Text style={styles.authKicker}>WELCOME TO SMITTEN</Text><Text style={styles.authTitle}>Plan beautifully, together.</Text><Text style={styles.authSubtitle}>Choose how you use Smitten to continue.</Text>
           <View style={styles.roleRow}><RoleCard symbol="heart" fallback="heart-outline" label="Planning a wedding" selected={role === "couple"} onPress={() => setRole("couple")} /><RoleCard symbol="storefront" fallback="briefcase-outline" label="Wedding vendor" selected={role === "vendor"} onPress={() => setRole("vendor")} /></View>
-          <Text style={styles.inputLabel}>EMAIL ADDRESS</Text><TextInput value={email} onChangeText={setEmail} style={styles.authInput} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none" />
-          <Text style={styles.inputLabel}>PASSWORD</Text><TextInput value={password} onChangeText={setPassword} style={styles.authInput} placeholder="••••••••" secureTextEntry />
+          <Text style={styles.inputLabel}>EMAIL ADDRESS</Text><TextInput value={email} onChangeText={setEmail} onFocus={() => setFocusedField("email")} onBlur={() => setFocusedField(null)} style={[styles.authInput, focusedField === "email" && styles.inputFocused]} placeholder="you@example.com" placeholderTextColor="#A8A29E" keyboardType="email-address" autoCapitalize="none" />
+          <Text style={styles.inputLabel}>PASSWORD</Text><TextInput value={password} onChangeText={setPassword} onFocus={() => setFocusedField("password")} onBlur={() => setFocusedField(null)} style={[styles.authInput, focusedField === "password" && styles.inputFocused]} placeholder="••••••••" placeholderTextColor="#A8A29E" secureTextEntry />
           {error ? <Text style={styles.formError}>{error}</Text> : null}
           <Pressable onPress={submit} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Continue</Text><AppSymbol name="arrow.right" fallback="arrow-forward" size={16} color={colors.white} weight="semibold" /></Pressable>
           <Text style={styles.terms}>By continuing, you agree to Smitten’s Terms and Privacy Policy.</Text>
@@ -300,7 +367,7 @@ function AuthModal({ visible, onClose, onComplete }: { visible: boolean; onClose
 
 function NotificationsModal({ visible, darkMode, unreadCount, onClose, onMarkAllRead }: { visible: boolean; darkMode: boolean; unreadCount: number; onClose: () => void; onMarkAllRead: () => void }) {
   const notifications = [
-    { symbol: "message.fill" as const, fallback: "chatbubble-ellipses-outline" as const, title: "Aurora Events replied", body: "Your quote request has a new message.", time: "8 min ago" },
+    { symbol: "message" as const, fallback: "chatbubble-ellipses-outline" as const, title: "Aurora Events replied", body: "Your quote request has a new message.", time: "8 min ago" },
     { symbol: "wand.and.stars" as const, fallback: "sparkles-outline" as const, title: "Your Smitten shortlist is ready", body: "We found vendors that fit your wedding plans.", time: "Today" },
     { symbol: "calendar.badge.clock" as const, fallback: "calendar-outline" as const, title: "Planning reminder", body: "Choose a venue to keep your checklist moving.", time: "Yesterday" },
   ];
@@ -310,7 +377,7 @@ function NotificationsModal({ visible, darkMode, unreadCount, onClose, onMarkAll
       <SafeAreaView style={[styles.modalScreen, darkMode && styles.modalScreenDark]}>
         <View style={styles.modalTop}>
           <View style={styles.modalHeading}>
-            <View style={styles.modalHeadingIcon}><AppSymbol name="bell.badge.fill" fallback="notifications" size={22} color={colors.white} type="hierarchical" weight="semibold" /></View>
+            <View style={styles.modalHeadingIcon}><AppSymbol name="bell.badge" fallback="notifications-outline" size={22} color={colors.white} type="monochrome" weight="regular" /></View>
             <View><Text style={[styles.modalKicker, darkMode && styles.modalMutedDark]}>UPDATES FOR YOU</Text><Text style={[styles.modalTitle, darkMode && styles.modalTitleDark]}>Notifications</Text></View>
           </View>
           <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close notifications" style={[styles.closeButton, darkMode && styles.closeButtonDark]}><AppSymbol name="xmark" fallback="close" size={17} color={darkMode ? colors.white : colors.ink} weight="semibold" /></Pressable>
@@ -323,8 +390,8 @@ function NotificationsModal({ visible, darkMode, unreadCount, onClose, onMarkAll
           {notifications.map((notification, index) => {
             const unread = index < unreadCount;
             return (
-              <View key={notification.title} style={[styles.notificationRow, darkMode && styles.notificationRowDark, unread && styles.notificationRowUnread]}>
-                <View style={[styles.notificationIcon, darkMode && styles.notificationIconDark]}><AppSymbol name={notification.symbol} fallback={notification.fallback} size={21} color={darkMode ? "#DCE4CA" : colors.plum} type="hierarchical" weight="medium" /></View>
+              <View key={notification.title} style={[styles.notificationRow, darkMode && styles.notificationRowDark, unread && (darkMode ? styles.notificationRowUnreadDark : styles.notificationRowUnread)]}>
+                <View style={[styles.notificationIcon, darkMode && styles.notificationIconDark]}><AppSymbol name={notification.symbol} fallback={notification.fallback} size={21} color={darkMode ? "#E7E5E4" : colors.plum} type="monochrome" weight="regular" /></View>
                 <View style={styles.notificationCopy}><View style={styles.notificationTitleRow}><Text style={[styles.notificationTitle, darkMode && styles.modalTitleDark]}>{notification.title}</Text>{unread ? <View accessibilityLabel="Unread" style={styles.unreadDot} /> : null}</View><Text style={[styles.notificationBody, darkMode && styles.modalBodyDark]}>{notification.body}</Text><Text style={styles.notificationTime}>{notification.time}</Text></View>
               </View>
             );
@@ -368,7 +435,7 @@ function SettingsModal({ visible, signedIn, darkMode, pushNotifications, plannin
 function SettingsToggle({ symbol, fallback, title, subtitle, value, darkMode, disabled = false, onChange }: { symbol: AppSymbolName; fallback: AppSymbolFallback; title: string; subtitle: string; value: boolean; darkMode: boolean; disabled?: boolean; onChange: (value: boolean) => void }) {
   return (
     <View style={[styles.settingsAction, disabled && styles.settingsActionDisabled]}>
-      <View style={[styles.settingsIcon, darkMode && styles.settingsIconDark]}><AppSymbol name={symbol} fallback={fallback} size={20} color={darkMode ? colors.white : colors.plum} type="hierarchical" weight="medium" /></View>
+      <View style={[styles.settingsIcon, darkMode && styles.settingsIconDark]}><AppSymbol name={symbol} fallback={fallback} size={20} color={darkMode ? colors.white : colors.plum} type="monochrome" weight="regular" /></View>
       <View style={styles.settingsCopy}><Text style={[styles.settingsTitle, darkMode && styles.modalTitleDark]}>{title}</Text><Text style={[styles.settingsSubtitle, darkMode && styles.modalBodyDark]}>{subtitle}</Text></View>
       <Switch value={value} onValueChange={onChange} disabled={disabled} accessibilityLabel={title} trackColor={{ false: darkMode ? "#454842" : "#D7DCCF", true: "#7F8969" }} thumbColor={colors.white} ios_backgroundColor={darkMode ? "#454842" : "#D7DCCF"} />
     </View>
@@ -380,20 +447,44 @@ function LocationModal({ visible, selected, onClose, onSelect }: { visible: bool
 }
 
 function VendorModal({ vendor, saved, onClose, onSave, onQuote }: { vendor: CoupleVendor | null; saved: boolean; onClose: () => void; onSave: () => void; onQuote: () => void }) {
-  return <Modal visible={Boolean(vendor)} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>{vendor ? <SafeAreaView style={styles.vendorModal}><View style={styles.vendorModalTop}><Brand /><Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close vendor profile" style={styles.closeButton}><AppSymbol name="xmark" fallback="close" size={17} color={colors.ink} weight="semibold" /></Pressable></View><ScrollView showsVerticalScrollIndicator={false}><Image source={{ uri: vendor.image }} style={styles.vendorModalImage} alt={`${vendor.name} portfolio`} /><View style={styles.vendorModalContent}><Text style={styles.vendorModalCategory}>{vendor.category}</Text><Text style={styles.vendorModalTitle}>{vendor.name}</Text><View style={styles.vendorModalMeta}><View style={styles.vendorModalLocation}><AppSymbol name="location.fill" fallback="location-outline" size={13} color={colors.muted} /><Text style={styles.vendorModalMetaText}>{vendor.location}</Text></View><View style={styles.vendorModalLocation}><AppSymbol name="star.fill" fallback="star" size={12} color={colors.gold} /><Text style={styles.vendorModalMetaText}>{vendor.rating} ({vendor.reviews})</Text></View></View><Text style={styles.vendorModalReason}>{vendor.reason}</Text><View style={styles.vendorModalFacts}><View><Text>Starting price</Text><Text>{vendor.price}</Text></View><View><Text>Service level</Text><Text>{vendor.tier}</Text></View></View><View style={styles.vendorModalActions}><Pressable onPress={onSave} accessibilityRole="button" accessibilityState={{ selected: saved }} style={styles.secondaryButton}><AppSymbol name={saved ? "heart.fill" : "heart"} fallback={saved ? "heart" : "heart-outline"} size={18} color={colors.plum} weight="medium" animationSpec={saved ? { effect: { type: "bounce", wholeSymbol: true }, repeating: false } : undefined} /><Text style={styles.secondaryButtonText}>{saved ? "Saved" : "Save"}</Text></Pressable><Pressable onPress={onQuote} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Request a quote</Text><AppSymbol name="arrow.right" fallback="arrow-forward" size={15} color={colors.white} weight="semibold" /></Pressable></View></View></ScrollView></SafeAreaView> : null}</Modal>;
+  return <Modal visible={Boolean(vendor)} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>{vendor ? <SafeAreaView style={styles.vendorModal}><View style={styles.vendorModalTop}><Brand /><Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close vendor profile" style={styles.closeButton}><AppSymbol name="xmark" fallback="close" size={17} color={colors.ink} weight="semibold" /></Pressable></View><ScrollView showsVerticalScrollIndicator={false}><Image source={{ uri: vendor.image }} style={styles.vendorModalImage} alt={`${vendor.name} portfolio`} /><View style={styles.vendorModalContent}><Text style={styles.vendorModalCategory}>{vendor.category}</Text><Text style={styles.vendorModalTitle}>{vendor.name}</Text><View style={styles.vendorModalMeta}><View style={styles.vendorModalLocation}><AppSymbol name="location.fill" fallback="location-outline" size={13} color={colors.muted} /><Text style={styles.vendorModalMetaText}>{vendor.location}</Text></View><View style={styles.vendorModalLocation}><AppSymbol name="star.fill" fallback="star" size={12} color={colors.gold} /><Text style={styles.vendorModalMetaText}>{vendor.rating} ({vendor.reviews})</Text></View></View><Text style={styles.vendorModalReason}>{vendor.reason}</Text><View style={styles.vendorModalFacts}><View style={styles.vendorFact}><Text style={styles.vendorFactLabel}>Starting price</Text><Text style={styles.vendorFactValue}>{vendor.price}</Text></View><View style={styles.vendorFact}><Text style={styles.vendorFactLabel}>Service level</Text><Text style={styles.vendorFactValue}>{vendor.tier}</Text></View></View><View style={styles.vendorModalActions}><Pressable onPress={onSave} accessibilityRole="button" accessibilityState={{ selected: saved }} style={styles.secondaryButton}><AppSymbol name={saved ? "heart.fill" : "heart"} fallback={saved ? "heart" : "heart-outline"} size={18} color={colors.plum} weight="medium" animationSpec={saved ? { effect: { type: "bounce", wholeSymbol: true }, repeating: false } : undefined} /><Text style={styles.secondaryButtonText}>{saved ? "Saved" : "Save"}</Text></Pressable><Pressable onPress={onQuote} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Request a quote</Text><AppSymbol name="arrow.right" fallback="arrow-forward" size={15} color={colors.white} weight="semibold" /></Pressable></View></View></ScrollView></SafeAreaView> : null}</Modal>;
+}
+
+function VendorPlanCard({ vendor, tone, tall = false, saved, score, onSave, onView }: { vendor: CoupleVendor; tone: "peach" | "blue" | "mint"; tall?: boolean; saved: boolean; score?: number; onSave: () => void; onView: () => void }) {
+  const toneStyle = tone === "peach" ? styles.vendorPlanPeach : tone === "blue" ? styles.vendorPlanBlue : styles.vendorPlanMint;
+  return (
+    <View style={[styles.vendorPlanCard, toneStyle, tall && styles.vendorPlanCardTall]}>
+      <Pressable onPress={onView} accessibilityRole="button" accessibilityLabel={`View ${vendor.name} profile`} style={styles.vendorPlanContent}>
+        <View style={styles.vendorPlanTop}><View style={styles.vendorPlanPill}><Text style={styles.vendorPlanPillText}>{score ? `${score}% match` : vendor.category}</Text></View><AppSymbol name="arrow.up.right" fallback="arrow-up" size={15} color={colors.ink} weight="semibold" /></View>
+        <View style={[styles.vendorPlanCopy, !tall && styles.vendorPlanCopyCompact]}><Text style={[styles.vendorPlanName, !tall && styles.vendorPlanNameCompact]} numberOfLines={tall ? 3 : 2}>{vendor.name}</Text><Text style={styles.vendorPlanMeta}>{vendor.location} · {vendor.price}</Text></View>
+        <Image source={{ uri: vendor.image }} style={tall ? styles.vendorPlanImageTall : styles.vendorPlanImage} resizeMode="cover" alt={`${vendor.name} wedding portfolio`} />
+      </Pressable>
+      <Pressable onPress={onSave} accessibilityRole="button" accessibilityLabel={saved ? `Remove ${vendor.name} from saved vendors` : `Save ${vendor.name}`} style={[styles.vendorPlanSave, saved && styles.vendorPlanSaveActive]}><AppSymbol name={saved ? "heart.fill" : "heart"} fallback={saved ? "heart" : "heart-outline"} size={17} color={saved ? colors.white : colors.ink} weight="medium" animationSpec={saved ? { effect: { type: "bounce", wholeSymbol: true }, repeating: false } : undefined} /></Pressable>
+    </View>
+  );
+}
+
+function PlanningMetric({ tone, label, value }: { tone: "mint" | "blue" | "peach"; label: string; value: string }) {
+  const toneStyle = tone === "mint" ? styles.metricMint : tone === "blue" ? styles.metricBlue : styles.metricPeach;
+  return <View style={[styles.planMetric, toneStyle]}><Text style={styles.planMetricLabel}>{label}</Text><Text style={styles.planMetricValue}>{value}</Text></View>;
+}
+
+function ProfileMetric({ tone, label, value }: { tone: "mint" | "blue" | "peach"; label: string; value: string }) {
+  const toneStyle = tone === "mint" ? styles.metricMint : tone === "blue" ? styles.metricBlue : styles.metricPeach;
+  return <View style={[styles.profileMetric, toneStyle]}><Text style={styles.profileMetricLabel}>{label}</Text><Text style={styles.profileMetricValue}>{value}</Text></View>;
 }
 
 function Brand() { return <View style={styles.brand}><View style={styles.brandLogoShell}><Image source={smittenWordmark} style={styles.brandLogo} resizeMode="contain" accessibilityLabel="Smitten" alt="Smitten" /></View></View>; }
 function PageHeader({ title, subtitle, darkMode = false }: { title: string; subtitle: string; darkMode?: boolean }) { return <View style={styles.pageHeader}><Text style={[styles.pageTitle, darkMode && styles.pageTitleDark]}>{title}</Text><Text style={[styles.pageSubtitle, darkMode && styles.pageSubtitleDark]}>{subtitle}</Text></View>; }
 function SectionTitle({ kicker, title, compact = false, darkMode = false }: { kicker: string; title: string; compact?: boolean; darkMode?: boolean }) { return <View style={[styles.sectionHeading, compact && styles.sectionHeadingCompact]}><Text style={styles.sectionKicker}>{kicker}</Text><Text style={[styles.sectionTitle, compact && styles.sectionTitleCompact, darkMode && styles.sectionTitleDark]}>{title}</Text></View>; }
-function TrustItem({ symbol, fallback, text }: SymbolPair & { text: string }) { return <View style={styles.trustItem}><AppSymbol name={symbol} fallback={fallback} size={18} color="#B8C4A4" type="hierarchical" weight="semibold" /><Text style={styles.trustText}>{text}</Text></View>; }
+function TrustItem({ symbol, fallback, text }: SymbolPair & { text: string }) { return <View style={styles.trustItem}><AppSymbol name={symbol} fallback={fallback} size={18} color={colors.coral} type="monochrome" weight="regular" /><Text style={styles.trustText}>{text}</Text></View>; }
 function ChecklistItem({ label, checked = false, onPress }: { label: string; checked?: boolean; onPress: () => void }) { return <Pressable onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked }} style={styles.checkRow}><View style={[styles.checkCircle, checked && styles.checkCircleDone]}>{checked ? <AppSymbol name="checkmark" fallback="checkmark" size={12} color={colors.white} weight="bold" /> : null}</View><Text style={[styles.checkLabel, checked && styles.checkLabelDone]}>{label}</Text><AppSymbol name="chevron.right" fallback="chevron-forward" size={13} color={colors.muted} weight="semibold" /></Pressable>; }
-function ProfileLink({ symbol, fallback, text, onPress }: SymbolPair & { text: string; onPress: () => void }) { return <Pressable onPress={onPress} accessibilityRole="button" style={styles.profileLink}><View style={styles.profileLinkIcon}><AppSymbol name={symbol} fallback={fallback} size={20} color={colors.plum} type="hierarchical" weight="medium" /></View><Text style={styles.profileLinkText}>{text}</Text><AppSymbol name="chevron.right" fallback="chevron-forward" size={13} color={colors.muted} weight="semibold" /></Pressable>; }
-function RoleCard({ symbol, fallback, label, selected, onPress }: SymbolPair & { label: string; selected: boolean; onPress: () => void }) { return <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected }} style={[styles.roleCard, selected && styles.roleCardSelected]}><AppSymbol name={symbol} fallback={fallback} size={24} color={colors.plum} type="hierarchical" weight={selected ? "semibold" : "regular"} /><Text style={styles.roleLabel}>{label}</Text>{selected ? <AppSymbol name="checkmark.circle.fill" fallback="checkmark-circle" size={18} color={colors.coral} weight="semibold" style={styles.roleCheck} /> : null}</Pressable>; }
+function ProfileLink({ symbol, fallback, text, onPress }: SymbolPair & { text: string; onPress: () => void }) { return <Pressable onPress={onPress} accessibilityRole="button" style={styles.profileLink}><View style={styles.profileLinkIcon}><AppSymbol name={symbol} fallback={fallback} size={20} color={colors.plum} type="monochrome" weight="regular" /></View><Text style={styles.profileLinkText}>{text}</Text><AppSymbol name="chevron.right" fallback="chevron-forward" size={13} color={colors.muted} weight="regular" /></Pressable>; }
+function RoleCard({ symbol, fallback, label, selected, onPress }: SymbolPair & { label: string; selected: boolean; onPress: () => void }) { return <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected }} style={[styles.roleCard, selected && styles.roleCardSelected]}><AppSymbol name={symbol} fallback={fallback} size={24} color={colors.plum} type="monochrome" weight={selected ? "medium" : "regular"} /><Text style={styles.roleLabel}>{label}</Text>{selected ? <AppSymbol name="checkmark.circle.fill" fallback="checkmark-circle" size={18} color={colors.coral} weight="semibold" style={styles.roleCheck} /> : null}</Pressable>; }
 
 function TabButton({ tab, active, savedCount, darkMode, onPress }: { tab: Tab; active: boolean; savedCount: number; darkMode: boolean; onPress: () => void }) {
-  const iconColor = active ? (darkMode ? colors.ink : colors.white) : (darkMode ? "#A1A1A1" : "#666666");
-  return <Pressable onPress={onPress} accessibilityRole="tab" accessibilityLabel={`${tab} tab`} accessibilityState={{ selected: active }} style={[styles.tabButton, active && styles.tabButtonActive, active && darkMode && styles.tabButtonActiveDark]}><View>{savedCount > 0 && <View style={styles.countBadge}><Text style={styles.countText}>{savedCount}</Text></View>}<TabVectorIcon tab={tab} active={active} color={iconColor} /></View><Text numberOfLines={1} style={[styles.tabLabel, darkMode && styles.tabLabelDark, active && styles.tabLabelActive, active && darkMode && styles.tabLabelActiveDark]}>{tab}</Text></Pressable>;
+  const iconColor = active ? (darkMode ? colors.white : colors.ink) : (darkMode ? "#A8A29E" : "#8B8580");
+  return <Pressable onPress={onPress} accessibilityRole="tab" accessibilityLabel={`${tab} tab`} accessibilityState={{ selected: active }} style={styles.tabButton}><View>{savedCount > 0 ? <View style={styles.countBadge}><Text style={styles.countText}>{savedCount}</Text></View> : null}<TabVectorIcon tab={tab} active={active} color={iconColor} /></View><Text numberOfLines={1} style={[styles.tabLabel, darkMode && styles.tabLabelDark, active && styles.tabLabelActive, active && darkMode && styles.tabLabelActiveDark]}>{tab}</Text><View style={[styles.tabDot, active && styles.tabDotActive, active && darkMode && styles.tabDotActiveDark]} /></Pressable>;
 }
 
 function TabVectorIcon({ tab, active, color }: { tab: Tab; active: boolean; color: string }) {
@@ -401,212 +492,270 @@ function TabVectorIcon({ tab, active, color }: { tab: Tab; active: boolean; colo
 
   return (
     <View style={[styles.tabIcon, active && styles.tabIconActive]}>
-      <AppSymbol name={icon.symbol} fallback={icon.fallback} size={active ? 24 : 22} color={color} type={active ? "hierarchical" : "monochrome"} weight={active ? "semibold" : "regular"} animationSpec={active ? { effect: { type: "bounce", wholeSymbol: true }, repeating: false, speed: 1.15 } : undefined} />
+      <AppSymbol name={icon.symbol} fallback={icon.fallback} size={active ? 23 : 22} color={color} type="monochrome" weight={active ? "medium" : "regular"} />
     </View>
   );
 }
 
 function categorySymbol(category: string): SymbolPair {
-  if (category === "Photography") return { symbol: "camera.fill", fallback: "camera-outline" };
-  if (category === "Venues") return { symbol: "building.2.fill", fallback: "business-outline" };
-  if (category === "Cakes & desserts") return { symbol: "birthday.cake.fill", fallback: "cafe-outline" };
-  if (category === "Bridal beauty") return { symbol: "paintbrush.pointed.fill", fallback: "sparkles-outline" };
-  if (category === "Planning & décor") return { symbol: "list.clipboard.fill", fallback: "calendar-outline" };
+  if (category === "Photography") return { symbol: "camera", fallback: "camera-outline" };
+  if (category === "Venues") return { symbol: "building.2", fallback: "business-outline" };
+  if (category === "Cakes & desserts") return { symbol: "birthday.cake", fallback: "cafe-outline" };
+  if (category === "Bridal beauty") return { symbol: "paintbrush.pointed", fallback: "sparkles-outline" };
+  if (category === "Planning & décor") return { symbol: "list.clipboard", fallback: "calendar-outline" };
   return { symbol: "square.grid.2x2", fallback: "grid-outline" };
 }
 
 const styles = StyleSheet.create({
   app: { flex: 1, backgroundColor: colors.cream },
-  appDark: { backgroundColor: "#000000" },
+  appDark: { backgroundColor: "#1B1816" },
   screen: { flex: 1 },
   scroll: { flex: 1, backgroundColor: colors.cream },
-  darkScreen: { backgroundColor: "#0A0A0A" },
-  scrollContent: { paddingBottom: 132 },
+  darkScreen: { backgroundColor: "#1B1816" },
+  scrollContent: { paddingBottom: 138 },
   safeScreen: { flex: 1, backgroundColor: colors.cream },
-  pagePadding: { paddingHorizontal: 18, paddingBottom: 132 },
-  header: { height: 62, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  pagePadding: { paddingHorizontal: 20, paddingBottom: 138 },
+  header: { minHeight: 78, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  homeIdentity: { gap: 4 },
+  homeLocation: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start" },
+  homeLocationText: { color: colors.ink, fontFamily: mediumFont, fontSize: 10 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   brand: { flexDirection: "row", alignItems: "center" },
-  brandLogoShell: { width: 112, height: 34, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 6, backgroundColor: colors.plum },
+  brandLogoShell: { width: 100, height: 31, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 9, backgroundColor: colors.plum },
   brandLogo: { width: "100%", height: "100%" },
-  avatar: { width: 38, height: 38, borderRadius: 9, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
-  darkIconButton: { backgroundColor: "#1A1A1A", borderColor: "#333333" },
-  notificationBadge: { minWidth: 15, height: 15, paddingHorizontal: 3, position: "absolute", right: -4, top: -4, borderRadius: 8, backgroundColor: "#C85E52", alignItems: "center", justifyContent: "center" },
-  notificationBadgeText: { color: colors.white, fontSize: 8, lineHeight: 11, fontWeight: "900" },
-  hero: { height: 344, marginHorizontal: 14, overflow: "hidden", position: "relative", borderRadius: 14, borderWidth: 1, borderColor: "#222222", backgroundColor: colors.plumDark },
-  heroImage: { position: "absolute", width: "100%", height: "100%" },
-  heroShade: { position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.48)" },
-  heroCopy: { position: "absolute", left: 23, right: 23, bottom: 26 },
-  heroKicker: { color: "#DDE4D0", fontSize: 8, fontWeight: "700", letterSpacing: 1.2 },
-  heroTitle: { maxWidth: 315, color: colors.white, fontFamily: appFont, fontSize: 35, lineHeight: 40, fontWeight: "600", letterSpacing: -1.2, marginTop: 8 },
-  heroText: { maxWidth: 285, color: "rgba(255,255,255,0.8)", fontSize: 11, lineHeight: 17, marginTop: 8 },
-  searchBar: { minHeight: 57, marginHorizontal: 25, marginTop: -18, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, flexDirection: "row", alignItems: "center", gap: 8, shadowColor: colors.plumDark, shadowOpacity: 0.07, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
-  searchInput: { flex: 1, color: colors.ink, fontSize: 11, paddingVertical: 12 },
-  searchDivider: { width: 1, height: 25, backgroundColor: colors.border },
-  locationButton: { maxWidth: 112, minHeight: 40, flexDirection: "row", alignItems: "center", gap: 4 },
-  searchLocation: { maxWidth: 68, color: colors.ink, fontSize: 10, fontWeight: "700" },
-  vowiCard: { marginHorizontal: 18, marginTop: 24, padding: 15, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, flexDirection: "row", alignItems: "center", gap: 11 },
-  vowiIcon: { width: 42, height: 42, borderRadius: 8, backgroundColor: colors.plum, alignItems: "center", justifyContent: "center" },
-  vowiCopy: { flex: 1 },
-  vowiKicker: { color: colors.muted, fontSize: 8, fontWeight: "600", letterSpacing: 0.8 },
-  vowiTitle: { color: colors.ink, fontSize: 12, fontWeight: "700", marginTop: 3 },
-  sectionHeading: { marginHorizontal: 18, marginTop: 27, marginBottom: 15 },
+  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(255,254,252,0.9)", borderWidth: 1, borderColor: "rgba(255,255,255,0.48)", alignItems: "center", justifyContent: "center", ...cardShadow },
+  darkIconButton: { backgroundColor: "rgba(36,32,30,0.9)", borderColor: "rgba(255,255,255,0.08)" },
+  notificationBadge: { minWidth: 16, height: 16, paddingHorizontal: 3, position: "absolute", right: -3, top: -3, borderRadius: 8, backgroundColor: "#E86F68", alignItems: "center", justifyContent: "center" },
+  notificationBadgeText: { color: colors.white, fontFamily: boldFont, fontSize: 8, lineHeight: 11 },
+  matchHero: { height: 338, marginHorizontal: 16, overflow: "hidden", position: "relative", borderRadius: 28, backgroundColor: colors.plumDark, ...cardShadow },
+  matchHeroImage: { position: "absolute", width: "100%", height: "100%" },
+  matchHeroGradient: { position: "absolute", inset: 0 },
+  matchHeroCopy: { flex: 1, zIndex: 2, padding: 23, justifyContent: "space-between" },
+  heroGlassBadge: { minHeight: 31, alignSelf: "flex-start", paddingHorizontal: 11, borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.22)", backgroundColor: "rgba(255,255,255,0.14)", flexDirection: "row", alignItems: "center", gap: 6 },
+  heroKicker: { color: colors.white, fontFamily: headingFont, fontSize: 8, letterSpacing: 1.25 },
+  matchHeroBottom: { maxWidth: 295 },
+  heroTitle: { maxWidth: 295, color: colors.white, fontFamily: headingFont, fontSize: 33, lineHeight: 37, letterSpacing: -0.8 },
+  heroText: { maxWidth: 275, color: "rgba(255,255,255,0.78)", fontFamily: appFont, fontSize: 11, lineHeight: 17, marginTop: 8 },
+  matchHeroFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 20 },
+  avatarStack: { flexDirection: "row", alignItems: "center" },
+  stackAvatar: { width: 31, height: 31, borderRadius: 16, borderWidth: 2, borderColor: "rgba(255,255,255,0.76)" },
+  stackMore: { marginLeft: -9, backgroundColor: "rgba(28,25,23,0.88)", alignItems: "center", justifyContent: "center" },
+  stackMoreText: { color: colors.white, fontFamily: boldFont, fontSize: 8 },
+  matchArrow: { width: 43, height: 43, borderRadius: 22, borderWidth: 1, borderColor: "rgba(255,255,255,0.5)", backgroundColor: "rgba(255,255,255,0.88)", alignItems: "center", justifyContent: "center" },
+  searchBar: { minHeight: 60, marginHorizontal: 20, marginTop: -22, zIndex: 3, paddingLeft: 17, paddingRight: 8, overflow: "hidden", borderRadius: 30, borderWidth: 1, borderColor: "rgba(255,255,255,0.62)", backgroundColor: "rgba(255,255,255,0.82)", flexDirection: "row", alignItems: "center", gap: 9, shadowColor: colors.ink, shadowOpacity: 0.09, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 8 },
+  searchInput: { flex: 1, color: colors.ink, fontFamily: appFont, fontSize: 11, paddingVertical: 12 },
+  searchFilter: { width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(231,229,228,0.68)", alignItems: "center", justifyContent: "center" },
+  inputFocused: { borderWidth: 1, borderColor: "rgba(120,113,108,0.34)", backgroundColor: colors.white },
+  sectionHeading: { marginHorizontal: 20, marginTop: 29, marginBottom: 16 },
   sectionHeadingCompact: { marginBottom: 0 },
-  sectionKicker: { color: colors.muted, fontSize: 8, fontWeight: "600", letterSpacing: 1.1 },
-  sectionTitle: { color: colors.ink, fontFamily: appFont, fontSize: 27, lineHeight: 33, fontWeight: "600", letterSpacing: -0.6, marginTop: 5 },
-  sectionTitleCompact: { fontSize: 25, lineHeight: 30 },
-  categoryScroll: { paddingHorizontal: 18, paddingBottom: 8, gap: 10 },
-  categoryCard: { width: 116, height: 91, padding: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, justifyContent: "space-between" },
+  sectionKicker: { color: colors.muted, fontFamily: headingFont, fontSize: 8, letterSpacing: 1.15 },
+  sectionTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 28, lineHeight: 34, letterSpacing: -0.56, marginTop: 4 },
+  sectionTitleCompact: { fontSize: 26, lineHeight: 31 },
+  categoryScroll: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8, gap: 9 },
+  categoryCard: { width: 88, height: 82, padding: 12, borderRadius: 24, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, justifyContent: "space-between", ...cardShadow },
   categoryCardActive: { backgroundColor: colors.plum, borderColor: colors.plum },
-  categoryText: { color: colors.ink, fontSize: 10, lineHeight: 14, fontWeight: "600" },
+  categoryText: { color: colors.ink, fontFamily: mediumFont, fontSize: 9, lineHeight: 12 },
   categoryTextActive: { color: colors.white },
-  sectionRow: { marginTop: 16, marginRight: 18, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
-  seeAll: { color: colors.ink, fontSize: 10, fontWeight: "600", paddingBottom: 3, borderBottomWidth: 1, borderBottomColor: colors.ink },
-  vendorScroll: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 25, gap: 14 },
-  inlineEmpty: { margin: 18, padding: 25, alignItems: "center", borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
-  inlineEmptyTitle: { color: colors.ink, fontFamily: appFont, fontSize: 20, fontWeight: "600", marginTop: 10 },
-  inlineEmptyText: { color: colors.muted, fontSize: 10, lineHeight: 16, textAlign: "center", marginTop: 6 },
-  trustCard: { marginHorizontal: 18, padding: 23, borderRadius: 12, borderWidth: 1, borderColor: "#242424", backgroundColor: colors.plumDark },
-  trustKicker: { color: "#A1A1A1", fontSize: 8, fontWeight: "600", letterSpacing: 1.1 },
-  trustTitle: { color: colors.white, fontFamily: appFont, fontSize: 24, lineHeight: 30, fontWeight: "600", marginTop: 6 },
+  sectionRow: { marginTop: 11, marginRight: 20, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
+  seeAll: { color: colors.ink, fontFamily: mediumFont, fontSize: 10, paddingBottom: 3 },
+  vendorMosaic: { minHeight: 352, marginHorizontal: 20, marginTop: 17, flexDirection: "row", gap: 10 },
+  vendorMosaicSide: { flex: 1, gap: 10 },
+  vendorPlanCard: { flex: 1, minHeight: 0, overflow: "hidden", position: "relative", borderRadius: 24, borderWidth: 1, borderColor: "rgba(28,25,23,0.035)", ...cardShadow },
+  vendorPlanCardTall: { flex: 1.08 },
+  vendorPlanPeach: { backgroundColor: colors.peach },
+  vendorPlanBlue: { backgroundColor: colors.blue },
+  vendorPlanMint: { backgroundColor: colors.mint },
+  vendorPlanContent: { flex: 1, padding: 15 },
+  vendorPlanTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  vendorPlanPill: { maxWidth: "78%", paddingHorizontal: 9, paddingVertical: 5, borderRadius: 13, borderWidth: 1, borderColor: "rgba(28,25,23,0.05)", backgroundColor: "rgba(255,255,255,0.78)" },
+  vendorPlanPillText: { color: colors.ink, fontFamily: headingFont, fontSize: 7, textTransform: "uppercase", letterSpacing: 0.48 },
+  vendorPlanCopy: { marginTop: 13 },
+  vendorPlanCopyCompact: { maxWidth: "64%", marginTop: 10 },
+  vendorPlanName: { color: colors.ink, fontFamily: headingFont, fontSize: 18, lineHeight: 22, letterSpacing: -0.35 },
+  vendorPlanNameCompact: { fontSize: 14, lineHeight: 17, letterSpacing: -0.2 },
+  vendorPlanMeta: { color: "rgba(28,25,23,0.6)", fontFamily: appFont, fontSize: 8, lineHeight: 12, marginTop: 4 },
+  vendorPlanImage: { width: 72, height: 54, position: "absolute", right: 12, bottom: 12, borderRadius: 15 },
+  vendorPlanImageTall: { height: 132, position: "absolute", left: 15, right: 15, bottom: 15, borderRadius: 20 },
+  vendorPlanSave: { width: 34, height: 34, position: "absolute", left: 12, bottom: 12, zIndex: 3, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.72)", alignItems: "center", justifyContent: "center" },
+  vendorPlanSaveActive: { backgroundColor: colors.plum },
+  vendorExploreCard: { padding: 15, justifyContent: "space-between" },
+  vendorExploreIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.58)", alignItems: "center", justifyContent: "center" },
+  inlineEmpty: { margin: 20, padding: 28, alignItems: "center", borderRadius: 24, backgroundColor: colors.white, ...cardShadow },
+  inlineEmptyTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 20, marginTop: 10 },
+  inlineEmptyText: { color: colors.muted, fontFamily: appFont, fontSize: 10, lineHeight: 16, textAlign: "center", marginTop: 6 },
+  trustCard: { marginHorizontal: 20, marginTop: 22, padding: 24, borderRadius: 24, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, ...cardShadow },
+  trustKicker: { color: colors.coral, fontFamily: headingFont, fontSize: 8, letterSpacing: 1.1 },
+  trustTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 25, lineHeight: 30, letterSpacing: -0.5, marginTop: 6 },
   trustList: { gap: 12, marginTop: 20 },
   trustItem: { flexDirection: "row", alignItems: "center", gap: 9 },
-  trustText: { color: "rgba(255,255,255,0.76)", fontSize: 10 },
-  tabBar: { height: 72, position: "absolute", left: 12, right: 12, zIndex: 12, padding: 6, borderWidth: 1, borderColor: "rgba(234,234,234,0.98)", borderRadius: 30, backgroundColor: "rgba(255,255,255,0.98)", flexDirection: "row", alignItems: "center", shadowColor: "#000000", shadowOpacity: 0.1, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 10 },
-  tabBarDark: { backgroundColor: "rgba(17,17,17,0.98)", borderColor: "#333333" },
-  tabButton: { flex: 1, height: 58, minWidth: 0, borderRadius: 24, alignItems: "center", justifyContent: "center", gap: 2 },
-  tabButtonActive: { flex: 1.48, paddingHorizontal: 7, borderWidth: 1, borderColor: "#000000", backgroundColor: "#000000", shadowColor: "#000000", shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
-  tabButtonActiveDark: { borderColor: "#FFFFFF", backgroundColor: "#FFFFFF" },
-  tabIcon: { width: 28, height: 28, alignItems: "center", justifyContent: "center" },
+  trustText: { color: colors.muted, fontFamily: appFont, fontSize: 10 },
+  tabBar: { height: 80, position: "absolute", left: 16, right: 16, zIndex: 12, overflow: "hidden", paddingHorizontal: 7, paddingVertical: 7, borderRadius: 30, borderWidth: 1, borderColor: "rgba(255,255,255,0.66)", backgroundColor: "rgba(255,255,255,0.78)", flexDirection: "row", alignItems: "center", shadowColor: colors.ink, shadowOpacity: 0.08, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 10 },
+  tabBarDark: { borderColor: "rgba(255,255,255,0.09)", backgroundColor: "rgba(36,32,30,0.78)" },
+  tabButton: { flex: 1, height: 66, minWidth: 0, alignItems: "center", justifyContent: "center", gap: 1 },
+  tabIcon: { width: 27, height: 27, alignItems: "center", justifyContent: "center" },
   tabIconActive: { transform: [{ translateY: -1 }] },
-  tabLabel: { maxWidth: "100%", color: "#666666", fontFamily: appFont, fontSize: 9, fontWeight: "500", letterSpacing: -0.1 },
-  tabLabelActive: { color: colors.white, fontWeight: "600" },
-  tabLabelDark: { color: "#A1A1A1" },
-  tabLabelActiveDark: { color: colors.ink },
-  countBadge: { minWidth: 14, height: 14, paddingHorizontal: 3, position: "absolute", zIndex: 2, right: -8, top: -4, borderRadius: 7, backgroundColor: colors.coral, alignItems: "center", justifyContent: "center" },
-  countText: { color: colors.white, fontSize: 8, fontWeight: "900" },
-  pageHeader: { paddingTop: 24, paddingBottom: 25 },
-  pageTitle: { color: colors.ink, fontFamily: appFont, fontSize: 36, lineHeight: 43, fontWeight: "600", letterSpacing: -1.2 },
-  pageSubtitle: { color: colors.muted, fontSize: 12, marginTop: 4 },
+  tabLabel: { maxWidth: "100%", color: colors.muted, fontFamily: appFont, fontSize: 8, letterSpacing: -0.05 },
+  tabLabelActive: { color: colors.ink, fontFamily: mediumFont },
+  tabLabelDark: { color: "#A8A29E" },
+  tabLabelActiveDark: { color: colors.white },
+  tabDot: { width: 3, height: 3, borderRadius: 2, marginTop: 2, backgroundColor: "transparent" },
+  tabDotActive: { backgroundColor: colors.coral },
+  tabDotActiveDark: { backgroundColor: "#D8B5A5" },
+  countBadge: { minWidth: 16, height: 16, paddingHorizontal: 3, position: "absolute", zIndex: 2, right: -8, top: -5, borderRadius: 8, backgroundColor: "#EB6F68", alignItems: "center", justifyContent: "center" },
+  countText: { color: colors.white, fontFamily: boldFont, fontSize: 8 },
+  pageHeader: { paddingTop: 28, paddingBottom: 24 },
+  pageTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 37, lineHeight: 43, letterSpacing: -0.74 },
+  pageSubtitle: { color: colors.muted, fontFamily: appFont, fontSize: 11, lineHeight: 17, marginTop: 3 },
   pageTitleDark: { color: "#F8F9F2" },
-  pageSubtitleDark: { color: "#A8ADA0" },
+  pageSubtitleDark: { color: "#AAA8B0" },
   sectionTitleDark: { color: "#F8F9F2" },
-  fullSearch: { minHeight: 55, paddingHorizontal: 15, borderRadius: 9, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, flexDirection: "row", alignItems: "center", gap: 10 },
+  fullSearch: { minHeight: 58, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: "transparent", backgroundColor: colors.input, flexDirection: "row", alignItems: "center", gap: 10 },
   filterRow: { gap: 8, paddingVertical: 16 },
-  filterChip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
+  filterChip: { paddingHorizontal: 15, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: "rgba(255,254,252,0.86)" },
   filterChipActive: { borderColor: colors.plum, backgroundColor: colors.plum },
-  filterText: { color: colors.ink, fontSize: 10, fontWeight: "600" },
+  filterText: { color: colors.ink, fontFamily: mediumFont, fontSize: 10 },
   filterTextActive: { color: colors.white },
-  resultCount: { color: colors.muted, fontSize: 9, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.9, marginBottom: 12 },
-  verticalList: { gap: 17 },
+  resultCount: { color: colors.muted, fontFamily: headingFont, fontSize: 9, textTransform: "uppercase", letterSpacing: 0.9, marginBottom: 12 },
+  verticalList: { gap: 18 },
   emptyState: { alignItems: "center", paddingTop: 90, paddingHorizontal: 27 },
-  emptyIcon: { width: 68, height: 68, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
-  emptyTitle: { color: colors.ink, fontFamily: appFont, fontSize: 25, fontWeight: "600", marginTop: 20 },
-  emptyText: { color: colors.muted, fontSize: 11, lineHeight: 18, textAlign: "center", marginTop: 8 },
-  emptyButton: { minHeight: 43, marginTop: 20, paddingHorizontal: 20, borderRadius: 8, backgroundColor: colors.plum, alignItems: "center", justifyContent: "center" },
-  emptyButtonText: { color: colors.white, fontSize: 11, fontWeight: "600" },
-  planHero: { padding: 24, marginBottom: 4, borderRadius: 12, borderWidth: 1, borderColor: "#242424", backgroundColor: colors.plum },
-  planHeroTitle: { color: colors.white, fontFamily: appFont, fontSize: 28, lineHeight: 34, fontWeight: "600", marginTop: 18 },
-  planHeroText: { color: "rgba(255,255,255,0.72)", fontSize: 11, lineHeight: 18, marginTop: 8 },
-  creamButton: { minHeight: 44, marginTop: 20, paddingHorizontal: 18, alignSelf: "flex-start", borderRadius: 8, backgroundColor: colors.white, flexDirection: "row", alignItems: "center", gap: 8 },
-  creamButtonText: { color: colors.plum, fontSize: 11, fontWeight: "600" },
-  checklist: { overflow: "hidden", borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
-  checkRow: { minHeight: 61, paddingHorizontal: 15, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", alignItems: "center", gap: 11 },
-  checkCircle: { width: 23, height: 23, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
+  emptyIcon: { width: 72, height: 72, borderRadius: 26, alignItems: "center", justifyContent: "center", backgroundColor: colors.lavenderSoft },
+  emptyTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 25, letterSpacing: -0.5, marginTop: 20 },
+  emptyText: { color: colors.muted, fontFamily: appFont, fontSize: 11, lineHeight: 18, textAlign: "center", marginTop: 8 },
+  emptyButton: { minHeight: 46, marginTop: 20, paddingHorizontal: 21, borderRadius: 16, backgroundColor: colors.plum, alignItems: "center", justifyContent: "center", shadowColor: colors.ink, shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  emptyButtonText: { color: colors.white, fontFamily: headingFont, fontSize: 11 },
+  planMetrics: { flexDirection: "row", gap: 8, marginBottom: 14 },
+  planMetric: { flex: 1, minHeight: 92, padding: 13, borderRadius: 24, borderWidth: 1, borderColor: "rgba(28,25,23,0.035)", justifyContent: "space-between", ...cardShadow },
+  metricMint: { backgroundColor: colors.mint },
+  metricBlue: { backgroundColor: colors.blue },
+  metricPeach: { backgroundColor: colors.peach },
+  planMetricLabel: { color: "rgba(28,25,23,0.62)", fontFamily: appFont, fontSize: 8, lineHeight: 11 },
+  planMetricValue: { color: colors.ink, fontFamily: headingFont, fontSize: 16, lineHeight: 20 },
+  planHero: { overflow: "hidden", position: "relative", padding: 24, marginTop: 2, marginBottom: 3, borderRadius: 24, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, ...cardShadow },
+  planHeroIcon: { width: 48, height: 48, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.7)", alignItems: "center", justifyContent: "center" },
+  planHeroEyebrow: { color: colors.coral, fontFamily: headingFont, fontSize: 8, letterSpacing: 1.1, marginTop: 22 },
+  planHeroTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 28, lineHeight: 34, letterSpacing: -0.56, marginTop: 6 },
+  planHeroText: { color: colors.muted, fontFamily: appFont, fontSize: 11, lineHeight: 18, marginTop: 8 },
+  creamButton: { minHeight: 46, marginTop: 20, paddingHorizontal: 18, alignSelf: "flex-start", borderRadius: 16, backgroundColor: colors.plum, flexDirection: "row", alignItems: "center", gap: 8, shadowColor: colors.ink, shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  creamButtonText: { color: colors.white, fontFamily: headingFont, fontSize: 11 },
+  checklist: { overflow: "hidden", borderRadius: 24, backgroundColor: colors.white, ...cardShadow },
+  checkRow: { minHeight: 66, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", alignItems: "center", gap: 12 },
+  checkCircle: { width: 25, height: 25, borderRadius: 13, borderWidth: 1, borderColor: "#CFCAC6", alignItems: "center", justifyContent: "center" },
   checkCircleDone: { borderColor: colors.green, backgroundColor: colors.green },
-  checkLabel: { flex: 1, color: colors.ink, fontSize: 11, fontWeight: "700" },
+  checkLabel: { flex: 1, color: colors.ink, fontFamily: mediumFont, fontSize: 11 },
   checkLabelDone: { color: colors.muted, textDecorationLine: "line-through" },
-  profileCard: { alignItems: "center", padding: 28, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
-  profileIcon: { width: 66, height: 66, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, alignItems: "center", justifyContent: "center" },
-  profileTitle: { color: colors.ink, fontFamily: appFont, fontSize: 26, fontWeight: "600", marginTop: 18 },
-  profileText: { color: colors.muted, fontSize: 11, lineHeight: 18, textAlign: "center", marginTop: 8, marginBottom: 20 },
-  primaryButton: { width: "100%", minHeight: 49, borderRadius: 8, backgroundColor: colors.plum, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
-  primaryButtonText: { color: colors.white, fontSize: 12, fontWeight: "600" },
-  profileLinks: { overflow: "hidden", marginTop: 18, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
-  profileLink: { minHeight: 62, paddingHorizontal: 15, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", alignItems: "center", gap: 12 },
-  profileLinkIcon: { width: 36, height: 36, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, alignItems: "center", justifyContent: "center" },
-  profileLinkText: { flex: 1, color: colors.ink, fontSize: 11, fontWeight: "700" },
+  profileHeader: { minHeight: 66, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  profileHeaderSpacer: { width: 44, height: 44 },
+  profileHeaderTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 24, letterSpacing: -0.48 },
+  profileSettingsButton: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, alignItems: "center", justifyContent: "center", ...cardShadow },
+  profileIdentity: { flexDirection: "row", alignItems: "center", gap: 12, paddingTop: 16, paddingBottom: 19 },
+  profileAvatar: { width: 62, height: 62, borderRadius: 31, position: "relative", backgroundColor: colors.plum, alignItems: "center", justifyContent: "center" },
+  profileAvatarText: { color: colors.white, fontFamily: headingFont, fontSize: 26 },
+  profileStatusDot: { width: 14, height: 14, position: "absolute", right: 0, bottom: 2, borderRadius: 7, borderWidth: 3, borderColor: colors.cream, backgroundColor: colors.mint },
+  profileIdentityCopy: { flex: 1 },
+  profileName: { color: colors.ink, fontFamily: headingFont, fontSize: 18, letterSpacing: -0.36 },
+  profileLocation: { color: colors.muted, fontFamily: appFont, fontSize: 10, lineHeight: 14, marginTop: 2 },
+  profileMiniAction: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, alignItems: "center", justifyContent: "center", ...cardShadow },
+  profileMetrics: { flexDirection: "row", gap: 8 },
+  profileMetric: { flex: 1, minHeight: 104, padding: 13, borderRadius: 24, borderWidth: 1, borderColor: "rgba(28,25,23,0.035)", justifyContent: "space-between", ...cardShadow },
+  profileMetricLabel: { color: "rgba(28,25,23,0.64)", fontFamily: appFont, fontSize: 8, lineHeight: 11 },
+  profileMetricValue: { color: colors.ink, fontFamily: headingFont, fontSize: 25, lineHeight: 28 },
+  profileSignIn: { marginTop: 15, padding: 18, borderRadius: 24, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, flexDirection: "row", alignItems: "center", gap: 12, ...cardShadow },
+  profileSignInCopy: { flex: 1 },
+  profileSignInTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 14 },
+  profileSignInText: { color: colors.muted, fontFamily: appFont, fontSize: 9, lineHeight: 14, marginTop: 3 },
+  profileSignInButton: { minHeight: 39, paddingHorizontal: 14, borderRadius: 16, backgroundColor: colors.plum, flexDirection: "row", alignItems: "center", gap: 6 },
+  profileSignInButtonText: { color: colors.white, fontFamily: headingFont, fontSize: 10 },
+  primaryButton: { width: "100%", minHeight: 50, borderRadius: 16, backgroundColor: colors.plum, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, shadowColor: colors.ink, shadowOpacity: 0.14, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 5 },
+  primaryButtonText: { color: colors.white, fontFamily: headingFont, fontSize: 12 },
+  profileLinks: { overflow: "hidden", marginTop: 17, borderRadius: 24, backgroundColor: colors.white, ...cardShadow },
+  profileLink: { minHeight: 68, paddingHorizontal: 15, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", alignItems: "center", gap: 12 },
+  profileLinkIcon: { width: 40, height: 40, borderRadius: 15, backgroundColor: colors.cream, alignItems: "center", justifyContent: "center" },
+  profileLinkText: { flex: 1, color: colors.ink, fontFamily: mediumFont, fontSize: 11 },
   authScreen: { flex: 1, backgroundColor: colors.cream },
-  authTop: { paddingHorizontal: 20, paddingTop: 7, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  closeButton: { width: 38, height: 38, borderRadius: 9, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, alignItems: "center", justifyContent: "center" },
-  closeButtonDark: { backgroundColor: "#1A1A1A", borderColor: "#333333" },
-  authContent: { padding: 22, paddingTop: 55 },
-  authKicker: { color: colors.coral, fontSize: 8, fontWeight: "900", letterSpacing: 1.3, textAlign: "center" },
-  authTitle: { color: colors.ink, fontFamily: appFont, fontSize: 34, lineHeight: 41, fontWeight: "500", textAlign: "center", marginTop: 8 },
-  authSubtitle: { color: colors.muted, fontSize: 11, textAlign: "center", marginTop: 6, marginBottom: 26 },
+  authTop: { paddingHorizontal: 20, paddingTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  closeButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, alignItems: "center", justifyContent: "center" },
+  closeButtonDark: { backgroundColor: colors.surfaceDark, borderColor: "#2A2B33" },
+  authContent: { padding: 22, paddingTop: 48 },
+  authKicker: { color: colors.coral, fontFamily: headingFont, fontSize: 8, letterSpacing: 1.3, textAlign: "center" },
+  authTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 35, lineHeight: 41, letterSpacing: -0.7, textAlign: "center", marginTop: 8 },
+  authSubtitle: { color: colors.muted, fontFamily: appFont, fontSize: 11, textAlign: "center", marginTop: 6, marginBottom: 27 },
   roleRow: { flexDirection: "row", gap: 10, marginBottom: 22 },
-  roleCard: { flex: 1, minHeight: 106, padding: 15, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, justifyContent: "space-between" },
-  roleCardSelected: { borderColor: colors.ink, backgroundColor: colors.white },
-  roleLabel: { maxWidth: 108, color: colors.ink, fontSize: 10, lineHeight: 14, fontWeight: "800" },
+  roleCard: { flex: 1, minHeight: 112, padding: 16, borderRadius: 24, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, justifyContent: "space-between", ...cardShadow },
+  roleCardSelected: { borderColor: "rgba(152,111,93,0.2)", backgroundColor: colors.blush },
+  roleLabel: { maxWidth: 108, color: colors.ink, fontFamily: mediumFont, fontSize: 10, lineHeight: 14 },
   roleCheck: { position: "absolute", right: 11, top: 11 },
-  inputLabel: { color: colors.ink, fontSize: 8, fontWeight: "900", letterSpacing: 1, marginTop: 13, marginBottom: 6 },
-  authInput: { height: 52, paddingHorizontal: 15, marginBottom: 4, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, color: colors.ink },
-  formError: { color: "#9F332C", fontSize: 10, lineHeight: 15, marginVertical: 9 },
-  terms: { color: colors.muted, fontSize: 8, lineHeight: 14, textAlign: "center", paddingHorizontal: 20, marginTop: 16 },
+  inputLabel: { color: colors.ink, fontFamily: headingFont, fontSize: 8, letterSpacing: 1, marginTop: 14, marginBottom: 7 },
+  authInput: { height: 54, paddingHorizontal: 17, marginBottom: 4, borderRadius: 16, borderWidth: 1, borderColor: "transparent", backgroundColor: colors.input, color: colors.ink, fontFamily: appFont },
+  formError: { color: "#9F332C", fontFamily: appFont, fontSize: 10, lineHeight: 15, marginVertical: 9 },
+  terms: { color: colors.muted, fontFamily: appFont, fontSize: 8, lineHeight: 14, textAlign: "center", paddingHorizontal: 20, marginTop: 16 },
   modalScreen: { flex: 1, backgroundColor: colors.cream },
-  modalScreenDark: { backgroundColor: "#0A0A0A" },
-  modalTop: { minHeight: 82, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  modalScreenDark: { backgroundColor: "#1B1816" },
+  modalTop: { minHeight: 90, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 13, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   modalHeading: { flexDirection: "row", alignItems: "center", gap: 12 },
-  modalHeadingIcon: { width: 43, height: 43, borderRadius: 8, backgroundColor: colors.plum, alignItems: "center", justifyContent: "center" },
-  modalKicker: { color: colors.coral, fontSize: 8, fontWeight: "900", letterSpacing: 1.2 },
-  modalTitle: { color: colors.ink, fontFamily: appFont, fontSize: 28, lineHeight: 34, fontWeight: "600", marginTop: 2 },
+  modalHeadingIcon: { width: 46, height: 46, borderRadius: 18, backgroundColor: colors.plum, alignItems: "center", justifyContent: "center" },
+  modalKicker: { color: colors.coral, fontFamily: headingFont, fontSize: 8, letterSpacing: 1.2 },
+  modalTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 28, lineHeight: 34, letterSpacing: -0.56, marginTop: 2 },
   modalTitleDark: { color: "#F8F9F2" },
-  modalBodyDark: { color: "#A8ADA0" },
-  modalMutedDark: { color: "#AEB999" },
+  modalBodyDark: { color: "#AAA8B0" },
+  modalMutedDark: { color: "#B5B2BB" },
   notificationSummary: { minHeight: 43, marginHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  notificationSummaryText: { color: colors.muted, fontSize: 10, fontWeight: "700" },
+  notificationSummaryText: { color: colors.muted, fontFamily: mediumFont, fontSize: 10 },
   markReadButton: { minHeight: 36, paddingHorizontal: 12, justifyContent: "center" },
-  markReadText: { color: colors.coral, fontSize: 10, fontWeight: "900" },
-  notificationList: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 32, gap: 9 },
-  notificationRow: { padding: 15, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  notificationRowDark: { backgroundColor: "#171717", borderColor: "#333333" },
-  notificationRowUnread: { borderColor: "#9AA886" },
-  notificationIcon: { width: 41, height: 41, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, alignItems: "center", justifyContent: "center" },
-  notificationIconDark: { backgroundColor: "#242424" },
+  markReadText: { color: colors.coral, fontFamily: mediumFont, fontSize: 10 },
+  notificationList: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 32, gap: 10 },
+  notificationRow: { padding: 16, borderRadius: 24, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, flexDirection: "row", alignItems: "flex-start", gap: 12, ...cardShadow },
+  notificationRowDark: { backgroundColor: colors.surfaceDark },
+  notificationRowUnread: { backgroundColor: colors.lavenderSoft },
+  notificationRowUnreadDark: { backgroundColor: "#29243C" },
+  notificationIcon: { width: 43, height: 43, borderRadius: 17, backgroundColor: colors.cream, alignItems: "center", justifyContent: "center" },
+  notificationIconDark: { backgroundColor: "#25262E" },
   notificationCopy: { flex: 1 },
   notificationTitleRow: { flexDirection: "row", alignItems: "center", gap: 7 },
-  notificationTitle: { flex: 1, color: colors.ink, fontSize: 11, fontWeight: "900" },
-  notificationBody: { color: colors.muted, fontSize: 10, lineHeight: 16, marginTop: 3 },
-  notificationTime: { color: colors.coral, fontSize: 8, fontWeight: "800", marginTop: 7 },
-  unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.coral },
+  notificationTitle: { flex: 1, color: colors.ink, fontFamily: headingFont, fontSize: 11 },
+  notificationBody: { color: colors.muted, fontFamily: appFont, fontSize: 10, lineHeight: 16, marginTop: 3 },
+  notificationTime: { color: colors.coral, fontFamily: headingFont, fontSize: 8, marginTop: 7 },
+  unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#E86F68" },
   settingsContent: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },
-  settingsSectionLabel: { color: colors.coral, fontSize: 8, fontWeight: "900", letterSpacing: 1.2, marginTop: 15, marginBottom: 7 },
-  settingsGroup: { overflow: "hidden", borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
-  settingsGroupDark: { backgroundColor: "#171717", borderColor: "#333333" },
-  settingsAction: { minHeight: 72, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", alignItems: "center", gap: 11 },
+  settingsSectionLabel: { color: colors.coral, fontFamily: headingFont, fontSize: 8, letterSpacing: 1.2, marginTop: 17, marginBottom: 8 },
+  settingsGroup: { overflow: "hidden", borderRadius: 24, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, ...cardShadow },
+  settingsGroupDark: { backgroundColor: colors.surfaceDark },
+  settingsAction: { minHeight: 76, paddingHorizontal: 15, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", alignItems: "center", gap: 12 },
   settingsActionDisabled: { opacity: 0.48 },
-  settingsIcon: { width: 39, height: 39, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, alignItems: "center", justifyContent: "center" },
-  settingsIconDark: { backgroundColor: "#242424" },
-  settingsDangerIcon: { width: 39, height: 39, borderRadius: 8, backgroundColor: "#FFF1F0", alignItems: "center", justifyContent: "center" },
+  settingsIcon: { width: 42, height: 42, borderRadius: 17, backgroundColor: colors.cream, alignItems: "center", justifyContent: "center" },
+  settingsIconDark: { backgroundColor: "#25262E" },
+  settingsDangerIcon: { width: 42, height: 42, borderRadius: 17, backgroundColor: "#FFF1F0", alignItems: "center", justifyContent: "center" },
   settingsCopy: { flex: 1 },
-  settingsTitle: { color: colors.ink, fontSize: 11, fontWeight: "900" },
-  settingsDangerTitle: { color: "#B43C36", fontSize: 11, fontWeight: "900" },
-  settingsSubtitle: { color: colors.muted, fontSize: 9, lineHeight: 14, marginTop: 3 },
-  settingsFootnote: { color: colors.muted, fontSize: 9, lineHeight: 15, textAlign: "center", marginTop: 12 },
-  toast: { minHeight: 48, position: "absolute", left: 18, right: 18, zIndex: 20, paddingHorizontal: 15, borderRadius: 8, borderWidth: 1, borderColor: "#2A2A2A", backgroundColor: colors.plum, flexDirection: "row", alignItems: "center", gap: 8, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
-  toastText: { flex: 1, color: colors.white, fontSize: 11, fontWeight: "800" },
+  settingsTitle: { color: colors.ink, fontFamily: mediumFont, fontSize: 11 },
+  settingsDangerTitle: { color: "#B43C36", fontFamily: mediumFont, fontSize: 11 },
+  settingsSubtitle: { color: colors.muted, fontFamily: appFont, fontSize: 9, lineHeight: 14, marginTop: 3 },
+  settingsFootnote: { color: colors.muted, fontFamily: appFont, fontSize: 9, lineHeight: 15, textAlign: "center", marginTop: 12 },
+  toast: { minHeight: 50, position: "absolute", left: 20, right: 20, zIndex: 20, paddingHorizontal: 16, borderRadius: 25, backgroundColor: colors.plum, flexDirection: "row", alignItems: "center", gap: 8, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
+  toastText: { flex: 1, color: colors.white, fontFamily: mediumFont, fontSize: 11 },
   sheetBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" },
-  sheet: { paddingHorizontal: 19, paddingTop: 9, paddingBottom: 20, borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: colors.cream },
+  sheet: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 22, borderTopLeftRadius: 34, borderTopRightRadius: 34, backgroundColor: colors.cream },
   sheetHandle: { width: 42, height: 4, alignSelf: "center", marginBottom: 18, borderRadius: 2, backgroundColor: colors.border },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 18 },
-  sheetKicker: { color: colors.coral, fontSize: 8, fontWeight: "900", letterSpacing: 1.2 },
-  sheetTitle: { color: colors.ink, fontFamily: appFont, fontSize: 26, fontWeight: "600", marginTop: 4 },
-  locationOptions: { gap: 8 },
-  locationOption: { minHeight: 54, paddingHorizontal: 15, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, flexDirection: "row", alignItems: "center", gap: 9 },
-  locationOptionActive: { borderColor: colors.ink, backgroundColor: colors.white },
-  locationOptionText: { flex: 1, color: colors.ink, fontSize: 12, fontWeight: "800" },
+  sheetKicker: { color: colors.coral, fontFamily: headingFont, fontSize: 8, letterSpacing: 1.2 },
+  sheetTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 26, letterSpacing: -0.52, marginTop: 4 },
+  locationOptions: { gap: 9 },
+  locationOption: { minHeight: 58, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, flexDirection: "row", alignItems: "center", gap: 10 },
+  locationOptionActive: { borderColor: "rgba(152,111,93,0.2)", backgroundColor: colors.blush },
+  locationOptionText: { flex: 1, color: colors.ink, fontFamily: mediumFont, fontSize: 12 },
   vendorModal: { flex: 1, backgroundColor: colors.cream },
-  vendorModalTop: { minHeight: 58, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  vendorModalImage: { width: "100%", height: 330, backgroundColor: colors.blush },
+  vendorModalTop: { minHeight: 66, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  vendorModalImage: { width: "100%", height: 355, backgroundColor: colors.blush },
   vendorModalContent: { padding: 22, paddingBottom: 42 },
-  vendorModalCategory: { color: colors.coral, fontSize: 9, fontWeight: "900", letterSpacing: 1, textTransform: "uppercase" },
-  vendorModalTitle: { color: colors.ink, fontFamily: appFont, fontSize: 33, lineHeight: 40, fontWeight: "600", marginTop: 7 },
+  vendorModalCategory: { color: colors.coral, fontFamily: headingFont, fontSize: 9, letterSpacing: 1, textTransform: "uppercase" },
+  vendorModalTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 34, lineHeight: 40, letterSpacing: -0.68, marginTop: 7 },
   vendorModalMeta: { marginTop: 9, flexDirection: "row", justifyContent: "space-between" },
   vendorModalLocation: { flexDirection: "row", alignItems: "center", gap: 4 },
-  vendorModalMetaText: { color: colors.muted, fontSize: 10 },
-  vendorModalReason: { color: colors.muted, fontSize: 12, lineHeight: 19, marginTop: 20 },
-  vendorModalFacts: { marginTop: 22, paddingVertical: 17, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border, flexDirection: "row", gap: 35 },
+  vendorModalMetaText: { color: colors.muted, fontFamily: appFont, fontSize: 10 },
+  vendorModalReason: { color: colors.muted, fontFamily: appFont, fontSize: 12, lineHeight: 20, marginTop: 20 },
+  vendorModalFacts: { marginTop: 22, padding: 18, borderRadius: 23, backgroundColor: colors.lavenderSoft, flexDirection: "row", gap: 35 },
+  vendorFact: { flex: 1 },
+  vendorFactLabel: { color: colors.muted, fontFamily: appFont, fontSize: 8, lineHeight: 12 },
+  vendorFactValue: { color: colors.ink, fontFamily: headingFont, fontSize: 13, lineHeight: 18, marginTop: 4 },
   vendorModalActions: { gap: 10, marginTop: 22 },
-  secondaryButton: { width: "100%", minHeight: 49, borderRadius: 8, borderWidth: 1, borderColor: colors.plum, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
-  secondaryButtonText: { color: colors.plum, fontSize: 11, fontWeight: "600" }
+  secondaryButton: { width: "100%", minHeight: 50, borderRadius: 16, borderWidth: 0, backgroundColor: colors.input, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+  secondaryButtonText: { color: colors.plum, fontFamily: mediumFont, fontSize: 11 }
 });
