@@ -1,9 +1,8 @@
 import { StatusBar } from "expo-status-bar";
 import { BlurView } from "expo-blur";
-import { useFonts } from "expo-font";
 import { LinearGradient } from "expo-linear-gradient";
-import { useEffect, useMemo, useState } from "react";
-import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Animated, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { coupleVendors, recommendCoupleVendors, serviceOptions, weddingLocations, type CoupleVendor } from "@smitten/shared";
 import { AppSymbol, type AppSymbolFallback, type AppSymbolName } from "./src/components/AppSymbol";
@@ -30,24 +29,15 @@ const boldFont = fonts.bold;
 const heroImage = "https://static.wixstatic.com/media/fdf893_120788a0b4fa499fb373d950cc86501e~mv2.jpg/v1/fill/w_980%2Ch_980%2Cal_c%2Cq_85%2Cusm_0.66_1.00_0.01%2Cenc_avif%2Cquality_auto/fdf893_120788a0b4fa499fb373d950cc86501e~mv2.jpg";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const smittenWordmark = require("./assets/smitten-wordmark.png");
-// Direct font asset imports prevent the unused Inter weights from entering the native bundle.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const interRegular = require("@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const interMedium = require("@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const interSemibold = require("@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const interBold = require("@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf");
 
 export default function App() {
-  const [fontsLoaded] = useFonts({ Inter_400Regular: interRegular, Inter_500Medium: interMedium, Inter_600SemiBold: interSemibold, Inter_700Bold: interBold });
-  if (!fontsLoaded) return null;
   return <SafeAreaProvider><SmittenApp /></SafeAreaProvider>;
 }
 
 function SmittenApp() {
   const insets = useSafeAreaInsets();
+  const screenOpacity = useRef(new Animated.Value(1)).current;
+  const screenOffset = useRef(new Animated.Value(0)).current;
   const [tab, setTab] = useState<Tab>("Home");
   const [saved, setSaved] = useState<string[]>([]);
   const [matches, setMatches] = useState<(CoupleVendor & { score: number })[] | null>(null);
@@ -73,6 +63,15 @@ function SmittenApp() {
     const timeout = setTimeout(() => setNotice(""), 2600);
     return () => clearTimeout(timeout);
   }, [notice]);
+
+  useEffect(() => {
+    screenOpacity.setValue(0);
+    screenOffset.setValue(8);
+    Animated.parallel([
+      Animated.timing(screenOpacity, { toValue: 1, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(screenOffset, { toValue: 0, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+    ]).start();
+  }, [screenOffset, screenOpacity, tab]);
 
   function toggleSaved(name: string) {
     setSaved((current) => current.includes(name) ? current.filter((item) => item !== name) : [...current, name]);
@@ -118,8 +117,8 @@ function SmittenApp() {
   return (
     <View style={[styles.app, darkMode && styles.appDark]}>
       <StatusBar style={darkMode ? "light" : "dark"} />
-      <View style={styles.screen}>{screen}</View>
-      <BlurView intensity={72} tint="dark" style={[styles.tabBar, darkMode && styles.tabBarDark, { bottom: Math.max(insets.bottom, 10) }]}>
+      <Animated.View style={[styles.screen, { opacity: screenOpacity, transform: [{ translateY: screenOffset }] }]}>{screen}</Animated.View>
+      <BlurView intensity={86} tint={darkMode ? "dark" : "light"} style={[styles.tabBar, darkMode && styles.tabBarDark, { bottom: Math.max(insets.bottom, 10) }]}>
         {(["Home", "Discover", "Saved", "Planning", "Profile"] as Tab[]).map((item) => (
           <TabButton key={item} darkMode={darkMode} tab={item} active={tab === item} savedCount={item === "Saved" ? saved.length : 0} onPress={() => setTab(item)} />
         ))}
@@ -165,8 +164,8 @@ function HomeScreen({ darkMode, unreadNotifications, saved, matches, location, q
   }), [category, location, matches, query]);
 
   return (
-    <ScrollView style={[styles.scroll, darkMode && styles.darkScreen]} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-      <SafeAreaView edges={["top"]}>
+    <SafeAreaView style={[styles.safeScreen, darkMode && styles.darkScreen]} edges={["top"]}>
+      <ScrollView style={[styles.scroll, darkMode && styles.darkScreen]} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never">
         <View style={styles.header}>
           <View style={styles.homeIdentity}>
             <Brand />
@@ -184,22 +183,14 @@ function HomeScreen({ darkMode, unreadNotifications, saved, matches, location, q
             <Pressable onPress={openAuth} accessibilityRole="button" accessibilityLabel="Sign in" style={[styles.avatar, darkMode && styles.darkIconButton]}><AppSymbol name="person.crop.circle" fallback="person-circle-outline" size={22} color={darkMode ? colors.white : colors.plum} weight="medium" /></Pressable>
           </View>
         </View>
-      </SafeAreaView>
       <Pressable onPress={openMatch} accessibilityRole="button" accessibilityLabel="Start your Smitten match" style={styles.matchHero}>
         <Image source={{ uri: heroImage }} style={styles.matchHeroImage} resizeMode="cover" alt="Nigerian couple celebrating their wedding" />
         <LinearGradient colors={["rgba(23,20,18,0.03)", "rgba(23,20,18,0.28)", "rgba(23,20,18,0.9)"]} locations={[0.15, 0.5, 1]} style={styles.matchHeroGradient} />
         <View style={styles.matchHeroCopy}>
-          <View style={styles.heroGlassBadge}><AppSymbol name="wand.and.stars" fallback="sparkles" size={13} color={colors.white} weight="regular" /><Text style={styles.heroKicker}>SMITTEN MATCH</Text></View>
           <View style={styles.matchHeroBottom}>
             <Text style={styles.heroTitle}>Your dream team, beautifully matched.</Text>
             <Text style={styles.heroText}>Tell us the mood, place and budget. We’ll find vendors who fit.</Text>
-            <View style={styles.matchHeroFooter}>
-              <View style={styles.avatarStack}>
-                {coupleVendors.slice(0, 3).map((vendor, index) => <Image key={vendor.name} source={{ uri: vendor.image }} style={[styles.stackAvatar, { marginLeft: index === 0 ? 0 : -9 }]} />)}
-                <View style={[styles.stackAvatar, styles.stackMore]}><Text style={styles.stackMoreText}>+AI</Text></View>
-              </View>
-              <View style={styles.matchArrow}><AppSymbol name="arrow.up.right" fallback="arrow-up" size={17} color={colors.ink} weight="medium" /></View>
-            </View>
+            <View style={styles.heroAction}><AppSymbol name="sparkles" fallback="sparkles-outline" size={14} color={colors.white} weight="medium" /><Text style={styles.heroActionText}>Start matching</Text></View>
           </View>
         </View>
       </Pressable>
@@ -236,7 +227,8 @@ function HomeScreen({ darkMode, unreadNotifications, saved, matches, location, q
         <Text style={styles.trustKicker}>PLAN WITH CONFIDENCE</Text><Text style={styles.trustTitle}>Clear choices for your kind of wedding.</Text>
         <View style={styles.trustList}><TrustItem symbol="checkmark.seal" fallback="checkmark-circle-outline" text="Verified vendor profiles" /><TrustItem symbol="banknote" fallback="wallet-outline" text="Options for every budget" /><TrustItem symbol="message" fallback="chatbubble-ellipses-outline" text="Simple, protected enquiries" /></View>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -336,35 +328,63 @@ function ProfileScreen({ darkMode, signedIn, savedCount, completedCount, matchCo
 }
 
 function AuthModal({ visible, onClose, onComplete }: { visible: boolean; onClose: () => void; onComplete: () => void }) {
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [role, setRole] = useState<"couple" | "vendor">("couple");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [error, setError] = useState("");
-  const [focusedField, setFocusedField] = useState<"email" | "password" | null>(null);
+  const [focusedField, setFocusedField] = useState<"name" | "email" | "password" | "confirm" | null>(null);
 
   function submit() {
     const strongPassword = password.length >= 8 && /\d/.test(password) && /[^A-Za-z0-9]/.test(password);
-    if (!/^\S+@\S+\.\S+$/.test(email) || !strongPassword) {
+    if (mode === "signup" && name.trim().length < 2) {
+      setError("Enter your name to create your Smitten account.");
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      setError("Enter a valid email address.");
+      return;
+    }
+    if (!strongPassword) {
       setError("Use a valid email and a password with 8+ characters, a number and a special character.");
+      return;
+    }
+    if (mode === "signup" && password !== confirmPassword) {
+      setError("Your passwords do not match.");
       return;
     }
     setError("");
     onComplete();
   }
 
+  function changeMode(nextMode: "signin" | "signup") {
+    setMode(nextMode);
+    setError("");
+    setFocusedField(null);
+  }
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.authScreen}>
         <View style={styles.authTop}><Brand /><Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" style={styles.closeButton}><AppSymbol name="xmark" fallback="close" size={17} color={colors.ink} weight="semibold" /></Pressable></View>
-        <ScrollView contentContainerStyle={styles.authContent}>
-          <Text style={styles.authKicker}>WELCOME TO SMITTEN</Text><Text style={styles.authTitle}>Plan beautifully, together.</Text><Text style={styles.authSubtitle}>Choose how you use Smitten to continue.</Text>
-          <View style={styles.roleRow}><RoleCard symbol="heart" fallback="heart-outline" label="Planning a wedding" selected={role === "couple"} onPress={() => setRole("couple")} /><RoleCard symbol="storefront" fallback="briefcase-outline" label="Wedding vendor" selected={role === "vendor"} onPress={() => setRole("vendor")} /></View>
-          <Text style={styles.inputLabel}>EMAIL ADDRESS</Text><TextInput value={email} onChangeText={setEmail} onFocus={() => setFocusedField("email")} onBlur={() => setFocusedField(null)} style={[styles.authInput, focusedField === "email" && styles.inputFocused]} placeholder="you@example.com" placeholderTextColor="#A8A29E" keyboardType="email-address" autoCapitalize="none" />
-          <Text style={styles.inputLabel}>PASSWORD</Text><TextInput value={password} onChangeText={setPassword} onFocus={() => setFocusedField("password")} onBlur={() => setFocusedField(null)} style={[styles.authInput, focusedField === "password" && styles.inputFocused]} placeholder="••••••••" placeholderTextColor="#A8A29E" secureTextEntry />
-          <Text style={styles.passwordHint}>8+ characters · 1 number · 1 special character</Text>
+        <ScrollView contentContainerStyle={styles.authContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <Text style={styles.authKicker}>{mode === "signin" ? "WELCOME BACK" : "JOIN SMITTEN"}</Text><Text style={styles.authTitle}>{mode === "signin" ? "Your plans, right where you left them." : "Start planning something beautiful."}</Text><Text style={styles.authSubtitle}>{mode === "signin" ? "Sign in to continue your shortlist and checklist." : "Create one calm place for vendors, ideas and every detail."}</Text>
+          <View style={styles.authSegment}>
+            <Pressable onPress={() => changeMode("signin")} accessibilityRole="tab" accessibilityState={{ selected: mode === "signin" }} style={[styles.authSegmentItem, mode === "signin" && styles.authSegmentItemActive]}><Text style={[styles.authSegmentText, mode === "signin" && styles.authSegmentTextActive]}>Sign in</Text></Pressable>
+            <Pressable onPress={() => changeMode("signup")} accessibilityRole="tab" accessibilityState={{ selected: mode === "signup" }} style={[styles.authSegmentItem, mode === "signup" && styles.authSegmentItemActive]}><Text style={[styles.authSegmentText, mode === "signup" && styles.authSegmentTextActive]}>Create account</Text></Pressable>
+          </View>
+          <Text style={styles.inputLabel}>I’M HERE TO</Text>
+          <View style={styles.roleRow}><RoleCard symbol="heart" fallback="heart-outline" label="Plan a wedding" selected={role === "couple"} onPress={() => setRole("couple")} /><RoleCard symbol="storefront" fallback="briefcase-outline" label="Grow my business" selected={role === "vendor"} onPress={() => setRole("vendor")} /></View>
+          {mode === "signup" ? <><Text style={styles.inputLabel}>YOUR NAME</Text><View style={[styles.authField, focusedField === "name" && styles.inputFocused]}><AppSymbol name="person" fallback="person-outline" size={18} color={colors.muted} weight="regular" /><TextInput value={name} onChangeText={setName} onFocus={() => setFocusedField("name")} onBlur={() => setFocusedField(null)} style={styles.authFieldInput} placeholder="Your full name" placeholderTextColor="#96958F" autoCapitalize="words" textContentType="name" /></View></> : null}
+          <Text style={styles.inputLabel}>EMAIL ADDRESS</Text><View style={[styles.authField, focusedField === "email" && styles.inputFocused]}><AppSymbol name="envelope" fallback="mail-outline" size={18} color={colors.muted} weight="regular" /><TextInput value={email} onChangeText={setEmail} onFocus={() => setFocusedField("email")} onBlur={() => setFocusedField(null)} style={styles.authFieldInput} placeholder="you@example.com" placeholderTextColor="#96958F" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} textContentType="emailAddress" /></View>
+          <Text style={styles.inputLabel}>PASSWORD</Text><View style={[styles.authField, focusedField === "password" && styles.inputFocused]}><AppSymbol name="lock" fallback="lock-closed-outline" size={18} color={colors.muted} weight="regular" /><TextInput value={password} onChangeText={setPassword} onFocus={() => setFocusedField("password")} onBlur={() => setFocusedField(null)} style={styles.authFieldInput} placeholder="Enter your password" placeholderTextColor="#96958F" secureTextEntry={!passwordVisible} textContentType={mode === "signin" ? "password" : "newPassword"} /><Pressable onPress={() => setPasswordVisible((current) => !current)} accessibilityRole="button" accessibilityLabel={passwordVisible ? "Hide password" : "Show password"} hitSlop={10}><AppSymbol name={passwordVisible ? "eye.slash" : "eye"} fallback={passwordVisible ? "eye-off-outline" : "eye-outline"} size={18} color={colors.muted} weight="regular" /></Pressable></View>
+          {mode === "signup" ? <><Text style={styles.passwordHint}>8+ characters · 1 number · 1 special character</Text><Text style={styles.inputLabel}>CONFIRM PASSWORD</Text><View style={[styles.authField, focusedField === "confirm" && styles.inputFocused]}><AppSymbol name="lock.shield" fallback="shield-checkmark-outline" size={18} color={colors.muted} weight="regular" /><TextInput value={confirmPassword} onChangeText={setConfirmPassword} onFocus={() => setFocusedField("confirm")} onBlur={() => setFocusedField(null)} style={styles.authFieldInput} placeholder="Enter it again" placeholderTextColor="#96958F" secureTextEntry={!passwordVisible} textContentType="newPassword" /></View></> : <Pressable onPress={() => setError("Password reset will be available once account services are connected.")} accessibilityRole="button" style={styles.forgotButton}><Text style={styles.forgotText}>Forgot password?</Text></Pressable>}
           {error ? <Text style={styles.formError}>{error}</Text> : null}
-          <Pressable onPress={submit} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Continue</Text><AppSymbol name="arrow.right" fallback="arrow-forward" size={16} color={colors.white} weight="semibold" /></Pressable>
-          <Text style={styles.terms}>By continuing, you agree to Smitten’s Terms and Privacy Policy.</Text>
+          <Pressable onPress={submit} style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}><Text style={styles.primaryButtonText}>{mode === "signin" ? "Sign in" : role === "vendor" ? "Join as a vendor" : "Create account"}</Text></Pressable>
+          <Text style={styles.terms}>{mode === "signin" ? "Secure sign-in for your Smitten account." : "By creating an account, you agree to Smitten’s Terms and Privacy Policy."}</Text>
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -463,7 +483,7 @@ function VendorPlanCard({ vendor, tone, tall = false, saved, score, onSave, onVi
       <Image source={{ uri: vendor.image }} style={styles.vendorPlanImage} resizeMode="cover" alt={`${vendor.name} wedding portfolio`} />
       <LinearGradient colors={["rgba(14,16,13,0.02)", "rgba(14,16,13,0.2)", "rgba(14,16,13,0.86)"]} locations={[0.05, 0.44, 1]} style={styles.vendorPlanGradient} />
       <Pressable onPress={onView} accessibilityRole="button" accessibilityLabel={`View ${vendor.name} profile`} style={styles.vendorPlanContent}>
-        <View style={styles.vendorPlanTop}><View style={styles.vendorPlanPill}><Text style={styles.vendorPlanPillText}>{score ? `${score}% match` : vendor.category}</Text></View><View style={styles.vendorPlanArrow}><AppSymbol name="arrow.up.right" fallback="arrow-up" size={13} color={colors.ink} weight="semibold" /></View></View>
+        <View style={styles.vendorPlanTop}><View style={styles.vendorPlanPill}><Text style={styles.vendorPlanPillText}>{score ? `${score}% match` : vendor.category}</Text></View></View>
         <View style={styles.vendorPlanCopy}><Text style={[styles.vendorPlanName, !tall && styles.vendorPlanNameCompact]} numberOfLines={2}>{vendor.name}</Text><Text style={styles.vendorPlanMeta}>{vendor.location} · {vendor.price}</Text></View>
       </Pressable>
       <Pressable onPress={onSave} accessibilityRole="button" accessibilityLabel={saved ? `Remove ${vendor.name} from saved vendors` : `Save ${vendor.name}`} style={[styles.vendorPlanSave, saved && styles.vendorPlanSaveActive]}><AppSymbol name={saved ? "heart.fill" : "heart"} fallback={saved ? "heart" : "heart-outline"} size={17} color={saved ? colors.white : colors.ink} weight="medium" animationSpec={saved ? { effect: { type: "bounce", wholeSymbol: true }, repeating: false } : undefined} /></Pressable>
@@ -490,8 +510,12 @@ function ProfileLink({ symbol, fallback, text, onPress }: SymbolPair & { text: s
 function RoleCard({ symbol, fallback, label, selected, onPress }: SymbolPair & { label: string; selected: boolean; onPress: () => void }) { return <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected }} style={[styles.roleCard, selected && styles.roleCardSelected]}><AppSymbol name={symbol} fallback={fallback} size={24} color={colors.plum} type="monochrome" weight={selected ? "medium" : "regular"} /><Text style={styles.roleLabel}>{label}</Text>{selected ? <AppSymbol name="checkmark.circle.fill" fallback="checkmark-circle" size={18} color={colors.coral} weight="semibold" style={styles.roleCheck} /> : null}</Pressable>; }
 
 function TabButton({ tab, active, savedCount, darkMode, onPress }: { tab: Tab; active: boolean; savedCount: number; darkMode: boolean; onPress: () => void }) {
-  const iconColor = active ? colors.ink : "rgba(255,255,255,0.62)";
-  return <Pressable onPress={onPress} accessibilityRole="tab" accessibilityLabel={`${tab} tab`} accessibilityState={{ selected: active }} style={[styles.tabButton, active && styles.tabButtonActive]}><View>{savedCount > 0 ? <View style={styles.countBadge}><Text style={styles.countText}>{savedCount}</Text></View> : null}<TabVectorIcon tab={tab} active={active} color={iconColor} /></View><Text numberOfLines={1} style={[styles.tabLabel, active && styles.tabLabelActive]}>{tab}</Text></Pressable>;
+  const scale = useRef(new Animated.Value(active ? 1 : 0.96)).current;
+  useEffect(() => {
+    Animated.spring(scale, { toValue: active ? 1 : 0.96, damping: 16, stiffness: 220, mass: 0.75, useNativeDriver: true }).start();
+  }, [active, scale]);
+  const iconColor = active ? colors.ink : darkMode ? "rgba(255,255,255,0.62)" : colors.muted;
+  return <Animated.View style={[styles.tabButtonMotion, { transform: [{ scale }] }]}><Pressable onPress={onPress} accessibilityRole="tab" accessibilityLabel={`${tab} tab`} accessibilityState={{ selected: active }} style={({ pressed }) => [styles.tabButton, active && styles.tabButtonActive, pressed && styles.tabButtonPressed]}><View>{savedCount > 0 ? <View style={styles.countBadge}><Text style={styles.countText}>{savedCount}</Text></View> : null}<TabVectorIcon tab={tab} active={active} color={iconColor} /></View><Text numberOfLines={1} style={[styles.tabLabel, darkMode && styles.tabLabelDark, active && styles.tabLabelActive]}>{tab}</Text></Pressable></Animated.View>;
 }
 
 function TabVectorIcon({ tab, active, color }: { tab: Tab; active: boolean; color: string }) {
@@ -525,7 +549,7 @@ const styles = StyleSheet.create({
   header: { minHeight: 82, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   homeIdentity: { gap: 4 },
   homeLocation: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start" },
-  homeLocationText: { color: colors.ink, fontFamily: mediumFont, fontSize: 11 },
+  homeLocationText: { color: colors.ink, fontFamily: mediumFont, fontWeight: "500", fontSize: 11 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   brand: { flexDirection: "row", alignItems: "center" },
   brandLogoShell: { width: 104, height: 32, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 8, backgroundColor: colors.plum },
@@ -533,38 +557,32 @@ const styles = StyleSheet.create({
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
   darkIconButton: { backgroundColor: "rgba(36,32,30,0.9)", borderColor: "rgba(255,255,255,0.08)" },
   notificationBadge: { minWidth: 16, height: 16, paddingHorizontal: 3, position: "absolute", right: -3, top: -3, borderRadius: 8, backgroundColor: "#E86F68", alignItems: "center", justifyContent: "center" },
-  notificationBadgeText: { color: colors.white, fontFamily: boldFont, fontSize: 8, lineHeight: 11 },
+  notificationBadgeText: { color: colors.white, fontFamily: boldFont, fontWeight: "700", fontSize: 8, lineHeight: 11 },
   matchHero: { height: 388, marginHorizontal: 16, overflow: "hidden", position: "relative", borderRadius: 24, backgroundColor: colors.plumDark, ...cardShadow },
   matchHeroImage: { position: "absolute", width: "100%", height: "100%" },
   matchHeroGradient: { position: "absolute", inset: 0 },
-  matchHeroCopy: { flex: 1, zIndex: 2, padding: 24, justifyContent: "space-between" },
-  heroGlassBadge: { minHeight: 32, alignSelf: "flex-start", paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.28)", backgroundColor: "rgba(18,19,16,0.32)", flexDirection: "row", alignItems: "center", gap: 7 },
-  heroKicker: { color: colors.white, fontFamily: headingFont, fontSize: 9, letterSpacing: 1.2 },
+  matchHeroCopy: { flex: 1, zIndex: 2, padding: 24, justifyContent: "flex-end" },
   matchHeroBottom: { maxWidth: 320 },
-  heroTitle: { maxWidth: 320, color: colors.white, fontFamily: headingFont, fontSize: 36, lineHeight: 40, letterSpacing: -1.05 },
-  heroText: { maxWidth: 290, color: "rgba(255,255,255,0.8)", fontFamily: appFont, fontSize: 13, lineHeight: 20, marginTop: 10 },
-  matchHeroFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 20 },
-  avatarStack: { flexDirection: "row", alignItems: "center" },
-  stackAvatar: { width: 31, height: 31, borderRadius: 16, borderWidth: 2, borderColor: "rgba(255,255,255,0.76)" },
-  stackMore: { marginLeft: -9, backgroundColor: "rgba(28,25,23,0.88)", alignItems: "center", justifyContent: "center" },
-  stackMoreText: { color: colors.white, fontFamily: boldFont, fontSize: 8 },
-  matchArrow: { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.white, alignItems: "center", justifyContent: "center" },
+  heroTitle: { maxWidth: 320, color: colors.white, fontFamily: headingFont, fontWeight: "600", fontSize: 36, lineHeight: 40, letterSpacing: -1.05 },
+  heroText: { maxWidth: 290, color: "rgba(255,255,255,0.8)", fontFamily: appFont, fontWeight: "400", fontSize: 13, lineHeight: 20, marginTop: 10 },
+  heroAction: { minHeight: 34, alignSelf: "flex-start", marginTop: 18, paddingHorizontal: 12, borderRadius: 11, backgroundColor: "rgba(255,255,255,0.15)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)", flexDirection: "row", alignItems: "center", gap: 7 },
+  heroActionText: { color: colors.white, fontFamily: mediumFont, fontWeight: "500", fontSize: 11 },
   searchBar: { minHeight: 62, marginHorizontal: 20, marginTop: -25, zIndex: 3, paddingLeft: 18, paddingRight: 8, overflow: "hidden", borderRadius: 18, borderWidth: 1, borderColor: "rgba(18,19,16,0.07)", backgroundColor: "rgba(254,254,252,0.93)", flexDirection: "row", alignItems: "center", gap: 10, shadowColor: colors.ink, shadowOpacity: 0.09, shadowRadius: 20, shadowOffset: { width: 0, height: 9 }, elevation: 7 },
-  searchInput: { flex: 1, color: colors.ink, fontFamily: appFont, fontSize: 13, paddingVertical: 12 },
+  searchInput: { flex: 1, color: colors.ink, fontFamily: appFont, fontWeight: "400", fontSize: 13, paddingVertical: 12 },
   searchFilter: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.input, alignItems: "center", justifyContent: "center" },
   inputFocused: { borderWidth: 1, borderColor: colors.green, backgroundColor: colors.white },
   sectionHeading: { marginHorizontal: 20, marginTop: 29, marginBottom: 16 },
   sectionHeadingCompact: { marginBottom: 0 },
-  sectionKicker: { color: colors.green, fontFamily: headingFont, fontSize: 9, letterSpacing: 1.25 },
-  sectionTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 30, lineHeight: 36, letterSpacing: -0.72, marginTop: 5 },
+  sectionKicker: { color: colors.green, fontFamily: headingFont, fontWeight: "600", fontSize: 9, letterSpacing: 1.25 },
+  sectionTitle: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 30, lineHeight: 36, letterSpacing: -0.72, marginTop: 5 },
   sectionTitleCompact: { fontSize: 28, lineHeight: 34 },
   categoryScroll: { paddingHorizontal: 20, paddingTop: 17, paddingBottom: 8, gap: 8 },
   categoryCard: { minHeight: 44, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, flexDirection: "row", alignItems: "center", gap: 8 },
   categoryCardActive: { backgroundColor: colors.ink, borderColor: colors.ink },
-  categoryText: { color: colors.ink, fontFamily: mediumFont, fontSize: 11, lineHeight: 14 },
+  categoryText: { color: colors.ink, fontFamily: mediumFont, fontWeight: "500", fontSize: 11, lineHeight: 14 },
   categoryTextActive: { color: colors.white },
   sectionRow: { marginTop: 11, marginRight: 20, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
-  seeAll: { color: colors.ink, fontFamily: mediumFont, fontSize: 12, paddingBottom: 3 },
+  seeAll: { color: colors.ink, fontFamily: mediumFont, fontWeight: "500", fontSize: 12, paddingBottom: 3 },
   vendorMosaic: { minHeight: 386, marginHorizontal: 20, marginTop: 18, flexDirection: "row", gap: 10 },
   vendorMosaicSide: { flex: 1, gap: 10 },
   vendorPlanCard: { flex: 1, minHeight: 0, overflow: "hidden", position: "relative", borderRadius: 20, backgroundColor: colors.surfaceDark, ...cardShadow },
@@ -575,47 +593,48 @@ const styles = StyleSheet.create({
   vendorPlanImage: { position: "absolute", width: "100%", height: "100%" },
   vendorPlanGradient: { position: "absolute", inset: 0 },
   vendorPlanContent: { flex: 1, zIndex: 2, padding: 13, justifyContent: "space-between" },
-  vendorPlanTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  vendorPlanTop: { flexDirection: "row", alignItems: "center" },
   vendorPlanPill: { maxWidth: "75%", paddingHorizontal: 9, paddingVertical: 6, borderRadius: 11, backgroundColor: "rgba(254,254,252,0.9)" },
-  vendorPlanPillText: { color: colors.ink, fontFamily: headingFont, fontSize: 8, textTransform: "uppercase", letterSpacing: 0.55 },
-  vendorPlanArrow: { width: 29, height: 29, borderRadius: 15, backgroundColor: "rgba(254,254,252,0.9)", alignItems: "center", justifyContent: "center" },
+  vendorPlanPillText: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 8, textTransform: "uppercase", letterSpacing: 0.55 },
   vendorPlanCopy: { marginTop: 13, paddingRight: 2 },
   vendorPlanCopyCompact: { marginTop: 10 },
-  vendorPlanName: { color: colors.white, fontFamily: headingFont, fontSize: 21, lineHeight: 25, letterSpacing: -0.5 },
+  vendorPlanName: { color: colors.white, fontFamily: headingFont, fontWeight: "600", fontSize: 21, lineHeight: 25, letterSpacing: -0.5 },
   vendorPlanNameCompact: { fontSize: 15, lineHeight: 19, letterSpacing: -0.25 },
-  vendorPlanMeta: { color: "rgba(255,255,255,0.72)", fontFamily: appFont, fontSize: 10, lineHeight: 14, marginTop: 5 },
+  vendorPlanMeta: { color: "rgba(255,255,255,0.72)", fontFamily: appFont, fontWeight: "400", fontSize: 10, lineHeight: 14, marginTop: 5 },
   vendorPlanImageTall: { position: "absolute", width: "100%", height: "100%" },
   vendorPlanSave: { width: 35, height: 35, position: "absolute", right: 12, bottom: 12, zIndex: 3, borderRadius: 18, backgroundColor: "rgba(254,254,252,0.9)", alignItems: "center", justifyContent: "center" },
   vendorPlanSaveActive: { backgroundColor: colors.plum },
   vendorExploreCard: { padding: 15, justifyContent: "space-between", backgroundColor: colors.mint },
   vendorExploreIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.58)", alignItems: "center", justifyContent: "center" },
   inlineEmpty: { margin: 20, padding: 28, alignItems: "center", borderRadius: 24, backgroundColor: colors.white, ...cardShadow },
-  inlineEmptyTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 20, marginTop: 10 },
-  inlineEmptyText: { color: colors.muted, fontFamily: appFont, fontSize: 10, lineHeight: 16, textAlign: "center", marginTop: 6 },
+  inlineEmptyTitle: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 20, marginTop: 10 },
+  inlineEmptyText: { color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 10, lineHeight: 16, textAlign: "center", marginTop: 6 },
   trustCard: { marginHorizontal: 20, marginTop: 24, padding: 24, borderRadius: 20, backgroundColor: colors.mint },
-  trustKicker: { color: colors.green, fontFamily: headingFont, fontSize: 9, letterSpacing: 1.15 },
-  trustTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 27, lineHeight: 32, letterSpacing: -0.65, marginTop: 7 },
+  trustKicker: { color: colors.green, fontFamily: headingFont, fontWeight: "600", fontSize: 9, letterSpacing: 1.15 },
+  trustTitle: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 27, lineHeight: 32, letterSpacing: -0.65, marginTop: 7 },
   trustList: { gap: 12, marginTop: 20 },
   trustItem: { flexDirection: "row", alignItems: "center", gap: 9 },
-  trustText: { color: colors.ink, fontFamily: appFont, fontSize: 12 },
-  tabBar: { height: 72, position: "absolute", left: 16, right: 16, zIndex: 12, overflow: "hidden", paddingHorizontal: 7, paddingVertical: 7, borderRadius: 24, borderWidth: 1, borderColor: "rgba(255,255,255,0.11)", backgroundColor: "rgba(14,16,13,0.94)", flexDirection: "row", alignItems: "center", shadowColor: "#000", shadowOpacity: 0.22, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 14 },
+  trustText: { color: colors.ink, fontFamily: appFont, fontWeight: "400", fontSize: 12 },
+  tabBar: { height: 70, position: "absolute", left: 16, right: 16, zIndex: 12, overflow: "hidden", paddingHorizontal: 6, paddingVertical: 6, borderRadius: 23, borderWidth: 1, borderColor: "rgba(18,19,16,0.08)", backgroundColor: "rgba(254,254,252,0.82)", flexDirection: "row", alignItems: "center", shadowColor: colors.ink, shadowOpacity: 0.1, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 10 },
   tabBarDark: { borderColor: "rgba(255,255,255,0.12)", backgroundColor: "rgba(14,16,13,0.96)" },
-  tabButton: { flex: 1, height: 58, minWidth: 0, borderRadius: 18, alignItems: "center", justifyContent: "center", gap: 2 },
-  tabButtonActive: { backgroundColor: "rgba(246,245,241,0.96)" },
+  tabButtonMotion: { flex: 1, height: 58 },
+  tabButton: { width: "100%", height: 58, minWidth: 0, borderRadius: 17, alignItems: "center", justifyContent: "center", gap: 2 },
+  tabButtonActive: { backgroundColor: colors.mint },
+  tabButtonPressed: { opacity: 0.72 },
   tabIcon: { width: 25, height: 25, alignItems: "center", justifyContent: "center" },
   tabIconActive: { transform: [{ translateY: -1 }] },
-  tabLabel: { maxWidth: "100%", color: "rgba(255,255,255,0.54)", fontFamily: appFont, fontSize: 8.5, letterSpacing: -0.05 },
-  tabLabelActive: { color: colors.ink, fontFamily: headingFont },
+  tabLabel: { maxWidth: "100%", color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 8.5, letterSpacing: -0.05 },
+  tabLabelActive: { color: colors.ink, fontFamily: headingFont, fontWeight: "600" },
   tabLabelDark: { color: "#A8A29E" },
   tabLabelActiveDark: { color: colors.white },
   tabDot: { display: "none" },
   tabDotActive: { backgroundColor: colors.green },
   tabDotActiveDark: { backgroundColor: colors.green },
   countBadge: { minWidth: 16, height: 16, paddingHorizontal: 3, position: "absolute", zIndex: 2, right: -8, top: -5, borderRadius: 8, backgroundColor: "#EB6F68", alignItems: "center", justifyContent: "center" },
-  countText: { color: colors.white, fontFamily: boldFont, fontSize: 8 },
+  countText: { color: colors.white, fontFamily: boldFont, fontWeight: "700", fontSize: 8 },
   pageHeader: { paddingTop: 34, paddingBottom: 26 },
-  pageTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 40, lineHeight: 46, letterSpacing: -1.05 },
-  pageSubtitle: { color: colors.muted, fontFamily: appFont, fontSize: 13, lineHeight: 20, marginTop: 4 },
+  pageTitle: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 40, lineHeight: 46, letterSpacing: -1.05 },
+  pageSubtitle: { color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 13, lineHeight: 20, marginTop: 4 },
   pageTitleDark: { color: "#F8F9F2" },
   pageSubtitleDark: { color: "#AAA8B0" },
   sectionTitleDark: { color: "#F8F9F2" },
@@ -623,21 +642,21 @@ const styles = StyleSheet.create({
   filterRow: { gap: 8, paddingVertical: 16 },
   filterChip: { paddingHorizontal: 15, paddingVertical: 11, borderRadius: 13, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
   filterChipActive: { borderColor: colors.plum, backgroundColor: colors.plum },
-  filterText: { color: colors.ink, fontFamily: mediumFont, fontSize: 11 },
+  filterText: { color: colors.ink, fontFamily: mediumFont, fontWeight: "500", fontSize: 11 },
   filterTextActive: { color: colors.white },
-  resultCount: { color: colors.green, fontFamily: headingFont, fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 },
+  resultCount: { color: colors.green, fontFamily: headingFont, fontWeight: "600", fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 },
   verticalList: { gap: 16 },
   emptyState: { alignItems: "center", paddingTop: 90, paddingHorizontal: 27 },
   emptyIcon: { width: 72, height: 72, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: colors.mint },
-  emptyTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 25, letterSpacing: -0.5, marginTop: 20 },
-  emptyText: { color: colors.muted, fontFamily: appFont, fontSize: 13, lineHeight: 20, textAlign: "center", marginTop: 8 },
+  emptyTitle: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 25, letterSpacing: -0.5, marginTop: 20 },
+  emptyText: { color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 13, lineHeight: 20, textAlign: "center", marginTop: 8 },
   emptyButton: { minHeight: 48, marginTop: 22, paddingHorizontal: 22, borderRadius: 14, backgroundColor: colors.plum, alignItems: "center", justifyContent: "center" },
-  emptyButtonText: { color: colors.white, fontFamily: headingFont, fontSize: 12 },
+  emptyButtonText: { color: colors.white, fontFamily: headingFont, fontWeight: "600", fontSize: 12 },
   planProgressCard: { padding: 20, marginBottom: 10, borderRadius: 20, backgroundColor: colors.ink },
   planProgressHeader: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
-  planProgressKicker: { color: "rgba(255,255,255,0.56)", fontFamily: headingFont, fontSize: 9, letterSpacing: 1.15 },
-  planProgressTitle: { color: colors.white, fontFamily: headingFont, fontSize: 18, lineHeight: 23, marginTop: 7 },
-  planProgressPercent: { color: colors.white, fontFamily: headingFont, fontSize: 28, letterSpacing: -0.7 },
+  planProgressKicker: { color: "rgba(255,255,255,0.56)", fontFamily: headingFont, fontWeight: "600", fontSize: 9, letterSpacing: 1.15 },
+  planProgressTitle: { color: colors.white, fontFamily: headingFont, fontWeight: "600", fontSize: 18, lineHeight: 23, marginTop: 7 },
+  planProgressPercent: { color: colors.white, fontFamily: headingFont, fontWeight: "600", fontSize: 28, letterSpacing: -0.7 },
   planProgressTrack: { height: 5, overflow: "hidden", borderRadius: 3, marginTop: 20, backgroundColor: "rgba(255,255,255,0.16)" },
   planProgressFill: { height: "100%", borderRadius: 3, backgroundColor: "#D9E1CB" },
   planMetrics: { flexDirection: "row", gap: 8, marginBottom: 14 },
@@ -645,81 +664,91 @@ const styles = StyleSheet.create({
   metricMint: { backgroundColor: colors.mint },
   metricBlue: { backgroundColor: colors.blue },
   metricPeach: { backgroundColor: colors.peach },
-  planMetricLabel: { color: "rgba(18,19,16,0.62)", fontFamily: appFont, fontSize: 10, lineHeight: 13 },
-  planMetricValue: { color: colors.ink, fontFamily: headingFont, fontSize: 16, lineHeight: 20 },
+  planMetricLabel: { color: "rgba(18,19,16,0.62)", fontFamily: appFont, fontWeight: "400", fontSize: 10, lineHeight: 13 },
+  planMetricValue: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 16, lineHeight: 20 },
   planHero: { overflow: "hidden", position: "relative", padding: 24, marginTop: 2, marginBottom: 3, borderRadius: 20, backgroundColor: colors.white },
   planHeroIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: colors.mint, alignItems: "center", justifyContent: "center" },
-  planHeroEyebrow: { color: colors.green, fontFamily: headingFont, fontSize: 9, letterSpacing: 1.15, marginTop: 22 },
-  planHeroTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 28, lineHeight: 34, letterSpacing: -0.56, marginTop: 6 },
-  planHeroText: { color: colors.muted, fontFamily: appFont, fontSize: 13, lineHeight: 20, marginTop: 8 },
+  planHeroEyebrow: { color: colors.green, fontFamily: headingFont, fontWeight: "600", fontSize: 9, letterSpacing: 1.15, marginTop: 22 },
+  planHeroTitle: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 28, lineHeight: 34, letterSpacing: -0.56, marginTop: 6 },
+  planHeroText: { color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 13, lineHeight: 20, marginTop: 8 },
   creamButton: { minHeight: 48, marginTop: 20, paddingHorizontal: 18, alignSelf: "flex-start", borderRadius: 14, backgroundColor: colors.plum, flexDirection: "row", alignItems: "center", gap: 8 },
-  creamButtonText: { color: colors.white, fontFamily: headingFont, fontSize: 12 },
+  creamButtonText: { color: colors.white, fontFamily: headingFont, fontWeight: "600", fontSize: 12 },
   checklist: { overflow: "hidden", borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
   checkRow: { minHeight: 70, paddingHorizontal: 17, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", alignItems: "center", gap: 13 },
   checkCircle: { width: 25, height: 25, borderRadius: 13, borderWidth: 1, borderColor: "#CFCAC6", alignItems: "center", justifyContent: "center" },
   checkCircleDone: { borderColor: colors.green, backgroundColor: colors.green },
-  checkLabel: { flex: 1, color: colors.ink, fontFamily: mediumFont, fontSize: 13 },
+  checkLabel: { flex: 1, color: colors.ink, fontFamily: mediumFont, fontWeight: "500", fontSize: 13 },
   checkLabelDone: { color: colors.muted, textDecorationLine: "line-through" },
   profileHeader: { minHeight: 66, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   profileHeaderSpacer: { width: 44, height: 44 },
-  profileHeaderTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 25, letterSpacing: -0.5 },
+  profileHeaderTitle: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 25, letterSpacing: -0.5 },
   profileSettingsButton: { width: 44, height: 44, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, alignItems: "center", justifyContent: "center" },
   profileIdentity: { flexDirection: "row", alignItems: "center", gap: 12, paddingTop: 16, paddingBottom: 19 },
   profileAvatar: { width: 66, height: 66, borderRadius: 22, position: "relative", backgroundColor: colors.plum, alignItems: "center", justifyContent: "center" },
-  profileAvatarText: { color: colors.white, fontFamily: headingFont, fontSize: 26 },
+  profileAvatarText: { color: colors.white, fontFamily: headingFont, fontWeight: "600", fontSize: 26 },
   profileStatusDot: { width: 14, height: 14, position: "absolute", right: 0, bottom: 2, borderRadius: 7, borderWidth: 3, borderColor: colors.cream, backgroundColor: colors.mint },
   profileIdentityCopy: { flex: 1 },
-  profileName: { color: colors.ink, fontFamily: headingFont, fontSize: 20, letterSpacing: -0.4 },
-  profileLocation: { color: colors.muted, fontFamily: appFont, fontSize: 12, lineHeight: 17, marginTop: 3 },
+  profileName: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 20, letterSpacing: -0.4 },
+  profileLocation: { color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 12, lineHeight: 17, marginTop: 3 },
   profileMiniAction: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, alignItems: "center", justifyContent: "center", ...cardShadow },
   profileMetrics: { flexDirection: "row", gap: 8 },
   profileMetric: { flex: 1, minHeight: 98, padding: 14, borderRadius: 16, borderWidth: 1, borderColor: colors.border, justifyContent: "space-between" },
-  profileMetricLabel: { color: "rgba(18,19,16,0.64)", fontFamily: appFont, fontSize: 10, lineHeight: 13 },
-  profileMetricValue: { color: colors.ink, fontFamily: headingFont, fontSize: 25, lineHeight: 28 },
+  profileMetricLabel: { color: "rgba(18,19,16,0.64)", fontFamily: appFont, fontWeight: "400", fontSize: 10, lineHeight: 13 },
+  profileMetricValue: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 25, lineHeight: 28 },
   profileSignIn: { marginTop: 15, padding: 18, borderRadius: 18, backgroundColor: colors.white, flexDirection: "row", alignItems: "center", gap: 12 },
   profileSignInCopy: { flex: 1 },
-  profileSignInTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 14 },
-  profileSignInText: { color: colors.muted, fontFamily: appFont, fontSize: 11, lineHeight: 16, marginTop: 3 },
+  profileSignInTitle: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 14 },
+  profileSignInText: { color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 11, lineHeight: 16, marginTop: 3 },
   profileSignInButton: { minHeight: 42, paddingHorizontal: 15, borderRadius: 13, backgroundColor: colors.plum, flexDirection: "row", alignItems: "center", gap: 6 },
-  profileSignInButtonText: { color: colors.white, fontFamily: headingFont, fontSize: 11 },
+  profileSignInButtonText: { color: colors.white, fontFamily: headingFont, fontWeight: "600", fontSize: 11 },
   primaryButton: { width: "100%", minHeight: 52, borderRadius: 14, backgroundColor: colors.plum, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
-  primaryButtonText: { color: colors.white, fontFamily: headingFont, fontSize: 13 },
+  primaryButtonText: { color: colors.white, fontFamily: headingFont, fontWeight: "600", fontSize: 13 },
   profileLinks: { overflow: "hidden", marginTop: 17, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
   profileLink: { minHeight: 68, paddingHorizontal: 15, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", alignItems: "center", gap: 12 },
   profileLinkIcon: { width: 40, height: 40, borderRadius: 15, backgroundColor: colors.cream, alignItems: "center", justifyContent: "center" },
-  profileLinkText: { flex: 1, color: colors.ink, fontFamily: mediumFont, fontSize: 13 },
+  profileLinkText: { flex: 1, color: colors.ink, fontFamily: mediumFont, fontWeight: "500", fontSize: 13 },
   authScreen: { flex: 1, backgroundColor: colors.cream },
   authTop: { paddingHorizontal: 20, paddingTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  closeButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, alignItems: "center", justifyContent: "center" },
+  closeButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, alignItems: "center", justifyContent: "center" },
   closeButtonDark: { backgroundColor: colors.surfaceDark, borderColor: "#2A2B33" },
-  authContent: { padding: 22, paddingTop: 44 },
-  authKicker: { color: colors.green, fontFamily: headingFont, fontSize: 9, letterSpacing: 1.3, textAlign: "center" },
-  authTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 37, lineHeight: 43, letterSpacing: -0.9, textAlign: "center", marginTop: 9 },
-  authSubtitle: { color: colors.muted, fontFamily: appFont, fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 7, marginBottom: 28 },
-  roleRow: { flexDirection: "row", gap: 10, marginBottom: 22 },
-  roleCard: { flex: 1, minHeight: 112, padding: 16, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, justifyContent: "space-between" },
+  authContent: { paddingHorizontal: 22, paddingTop: 36, paddingBottom: 48 },
+  authKicker: { color: colors.green, fontFamily: headingFont, fontWeight: "600", fontSize: 9, letterSpacing: 1.3 },
+  authTitle: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 35, lineHeight: 41, letterSpacing: -0.9, marginTop: 9 },
+  authSubtitle: { maxWidth: 335, color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 13, lineHeight: 20, marginTop: 8, marginBottom: 24 },
+  authSegment: { height: 50, padding: 4, borderRadius: 15, backgroundColor: colors.input, flexDirection: "row", gap: 4, marginBottom: 9 },
+  authSegmentItem: { flex: 1, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  authSegmentItemActive: { backgroundColor: colors.white, ...cardShadow },
+  authSegmentText: { color: colors.muted, fontFamily: mediumFont, fontWeight: "500", fontSize: 12 },
+  authSegmentTextActive: { color: colors.ink, fontFamily: headingFont, fontWeight: "600" },
+  roleRow: { flexDirection: "row", gap: 9, marginBottom: 9 },
+  roleCard: { flex: 1, minHeight: 52, paddingHorizontal: 13, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, flexDirection: "row", alignItems: "center", gap: 8 },
   roleCardSelected: { borderColor: colors.green, backgroundColor: colors.mint },
-  roleLabel: { maxWidth: 108, color: colors.ink, fontFamily: mediumFont, fontSize: 12, lineHeight: 17 },
-  roleCheck: { position: "absolute", right: 11, top: 11 },
-  inputLabel: { color: colors.ink, fontFamily: headingFont, fontSize: 9, letterSpacing: 1.05, marginTop: 15, marginBottom: 8 },
-  authInput: { height: 56, paddingHorizontal: 17, marginBottom: 4, borderRadius: 14, borderWidth: 1, borderColor: "transparent", backgroundColor: colors.input, color: colors.ink, fontFamily: appFont, fontSize: 13 },
-  passwordHint: { color: colors.muted, fontFamily: appFont, fontSize: 10, lineHeight: 15, marginTop: 3, marginBottom: 12 },
-  formError: { color: "#9F332C", fontFamily: appFont, fontSize: 11, lineHeight: 16, marginVertical: 9 },
-  terms: { color: colors.muted, fontFamily: appFont, fontSize: 9, lineHeight: 15, textAlign: "center", paddingHorizontal: 20, marginTop: 17 },
+  roleLabel: { flex: 1, color: colors.ink, fontFamily: mediumFont, fontWeight: "500", fontSize: 11, lineHeight: 15 },
+  roleCheck: { marginLeft: "auto" },
+  inputLabel: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 9, letterSpacing: 1.05, marginTop: 15, marginBottom: 8 },
+  authField: { height: 56, paddingHorizontal: 16, borderRadius: 14, borderWidth: 1, borderColor: "transparent", backgroundColor: colors.input, flexDirection: "row", alignItems: "center", gap: 10 },
+  authFieldInput: { flex: 1, height: "100%", color: colors.ink, fontFamily: appFont, fontWeight: "400", fontSize: 14 },
+  authInput: { height: 56, paddingHorizontal: 17, marginBottom: 4, borderRadius: 14, borderWidth: 1, borderColor: "transparent", backgroundColor: colors.input, color: colors.ink, fontFamily: appFont, fontWeight: "400", fontSize: 13 },
+  passwordHint: { color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 10, lineHeight: 15, marginTop: 3, marginBottom: 12 },
+  forgotButton: { alignSelf: "flex-end", paddingVertical: 12, paddingLeft: 12 },
+  forgotText: { color: colors.green, fontFamily: mediumFont, fontWeight: "500", fontSize: 11 },
+  formError: { color: "#9F332C", fontFamily: appFont, fontWeight: "400", fontSize: 11, lineHeight: 16, marginVertical: 10, padding: 12, borderRadius: 12, backgroundColor: "#F9E8E5" },
+  primaryButtonPressed: { transform: [{ scale: 0.985 }], opacity: 0.88 },
+  terms: { color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 9, lineHeight: 15, textAlign: "center", paddingHorizontal: 20, marginTop: 17 },
   modalScreen: { flex: 1, backgroundColor: colors.cream },
   modalScreenDark: { backgroundColor: "#1B1816" },
   modalTop: { minHeight: 90, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 13, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   modalHeading: { flexDirection: "row", alignItems: "center", gap: 12 },
   modalHeadingIcon: { width: 46, height: 46, borderRadius: 18, backgroundColor: colors.plum, alignItems: "center", justifyContent: "center" },
-  modalKicker: { color: colors.green, fontFamily: headingFont, fontSize: 9, letterSpacing: 1.2 },
-  modalTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 28, lineHeight: 34, letterSpacing: -0.56, marginTop: 2 },
+  modalKicker: { color: colors.green, fontFamily: headingFont, fontWeight: "600", fontSize: 9, letterSpacing: 1.2 },
+  modalTitle: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 28, lineHeight: 34, letterSpacing: -0.56, marginTop: 2 },
   modalTitleDark: { color: "#F8F9F2" },
   modalBodyDark: { color: "#AAA8B0" },
   modalMutedDark: { color: "#B5B2BB" },
   notificationSummary: { minHeight: 43, marginHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  notificationSummaryText: { color: colors.muted, fontFamily: mediumFont, fontSize: 12 },
+  notificationSummaryText: { color: colors.muted, fontFamily: mediumFont, fontWeight: "500", fontSize: 12 },
   markReadButton: { minHeight: 36, paddingHorizontal: 12, justifyContent: "center" },
-  markReadText: { color: colors.coral, fontFamily: mediumFont, fontSize: 10 },
+  markReadText: { color: colors.coral, fontFamily: mediumFont, fontWeight: "500", fontSize: 10 },
   notificationList: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 32, gap: 10 },
   notificationRow: { padding: 16, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, flexDirection: "row", alignItems: "flex-start", gap: 12 },
   notificationRowDark: { backgroundColor: colors.surfaceDark },
@@ -729,12 +758,12 @@ const styles = StyleSheet.create({
   notificationIconDark: { backgroundColor: "#25262E" },
   notificationCopy: { flex: 1 },
   notificationTitleRow: { flexDirection: "row", alignItems: "center", gap: 7 },
-  notificationTitle: { flex: 1, color: colors.ink, fontFamily: headingFont, fontSize: 13 },
-  notificationBody: { color: colors.muted, fontFamily: appFont, fontSize: 11, lineHeight: 17, marginTop: 4 },
-  notificationTime: { color: colors.green, fontFamily: headingFont, fontSize: 9, marginTop: 8 },
+  notificationTitle: { flex: 1, color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 13 },
+  notificationBody: { color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 11, lineHeight: 17, marginTop: 4 },
+  notificationTime: { color: colors.green, fontFamily: headingFont, fontWeight: "600", fontSize: 9, marginTop: 8 },
   unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#E86F68" },
   settingsContent: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },
-  settingsSectionLabel: { color: colors.green, fontFamily: headingFont, fontSize: 9, letterSpacing: 1.2, marginTop: 17, marginBottom: 8 },
+  settingsSectionLabel: { color: colors.green, fontFamily: headingFont, fontWeight: "600", fontSize: 9, letterSpacing: 1.2, marginTop: 17, marginBottom: 8 },
   settingsGroup: { overflow: "hidden", borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
   settingsGroupDark: { backgroundColor: colors.surfaceDark },
   settingsAction: { minHeight: 76, paddingHorizontal: 15, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", alignItems: "center", gap: 12 },
@@ -743,37 +772,37 @@ const styles = StyleSheet.create({
   settingsIconDark: { backgroundColor: "#25262E" },
   settingsDangerIcon: { width: 42, height: 42, borderRadius: 17, backgroundColor: "#FFF1F0", alignItems: "center", justifyContent: "center" },
   settingsCopy: { flex: 1 },
-  settingsTitle: { color: colors.ink, fontFamily: mediumFont, fontSize: 13 },
-  settingsDangerTitle: { color: "#B43C36", fontFamily: mediumFont, fontSize: 11 },
-  settingsSubtitle: { color: colors.muted, fontFamily: appFont, fontSize: 10, lineHeight: 15, marginTop: 3 },
-  settingsFootnote: { color: colors.muted, fontFamily: appFont, fontSize: 9, lineHeight: 15, textAlign: "center", marginTop: 12 },
+  settingsTitle: { color: colors.ink, fontFamily: mediumFont, fontWeight: "500", fontSize: 13 },
+  settingsDangerTitle: { color: "#B43C36", fontFamily: mediumFont, fontWeight: "500", fontSize: 11 },
+  settingsSubtitle: { color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 10, lineHeight: 15, marginTop: 3 },
+  settingsFootnote: { color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 9, lineHeight: 15, textAlign: "center", marginTop: 12 },
   toast: { minHeight: 50, position: "absolute", left: 20, right: 20, zIndex: 20, paddingHorizontal: 16, borderRadius: 25, backgroundColor: colors.plum, flexDirection: "row", alignItems: "center", gap: 8, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
-  toastText: { flex: 1, color: colors.white, fontFamily: mediumFont, fontSize: 11 },
+  toastText: { flex: 1, color: colors.white, fontFamily: mediumFont, fontWeight: "500", fontSize: 11 },
   sheetBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" },
   sheet: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 22, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: colors.cream },
   sheetHandle: { width: 42, height: 4, alignSelf: "center", marginBottom: 18, borderRadius: 2, backgroundColor: colors.border },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 18 },
-  sheetKicker: { color: colors.green, fontFamily: headingFont, fontSize: 9, letterSpacing: 1.2 },
-  sheetTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 26, letterSpacing: -0.52, marginTop: 4 },
+  sheetKicker: { color: colors.green, fontFamily: headingFont, fontWeight: "600", fontSize: 9, letterSpacing: 1.2 },
+  sheetTitle: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 26, letterSpacing: -0.52, marginTop: 4 },
   locationOptions: { gap: 9 },
   locationOption: { minHeight: 60, paddingHorizontal: 16, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, flexDirection: "row", alignItems: "center", gap: 10 },
   locationOptionActive: { borderColor: colors.green, backgroundColor: colors.mint },
-  locationOptionText: { flex: 1, color: colors.ink, fontFamily: mediumFont, fontSize: 13 },
+  locationOptionText: { flex: 1, color: colors.ink, fontFamily: mediumFont, fontWeight: "500", fontSize: 13 },
   vendorModal: { flex: 1, backgroundColor: colors.cream },
   vendorModalTop: { minHeight: 66, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   vendorModalImage: { width: "100%", height: 390, backgroundColor: colors.blush },
   vendorModalContent: { padding: 22, paddingBottom: 42 },
-  vendorModalCategory: { color: colors.green, fontFamily: headingFont, fontSize: 10, letterSpacing: 1.05, textTransform: "uppercase" },
-  vendorModalTitle: { color: colors.ink, fontFamily: headingFont, fontSize: 34, lineHeight: 40, letterSpacing: -0.68, marginTop: 7 },
+  vendorModalCategory: { color: colors.green, fontFamily: headingFont, fontWeight: "600", fontSize: 10, letterSpacing: 1.05, textTransform: "uppercase" },
+  vendorModalTitle: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 34, lineHeight: 40, letterSpacing: -0.68, marginTop: 7 },
   vendorModalMeta: { marginTop: 9, flexDirection: "row", justifyContent: "space-between" },
   vendorModalLocation: { flexDirection: "row", alignItems: "center", gap: 4 },
-  vendorModalMetaText: { color: colors.muted, fontFamily: appFont, fontSize: 12 },
-  vendorModalReason: { color: colors.muted, fontFamily: appFont, fontSize: 14, lineHeight: 22, marginTop: 20 },
+  vendorModalMetaText: { color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 12 },
+  vendorModalReason: { color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 14, lineHeight: 22, marginTop: 20 },
   vendorModalFacts: { marginTop: 22, padding: 18, borderRadius: 18, backgroundColor: colors.mint, flexDirection: "row", gap: 35 },
   vendorFact: { flex: 1 },
-  vendorFactLabel: { color: colors.muted, fontFamily: appFont, fontSize: 10, lineHeight: 14 },
-  vendorFactValue: { color: colors.ink, fontFamily: headingFont, fontSize: 14, lineHeight: 19, marginTop: 4 },
+  vendorFactLabel: { color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 10, lineHeight: 14 },
+  vendorFactValue: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 14, lineHeight: 19, marginTop: 4 },
   vendorModalActions: { gap: 10, marginTop: 22 },
   secondaryButton: { width: "100%", minHeight: 50, borderRadius: 14, borderWidth: 0, backgroundColor: colors.input, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
-  secondaryButtonText: { color: colors.plum, fontFamily: mediumFont, fontSize: 12 }
+  secondaryButtonText: { color: colors.plum, fontFamily: mediumFont, fontWeight: "500", fontSize: 12 }
 });

@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 export const colors = {
   ink: "#121310",
   muted: "#74736D",
@@ -21,11 +23,13 @@ export const colors = {
   surfaceDark: "#1D1F1A"
 };
 
+const systemFont = Platform.select({ ios: "System", android: "sans-serif", default: "system-ui" }) ?? "System";
+
 export const fonts = {
-  regular: "Inter_400Regular",
-  medium: "Inter_500Medium",
-  semibold: "Inter_600SemiBold",
-  bold: "Inter_700Bold"
+  regular: systemFont,
+  medium: systemFont,
+  semibold: systemFont,
+  bold: systemFont
 } as const;
 
 export const cardShadow = {
