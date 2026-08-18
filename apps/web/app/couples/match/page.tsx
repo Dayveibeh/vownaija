@@ -34,7 +34,6 @@ export default function CoupleMatchPage() {
       <header className="match-header">
         <Brand />
         {step > 0 && step < 4 && <div className="match-progress"><span>Step {step} of 3</span><i><b style={{ width: `${(step / 3) * 100}%` }} /></i></div>}
-        <Link href="/couples/dashboard" className="skip-match">Skip for now <ArrowRight size={15} /></Link>
       </header>
 
       {step === 0 && <section className="match-welcome">
