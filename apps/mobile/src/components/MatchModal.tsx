@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { LayoutAnimation, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { serviceOptions, styleOptions, weddingLocations, type VendorMatchPreferences } from "@smitten/shared";
+import { AnimatedProgress } from "./AnimatedProgress";
 import { AppSymbol, type AppSymbolFallback, type AppSymbolName } from "./AppSymbol";
 import { cardShadow, colors, fonts } from "../theme";
 
@@ -25,6 +26,11 @@ export function MatchModal({ visible, onClose, onComplete }: { visible: boolean;
     setServices((current) => current.includes(service) ? current.filter((item) => item !== service) : [...current, service]);
   }
 
+  function changeStep(nextStep: number) {
+    LayoutAnimation.configureNext(LayoutAnimation.create(260, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity));
+    setStep(nextStep);
+  }
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={styles.screen}>
@@ -33,7 +39,7 @@ export function MatchModal({ visible, onClose, onComplete }: { visible: boolean;
           <View style={styles.headerCopy}><Text style={styles.kicker}>MEET SMITTEN AI</Text><Text style={styles.headerTitle}>Your wedding matchmaker</Text></View>
           <Pressable onPress={onClose} accessibilityRole="button"><Text style={styles.skip}>Skip for now</Text></Pressable>
         </View>
-        <View style={styles.progress}><View style={[styles.progressFill, { width: `${((step + 1) / 3) * 100}%` }]} /></View>
+        <AnimatedProgress progress={(step + 1) / 3} trackStyle={styles.progress} fillStyle={styles.progressFill} />
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <Text style={styles.stepLabel}>STEP {step + 1} OF 3</Text>
           {step === 0 && <>
@@ -56,8 +62,8 @@ export function MatchModal({ visible, onClose, onComplete }: { visible: boolean;
           </>}
         </ScrollView>
         <View style={styles.actions}>
-          {step > 0 ? <Pressable onPress={() => setStep(step - 1)} style={styles.back}><Text style={styles.backText}>Back</Text></Pressable> : <View />}
-          <Pressable onPress={() => step < 2 ? setStep(step + 1) : onComplete({ location, budgetCeiling, services, style })} style={styles.continue}>
+          {step > 0 ? <Pressable onPress={() => changeStep(step - 1)} style={styles.back}><Text style={styles.backText}>Back</Text></Pressable> : <View />}
+          <Pressable onPress={() => step < 2 ? changeStep(step + 1) : onComplete({ location, budgetCeiling, services, style })} style={({ pressed }) => [styles.continue, pressed && styles.continuePressed]}>
             <Text style={styles.continueText}>{step < 2 ? "Continue" : "Build my shortlist"}</Text><AppSymbol name={step < 2 ? "arrow.right" : "wand.and.stars"} fallback={step < 2 ? "arrow-forward" : "sparkles"} size={16} color={colors.white} weight="semibold" type={step < 2 ? "monochrome" : "hierarchical"} />
           </Pressable>
         </View>
@@ -79,7 +85,7 @@ const styles = StyleSheet.create({
   headerTitle: { color: colors.ink, fontFamily: mediumFont, fontWeight: "500", fontSize: 13, marginTop: 2 },
   skip: { color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 11, paddingVertical: 10 },
   progress: { height: 4, marginTop: 20, backgroundColor: "#E3DFDA" },
-  progressFill: { height: 4, borderTopRightRadius: 2, borderBottomRightRadius: 2, backgroundColor: colors.green },
+  progressFill: { height: "100%", borderTopRightRadius: 2, borderBottomRightRadius: 2, backgroundColor: colors.green },
   content: { padding: 22, paddingBottom: 45 },
   stepLabel: { color: colors.green, fontFamily: headingFont, fontWeight: "600", fontSize: 9, letterSpacing: 1.1 },
   title: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 36, lineHeight: 42, letterSpacing: -0.9, marginTop: 10 },
@@ -103,5 +109,6 @@ const styles = StyleSheet.create({
   back: { padding: 13 },
   backText: { color: colors.plum, fontFamily: mediumFont, fontWeight: "500", fontSize: 12 },
   continue: { minHeight: 52, paddingHorizontal: 22, borderRadius: 14, backgroundColor: colors.plum, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" },
+  continuePressed: { transform: [{ scale: 0.985 }], opacity: 0.88 },
   continueText: { color: colors.white, fontFamily: headingFont, fontWeight: "600", fontSize: 13 }
 });

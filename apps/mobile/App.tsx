@@ -1,12 +1,14 @@
 import { StatusBar } from "expo-status-bar";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Animated, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Alert, Animated, Easing, Image, LayoutAnimation, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { coupleVendors, recommendCoupleVendors, serviceOptions, weddingLocations, type CoupleVendor } from "@smitten/shared";
 import { AppSymbol, type AppSymbolFallback, type AppSymbolName } from "./src/components/AppSymbol";
+import { AnimatedProgress } from "./src/components/AnimatedProgress";
 import { MatchModal } from "./src/components/MatchModal";
+import { MotionPressable } from "./src/components/MotionPressable";
 import { VendorCard } from "./src/components/VendorCard";
 import { cardShadow, colors, fonts } from "./src/theme";
 
@@ -156,6 +158,10 @@ function SmittenApp() {
 
 function HomeScreen({ darkMode, unreadNotifications, saved, matches, location, query, category, onQuery, onCategory, onSave, onView, openNotifications, openLocation, openMatch, openAuth, openDiscover }: { darkMode: boolean; unreadNotifications: number; saved: string[]; matches: (CoupleVendor & { score: number })[] | null; location: string; query: string; category: string; onQuery: (value: string) => void; onCategory: (value: string) => void; onSave: (name: string) => void; onView: (vendor: CoupleVendor) => void; openNotifications: () => void; openLocation: () => void; openMatch: () => void; openAuth: () => void; openDiscover: () => void }) {
   const [searchFocused, setSearchFocused] = useState(false);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const heroReveal = useRef(new Animated.Value(0)).current;
+  const controlsReveal = useRef(new Animated.Value(0)).current;
+  const contentReveal = useRef(new Animated.Value(0)).current;
   const vendors = useMemo(() => (matches ?? coupleVendors).filter((vendor) => {
     const locationMatch = vendor.location === location;
     const categoryMatch = category === "All" || vendor.category === category;
@@ -163,9 +169,21 @@ function HomeScreen({ darkMode, unreadNotifications, saved, matches, location, q
     return locationMatch && categoryMatch && queryMatch;
   }), [category, location, matches, query]);
 
+  useEffect(() => {
+    const reveal = (value: Animated.Value) => Animated.timing(value, { toValue: 1, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: true });
+    Animated.stagger(90, [reveal(heroReveal), reveal(controlsReveal), reveal(contentReveal)]).start();
+  }, [contentReveal, controlsReveal, heroReveal]);
+
+  const heroImageMotion = {
+    transform: [
+      { translateY: scrollY.interpolate({ inputRange: [-120, 0, 320], outputRange: [-24, 0, 88], extrapolate: "clamp" }) },
+      { scale: scrollY.interpolate({ inputRange: [-120, 0], outputRange: [1.12, 1], extrapolate: "clamp" }) },
+    ],
+  };
+
   return (
     <SafeAreaView style={[styles.safeScreen, darkMode && styles.darkScreen]} edges={["top"]}>
-      <ScrollView style={[styles.scroll, darkMode && styles.darkScreen]} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never">
+      <Animated.ScrollView style={[styles.scroll, darkMode && styles.darkScreen]} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never" onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })} scrollEventThrottle={16}>
         <View style={styles.header}>
           <View style={styles.homeIdentity}>
             <Brand />
@@ -183,8 +201,9 @@ function HomeScreen({ darkMode, unreadNotifications, saved, matches, location, q
             <Pressable onPress={openAuth} accessibilityRole="button" accessibilityLabel="Sign in" style={[styles.avatar, darkMode && styles.darkIconButton]}><AppSymbol name="person.crop.circle" fallback="person-circle-outline" size={22} color={darkMode ? colors.white : colors.plum} weight="medium" /></Pressable>
           </View>
         </View>
-      <Pressable onPress={openMatch} accessibilityRole="button" accessibilityLabel="Start your Smitten match" style={styles.matchHero}>
-        <Image source={{ uri: heroImage }} style={styles.matchHeroImage} resizeMode="cover" alt="Nigerian couple celebrating their wedding" />
+      <Animated.View style={{ opacity: heroReveal, transform: [{ translateY: heroReveal.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }] }}>
+      <MotionPressable onPress={openMatch} accessibilityRole="button" accessibilityLabel="Start your Smitten match" containerStyle={styles.matchHero} style={styles.motionCardContent} pressedScale={0.99}>
+        <Animated.Image source={{ uri: heroImage }} style={[styles.matchHeroImage, heroImageMotion]} resizeMode="cover" alt="Nigerian couple celebrating their wedding" />
         <LinearGradient colors={["rgba(23,20,18,0.03)", "rgba(23,20,18,0.28)", "rgba(23,20,18,0.9)"]} locations={[0.15, 0.5, 1]} style={styles.matchHeroGradient} />
         <View style={styles.matchHeroCopy}>
           <View style={styles.matchHeroBottom}>
@@ -193,7 +212,9 @@ function HomeScreen({ darkMode, unreadNotifications, saved, matches, location, q
             <View style={styles.heroAction}><AppSymbol name="sparkles" fallback="sparkles-outline" size={14} color={colors.white} weight="medium" /><Text style={styles.heroActionText}>Start matching</Text></View>
           </View>
         </View>
-      </Pressable>
+      </MotionPressable>
+      </Animated.View>
+      <Animated.View style={{ opacity: controlsReveal, transform: [{ translateY: controlsReveal.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
       <BlurView intensity={88} tint="light" style={[styles.searchBar, searchFocused && styles.inputFocused]}>
         <AppSymbol name="magnifyingglass" fallback="search" size={18} color={colors.plum} weight="medium" />
         <TextInput value={query} onChangeText={onQuery} onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)} placeholder="Photographer, venue, caterer..." placeholderTextColor="#A8A29E" style={styles.searchInput} returnKeyType="search" />
@@ -203,16 +224,18 @@ function HomeScreen({ darkMode, unreadNotifications, saved, matches, location, q
         {["All", ...serviceOptions].map((item) => {
           const icon = categorySymbol(item);
           return (
-            <Pressable key={item} onPress={() => onCategory(item)} accessibilityRole="button" accessibilityState={{ selected: category === item }} style={[styles.categoryCard, category === item && styles.categoryCardActive]}>
-              <AppSymbol name={icon.symbol} fallback={icon.fallback} size={21} color={category === item ? colors.white : colors.plum} weight={category === item ? "medium" : "regular"} type="monochrome" />
+            <CategoryPill key={item} active={category === item} onPress={() => onCategory(item)}>
+              <AppSymbol name={icon.symbol} fallback={icon.fallback} size={21} color={colors.plum} weight={category === item ? "medium" : "regular"} type="monochrome" />
               <Text style={[styles.categoryText, category === item && styles.categoryTextActive]}>{item === "All" ? "All services" : item}</Text>
-            </Pressable>
+            </CategoryPill>
           );
         })}
       </ScrollView>
+      </Animated.View>
+      <Animated.View style={{ opacity: contentReveal, transform: [{ translateY: contentReveal.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }}>
       <View style={styles.sectionRow}>
         <SectionTitle darkMode={darkMode} kicker={matches ? "CHOSEN AROUND YOUR PLANS" : "FOR YOUR DAY"} title={matches ? "Your Smitten shortlist" : `Popular in ${location}`} compact />
-        <Pressable onPress={openDiscover} accessibilityRole="button"><Text style={styles.seeAll}>See all</Text></Pressable>
+        <Pressable onPress={openDiscover} accessibilityRole="button" style={({ pressed }) => [styles.seeAllButton, pressed && styles.tabButtonPressed]}><Text style={styles.seeAll}>See all</Text></Pressable>
       </View>
       {vendors.length > 0 ? (
         <View style={styles.vendorMosaic}>
@@ -227,7 +250,8 @@ function HomeScreen({ darkMode, unreadNotifications, saved, matches, location, q
         <Text style={styles.trustKicker}>PLAN WITH CONFIDENCE</Text><Text style={styles.trustTitle}>Clear choices for your kind of wedding.</Text>
         <View style={styles.trustList}><TrustItem symbol="checkmark.seal" fallback="checkmark-circle-outline" text="Verified vendor profiles" /><TrustItem symbol="banknote" fallback="wallet-outline" text="Options for every budget" /><TrustItem symbol="message" fallback="chatbubble-ellipses-outline" text="Simple, protected enquiries" /></View>
       </View>
-      </ScrollView>
+      </Animated.View>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 }
@@ -280,7 +304,7 @@ function PlanningScreen({ darkMode, checklist, onToggle, openMatch }: { darkMode
         <PageHeader darkMode={darkMode} title="Planning" subtitle="One calm place for all the details." />
         <View style={styles.planProgressCard}>
           <View style={styles.planProgressHeader}><View><Text style={styles.planProgressKicker}>YOUR PROGRESS</Text><Text style={styles.planProgressTitle}>{completed} of {checklist.length} details settled</Text></View><Text style={styles.planProgressPercent}>{Math.round((completed / checklist.length) * 100)}%</Text></View>
-          <View style={styles.planProgressTrack}><View style={[styles.planProgressFill, { width: `${(completed / checklist.length) * 100}%` }]} /></View>
+          <AnimatedProgress progress={completed / checklist.length} trackStyle={styles.planProgressTrack} fillStyle={styles.planProgressFill} />
         </View>
         <View style={styles.planMetrics}>
           <PlanningMetric tone="mint" label="Completed" value={`${completed} tasks`} />
@@ -361,6 +385,7 @@ function AuthModal({ visible, onClose, onComplete }: { visible: boolean; onClose
   }
 
   function changeMode(nextMode: "signin" | "signup") {
+    LayoutAnimation.configureNext(LayoutAnimation.create(240, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity));
     setMode(nextMode);
     setError("");
     setFocusedField(null);
@@ -383,7 +408,7 @@ function AuthModal({ visible, onClose, onComplete }: { visible: boolean; onClose
           <Text style={styles.inputLabel}>PASSWORD</Text><View style={[styles.authField, focusedField === "password" && styles.inputFocused]}><AppSymbol name="lock" fallback="lock-closed-outline" size={18} color={colors.muted} weight="regular" /><TextInput value={password} onChangeText={setPassword} onFocus={() => setFocusedField("password")} onBlur={() => setFocusedField(null)} style={styles.authFieldInput} placeholder="Enter your password" placeholderTextColor="#96958F" secureTextEntry={!passwordVisible} textContentType={mode === "signin" ? "password" : "newPassword"} /><Pressable onPress={() => setPasswordVisible((current) => !current)} accessibilityRole="button" accessibilityLabel={passwordVisible ? "Hide password" : "Show password"} hitSlop={10}><AppSymbol name={passwordVisible ? "eye.slash" : "eye"} fallback={passwordVisible ? "eye-off-outline" : "eye-outline"} size={18} color={colors.muted} weight="regular" /></Pressable></View>
           {mode === "signup" ? <><Text style={styles.passwordHint}>8+ characters · 1 number · 1 special character</Text><Text style={styles.inputLabel}>CONFIRM PASSWORD</Text><View style={[styles.authField, focusedField === "confirm" && styles.inputFocused]}><AppSymbol name="lock.shield" fallback="shield-checkmark-outline" size={18} color={colors.muted} weight="regular" /><TextInput value={confirmPassword} onChangeText={setConfirmPassword} onFocus={() => setFocusedField("confirm")} onBlur={() => setFocusedField(null)} style={styles.authFieldInput} placeholder="Enter it again" placeholderTextColor="#96958F" secureTextEntry={!passwordVisible} textContentType="newPassword" /></View></> : <Pressable onPress={() => setError("Password reset will be available once account services are connected.")} accessibilityRole="button" style={styles.forgotButton}><Text style={styles.forgotText}>Forgot password?</Text></Pressable>}
           {error ? <Text style={styles.formError}>{error}</Text> : null}
-          <Pressable onPress={submit} style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}><Text style={styles.primaryButtonText}>{mode === "signin" ? "Sign in" : role === "vendor" ? "Join as a vendor" : "Create account"}</Text></Pressable>
+          <MotionPressable onPress={submit} containerStyle={styles.primaryButton} style={styles.primaryButtonContent} pressedScale={0.975}><Text style={styles.primaryButtonText}>{mode === "signin" ? "Sign in" : role === "vendor" ? "Join as a vendor" : "Create account"}</Text></MotionPressable>
           <Text style={styles.terms}>{mode === "signin" ? "Secure sign-in for your Smitten account." : "By creating an account, you agree to Smitten’s Terms and Privacy Policy."}</Text>
         </ScrollView>
       </SafeAreaView>
@@ -478,16 +503,18 @@ function VendorModal({ vendor, saved, onClose, onSave, onQuote }: { vendor: Coup
 
 function VendorPlanCard({ vendor, tone, tall = false, saved, score, onSave, onView }: { vendor: CoupleVendor; tone: "peach" | "blue" | "mint"; tall?: boolean; saved: boolean; score?: number; onSave: () => void; onView: () => void }) {
   void tone;
+  const scale = useRef(new Animated.Value(1)).current;
+  const animateScale = (toValue: number) => Animated.spring(scale, { toValue, damping: 18, stiffness: 280, mass: 0.7, useNativeDriver: true }).start();
   return (
-    <View style={[styles.vendorPlanCard, tall && styles.vendorPlanCardTall]}>
+    <Animated.View style={[styles.vendorPlanCard, tall && styles.vendorPlanCardTall, { transform: [{ scale }] }]}>
       <Image source={{ uri: vendor.image }} style={styles.vendorPlanImage} resizeMode="cover" alt={`${vendor.name} wedding portfolio`} />
       <LinearGradient colors={["rgba(14,16,13,0.02)", "rgba(14,16,13,0.2)", "rgba(14,16,13,0.86)"]} locations={[0.05, 0.44, 1]} style={styles.vendorPlanGradient} />
-      <Pressable onPress={onView} accessibilityRole="button" accessibilityLabel={`View ${vendor.name} profile`} style={styles.vendorPlanContent}>
+      <Pressable onPress={onView} onPressIn={() => animateScale(0.985)} onPressOut={() => animateScale(1)} accessibilityRole="button" accessibilityLabel={`View ${vendor.name} profile`} style={styles.vendorPlanContent}>
         <View style={styles.vendorPlanTop}><View style={styles.vendorPlanPill}><Text style={styles.vendorPlanPillText}>{score ? `${score}% match` : vendor.category}</Text></View></View>
         <View style={styles.vendorPlanCopy}><Text style={[styles.vendorPlanName, !tall && styles.vendorPlanNameCompact]} numberOfLines={2}>{vendor.name}</Text><Text style={styles.vendorPlanMeta}>{vendor.location} · {vendor.price}</Text></View>
       </Pressable>
       <Pressable onPress={onSave} accessibilityRole="button" accessibilityLabel={saved ? `Remove ${vendor.name} from saved vendors` : `Save ${vendor.name}`} style={[styles.vendorPlanSave, saved && styles.vendorPlanSaveActive]}><AppSymbol name={saved ? "heart.fill" : "heart"} fallback={saved ? "heart" : "heart-outline"} size={17} color={saved ? colors.white : colors.ink} weight="medium" animationSpec={saved ? { effect: { type: "bounce", wholeSymbol: true }, repeating: false } : undefined} /></Pressable>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -508,6 +535,16 @@ function TrustItem({ symbol, fallback, text }: SymbolPair & { text: string }) { 
 function ChecklistItem({ label, checked = false, onPress }: { label: string; checked?: boolean; onPress: () => void }) { return <Pressable onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked }} style={styles.checkRow}><View style={[styles.checkCircle, checked && styles.checkCircleDone]}>{checked ? <AppSymbol name="checkmark" fallback="checkmark" size={12} color={colors.white} weight="bold" /> : null}</View><Text style={[styles.checkLabel, checked && styles.checkLabelDone]}>{label}</Text><AppSymbol name="chevron.right" fallback="chevron-forward" size={13} color={colors.muted} weight="semibold" /></Pressable>; }
 function ProfileLink({ symbol, fallback, text, onPress }: SymbolPair & { text: string; onPress: () => void }) { return <Pressable onPress={onPress} accessibilityRole="button" style={styles.profileLink}><View style={styles.profileLinkIcon}><AppSymbol name={symbol} fallback={fallback} size={20} color={colors.plum} type="monochrome" weight="regular" /></View><Text style={styles.profileLinkText}>{text}</Text><AppSymbol name="chevron.right" fallback="chevron-forward" size={13} color={colors.muted} weight="regular" /></Pressable>; }
 function RoleCard({ symbol, fallback, label, selected, onPress }: SymbolPair & { label: string; selected: boolean; onPress: () => void }) { return <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected }} style={[styles.roleCard, selected && styles.roleCardSelected]}><AppSymbol name={symbol} fallback={fallback} size={24} color={colors.plum} type="monochrome" weight={selected ? "medium" : "regular"} /><Text style={styles.roleLabel}>{label}</Text>{selected ? <AppSymbol name="checkmark.circle.fill" fallback="checkmark-circle" size={18} color={colors.coral} weight="semibold" style={styles.roleCheck} /> : null}</Pressable>; }
+
+function CategoryPill({ active, onPress, children }: { active: boolean; onPress: () => void; children: ReactNode }) {
+  const scale = useRef(new Animated.Value(active ? 1 : 0.97)).current;
+
+  useEffect(() => {
+    Animated.spring(scale, { toValue: active ? 1 : 0.97, damping: 17, stiffness: 240, mass: 0.7, useNativeDriver: true }).start();
+  }, [active, scale]);
+
+  return <Animated.View style={[styles.categoryCard, active && styles.categoryCardActive, { transform: [{ scale }] }]}><Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: active }} style={({ pressed }) => [styles.categoryPillContent, pressed && styles.tabButtonPressed]}>{children}</Pressable></Animated.View>;
+}
 
 function TabButton({ tab, active, savedCount, darkMode, onPress }: { tab: Tab; active: boolean; savedCount: number; darkMode: boolean; onPress: () => void }) {
   const scale = useRef(new Animated.Value(active ? 1 : 0.96)).current;
@@ -559,6 +596,7 @@ const styles = StyleSheet.create({
   notificationBadge: { minWidth: 16, height: 16, paddingHorizontal: 3, position: "absolute", right: -3, top: -3, borderRadius: 8, backgroundColor: "#E86F68", alignItems: "center", justifyContent: "center" },
   notificationBadgeText: { color: colors.white, fontFamily: boldFont, fontWeight: "700", fontSize: 8, lineHeight: 11 },
   matchHero: { height: 388, marginHorizontal: 16, overflow: "hidden", position: "relative", borderRadius: 24, backgroundColor: colors.plumDark, ...cardShadow },
+  motionCardContent: { flex: 1 },
   matchHeroImage: { position: "absolute", width: "100%", height: "100%" },
   matchHeroGradient: { position: "absolute", inset: 0 },
   matchHeroCopy: { flex: 1, zIndex: 2, padding: 24, justifyContent: "flex-end" },
@@ -577,11 +615,13 @@ const styles = StyleSheet.create({
   sectionTitle: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 30, lineHeight: 36, letterSpacing: -0.72, marginTop: 5 },
   sectionTitleCompact: { fontSize: 28, lineHeight: 34 },
   categoryScroll: { paddingHorizontal: 20, paddingTop: 17, paddingBottom: 8, gap: 8 },
-  categoryCard: { minHeight: 44, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, flexDirection: "row", alignItems: "center", gap: 8 },
-  categoryCardActive: { backgroundColor: colors.ink, borderColor: colors.ink },
+  categoryCard: { minHeight: 44, overflow: "hidden", borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
+  categoryCardActive: { backgroundColor: colors.mint, borderColor: "rgba(109,118,89,0.32)" },
+  categoryPillContent: { flex: 1, paddingHorizontal: 14, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 8 },
   categoryText: { color: colors.ink, fontFamily: mediumFont, fontWeight: "500", fontSize: 11, lineHeight: 14 },
-  categoryTextActive: { color: colors.white },
+  categoryTextActive: { color: colors.ink, fontFamily: headingFont, fontWeight: "600" },
   sectionRow: { marginTop: 11, marginRight: 20, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
+  seeAllButton: { minHeight: 36, paddingHorizontal: 13, marginBottom: -3, borderRadius: 12, backgroundColor: colors.input, alignItems: "center", justifyContent: "center" },
   seeAll: { color: colors.ink, fontFamily: mediumFont, fontWeight: "500", fontSize: 12, paddingBottom: 3 },
   vendorMosaic: { minHeight: 386, marginHorizontal: 20, marginTop: 18, flexDirection: "row", gap: 10 },
   vendorMosaicSide: { flex: 1, gap: 10 },
@@ -641,9 +681,9 @@ const styles = StyleSheet.create({
   fullSearch: { minHeight: 58, paddingHorizontal: 16, borderRadius: 16, borderWidth: 1, borderColor: "transparent", backgroundColor: colors.input, flexDirection: "row", alignItems: "center", gap: 10 },
   filterRow: { gap: 8, paddingVertical: 16 },
   filterChip: { paddingHorizontal: 15, paddingVertical: 11, borderRadius: 13, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
-  filterChipActive: { borderColor: colors.plum, backgroundColor: colors.plum },
+  filterChipActive: { borderColor: "rgba(109,118,89,0.32)", backgroundColor: colors.mint },
   filterText: { color: colors.ink, fontFamily: mediumFont, fontWeight: "500", fontSize: 11 },
-  filterTextActive: { color: colors.white },
+  filterTextActive: { color: colors.ink, fontFamily: headingFont, fontWeight: "600" },
   resultCount: { color: colors.green, fontFamily: headingFont, fontWeight: "600", fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 },
   verticalList: { gap: 16 },
   emptyState: { alignItems: "center", paddingTop: 90, paddingHorizontal: 27 },
@@ -702,6 +742,7 @@ const styles = StyleSheet.create({
   profileSignInButton: { minHeight: 42, paddingHorizontal: 15, borderRadius: 13, backgroundColor: colors.plum, flexDirection: "row", alignItems: "center", gap: 6 },
   profileSignInButtonText: { color: colors.white, fontFamily: headingFont, fontWeight: "600", fontSize: 11 },
   primaryButton: { width: "100%", minHeight: 52, borderRadius: 14, backgroundColor: colors.plum, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  primaryButtonContent: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   primaryButtonText: { color: colors.white, fontFamily: headingFont, fontWeight: "600", fontSize: 13 },
   profileLinks: { overflow: "hidden", marginTop: 17, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
   profileLink: { minHeight: 68, paddingHorizontal: 15, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", alignItems: "center", gap: 12 },
