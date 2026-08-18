@@ -25,7 +25,7 @@ export function VendorCard({ vendor, saved, onSave, onView, fullWidth = false, s
         <Image source={{ uri: vendor.image }} style={styles.image} resizeMode="cover" alt={`${vendor.name} wedding portfolio`} />
         <View style={styles.badge}>
           <AppSymbol name={score ? "wand.and.stars" : "checkmark.seal"} fallback={score ? "sparkles" : "checkmark-circle-outline"} size={12} color={colors.plum} type="monochrome" weight="regular" />
-          <Text style={styles.badgeText}>{score ? `${score}% Smitten match` : vendor.tier}</Text>
+          <Text style={styles.badgeText}>{score ? `${score}% Smitten match` : "Verified"}</Text>
         </View>
         <Pressable
           onPress={onSave}
@@ -57,33 +57,33 @@ export function VendorCard({ vendor, saved, onSave, onView, fullWidth = false, s
 }
 
 const styles = StyleSheet.create({
-  card: { width: 286, overflow: "hidden", borderRadius: 24, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, ...cardShadow },
+  card: { width: 286, overflow: "hidden", borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, ...cardShadow },
   fullWidth: { width: "100%" },
   cardDark: { backgroundColor: colors.surfaceDark },
-  imageWrap: { height: 194, position: "relative", backgroundColor: colors.blush },
-  fullImage: { height: 226 },
+  imageWrap: { height: 210, position: "relative", backgroundColor: colors.blush },
+  fullImage: { height: 248 },
   image: { width: "100%", height: "100%" },
-  badge: { position: "absolute", top: 13, left: 13, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 18, borderWidth: 1, borderColor: "rgba(28,25,23,0.05)", flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.82)" },
-  badgeText: { color: colors.plum, fontFamily: headingFont, fontSize: 8, lineHeight: 11, textTransform: "uppercase", letterSpacing: 0.5 },
-  saveButton: { position: "absolute", right: 13, top: 13, width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: "rgba(28,25,23,0.05)", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.84)" },
+  badge: { position: "absolute", top: 14, left: 14, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 11, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(254,254,252,0.9)" },
+  badgeText: { color: colors.plum, fontFamily: headingFont, fontSize: 9, lineHeight: 12, textTransform: "uppercase", letterSpacing: 0.6 },
+  saveButton: { position: "absolute", right: 14, top: 14, width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(254,254,252,0.92)" },
   saveButtonActive: { backgroundColor: colors.plum },
-  body: { padding: 18 },
+  body: { padding: 19 },
   metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  category: { color: colors.muted, fontFamily: headingFont, fontSize: 9, textTransform: "uppercase", letterSpacing: 0.72 },
-  tier: { color: colors.ink, fontFamily: mediumFont, fontSize: 8, paddingVertical: 5, paddingHorizontal: 8, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.78)" },
-  name: { color: colors.ink, fontFamily: headingFont, fontSize: 22, lineHeight: 27, letterSpacing: -0.44, marginTop: 9 },
+  category: { color: colors.green, fontFamily: headingFont, fontSize: 10, textTransform: "uppercase", letterSpacing: 0.82 },
+  tier: { color: colors.ink, fontFamily: mediumFont, fontSize: 9, paddingVertical: 5, paddingHorizontal: 9, borderRadius: 10, backgroundColor: colors.mint },
+  name: { color: colors.ink, fontFamily: headingFont, fontSize: 24, lineHeight: 29, letterSpacing: -0.58, marginTop: 10 },
   detailRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6 },
   locationRow: { flexDirection: "row", alignItems: "center", gap: 3 },
-  location: { color: colors.muted, fontFamily: appFont, fontSize: 10 },
+  location: { color: colors.muted, fontFamily: appFont, fontSize: 11 },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 3 },
-  rating: { color: colors.gold, fontFamily: boldFont, fontSize: 10 },
+  rating: { color: colors.gold, fontFamily: boldFont, fontSize: 11 },
   reviews: { color: colors.muted, fontFamily: appFont },
-  reason: { color: colors.muted, fontFamily: appFont, fontSize: 10, lineHeight: 16, marginTop: 12 },
-  footer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 13, marginTop: 13 },
-  price: { color: colors.ink, fontFamily: headingFont, fontSize: 13 },
+  reason: { color: colors.muted, fontFamily: appFont, fontSize: 12, lineHeight: 18, marginTop: 13 },
+  footer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 15, marginTop: 15 },
+  price: { color: colors.ink, fontFamily: headingFont, fontSize: 14 },
   viewButton: { flexDirection: "row", alignItems: "center", gap: 6 },
-  viewText: { color: colors.ink, fontFamily: mediumFont, fontSize: 9 },
-  viewArrow: { width: 25, height: 25, borderRadius: 13, backgroundColor: colors.plum, alignItems: "center", justifyContent: "center" },
+  viewText: { color: colors.ink, fontFamily: mediumFont, fontSize: 11 },
+  viewArrow: { width: 28, height: 28, borderRadius: 10, backgroundColor: colors.plum, alignItems: "center", justifyContent: "center" },
   textDark: { color: colors.white },
   mutedDark: { color: "#AAA8B0" }
 });
