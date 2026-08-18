@@ -7,8 +7,10 @@ import {
   BadgeCheck,
   CakeSlice,
   Camera,
-  Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardCheck,
   Gem,
   Heart,
   MapPin,
@@ -22,7 +24,7 @@ import {
   WalletCards,
   X,
 } from "lucide-react";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
 
 const vendors = [
   {
@@ -102,7 +104,7 @@ const vendors = [
 const categories = [
   { name: "Venues", icon: Gem, count: "680+" },
   { name: "Photographers", icon: Camera, count: "420+" },
-  { name: "Planners & décor", icon: Sparkles, count: "510+" },
+  { name: "Planners & décor", icon: ClipboardCheck, count: "510+" },
   { name: "Catering", icon: Utensils, count: "360+" },
   { name: "Music & DJs", icon: Music2, count: "280+" },
   { name: "Cakes", icon: CakeSlice, count: "230+" },
@@ -121,9 +123,9 @@ export default function Home() {
   const [location, setLocation] = useState("Lagos");
   const [category, setCategory] = useState("All vendors");
   const [budget, setBudget] = useState("Any budget");
-  const [searchMessage, setSearchMessage] = useState("");
   const [saved, setSaved] = useState<string[]>([]);
   const [activeVendor, setActiveVendor] = useState<(typeof vendors)[number] | null>(null);
+  const categoryTrackRef = useRef<HTMLDivElement>(null);
 
   const visibleVendors = useMemo(() => {
     return vendors.filter((vendor) => {
@@ -141,11 +143,6 @@ export default function Home() {
 
   function runSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSearchMessage(
-      visibleVendors.length
-        ? `Showing ${visibleVendors.length} trusted match${visibleVendors.length > 1 ? "es" : ""} in ${location} for ${budget.toLowerCase()}.`
-        : `We’re growing in ${location}. Try “All vendors” or another city.`,
-    );
     document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" });
   }
 
@@ -153,27 +150,36 @@ export default function Home() {
     setSaved((current) => current.includes(name) ? current.filter((item) => item !== name) : [...current, name]);
   }
 
+  function scrollCategories(direction: "previous" | "next") {
+    const track = categoryTrackRef.current;
+    if (!track) return;
+
+    track.scrollBy({
+      left: (direction === "next" ? 1 : -1) * Math.min(track.clientWidth * 0.82, 760),
+      behavior: "smooth",
+    });
+  }
+
   return (
     <main>
       <header className="site-header">
         <Brand priority />
 
-        <nav className={menuOpen ? "nav-links is-open" : "nav-links"} aria-label="Main navigation">
-          <a href="#categories">Find vendors</a>
-          <a href="#how-it-works">How it works</a>
-          <Link href="/couples/match">AI recommendations</Link>
-          <a href="#inspiration">Inspiration</a>
-          <Link href="/couples/sign-up" className="mobile-auth-link">Sign in</Link>
-          <Link href="/dashboard" className="mobile-auth-link">Vendor sign in</Link>
+        <nav id="primary-navigation" className={menuOpen ? "nav-links is-open" : "nav-links"} aria-label="Main navigation">
+          <a href="#categories" onClick={() => setMenuOpen(false)}>Find vendors</a>
+          <a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a>
+          <Link href="/couples/match" onClick={() => setMenuOpen(false)}>AI recommendations</Link>
+          <a href="#inspiration" onClick={() => setMenuOpen(false)}>Inspiration</a>
+          <Link href="/couples/sign-up" className="mobile-auth-link" onClick={() => setMenuOpen(false)}>Sign in</Link>
+          <Link href="/vendor/sign-up" className="mobile-vendor-join" onClick={() => setMenuOpen(false)}>Join as vendor <ArrowRight size={16} /></Link>
         </nav>
 
         <div className="header-actions">
           <Link href="/couples/sign-up" className="couple-sign-in"><UserRound size={15} /> Sign in</Link>
-          <Link href="/dashboard" className="text-link vendor-sign-in">Vendor sign in</Link>
-          <Link href="/onboarding" className="button button-dark button-small">Join as vendor</Link>
+          <Link href="/vendor/sign-up" className="button button-dark button-small">Join as vendor</Link>
         </div>
 
-        <button className="menu-button" onClick={() => setMenuOpen((value) => !value)} aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen}>
+        <button className="menu-button" onClick={() => setMenuOpen((value) => !value)} aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} aria-controls="primary-navigation">
           {menuOpen ? <X /> : <Menu />}
         </button>
       </header>
@@ -237,12 +243,7 @@ export default function Home() {
         <div className="hero-visual">
           <img src="https://static.wixstatic.com/media/fdf893_120788a0b4fa499fb373d950cc86501e~mv2.jpg/v1/fill/w_980%2Ch_980%2Cal_c%2Cq_85%2Cusm_0.66_1.00_0.01%2Cenc_avif%2Cquality_auto/fdf893_120788a0b4fa499fb373d950cc86501e~mv2.jpg" alt="Nigerian couple in traditional wedding attire" />
           <div className="hero-caption"><span><MapPin size={15} /> Lagos, Nigeria</span><p>“Every detail felt like us.”</p><small>Amara & Tunde</small></div>
-          <div className="hero-flower" aria-hidden="true">✦</div>
         </div>
-      </section>
-
-      <section className="trust-strip" aria-label="Marketplace benefits">
-        <p><Check size={17} /> Verified vendors</p><p><Check size={17} /> Transparent reviews</p><p><Check size={17} /> Quotes made simple</p><p><Check size={17} /> Nigerian, nationwide</p>
       </section>
 
       <section className="section categories-section" id="categories">
@@ -250,10 +251,19 @@ export default function Home() {
           <div><p className="eyebrow"><span /> Start planning</p><h2>Everything you need,<br /><em>all in one place.</em></h2></div>
           <p>From the first idea to the final dance, find experienced professionals who understand your vision—and your traditions.</p>
         </div>
-        <div className="category-grid">
-          {categories.map(({ name, icon: Icon, count }) => (
-            <button className="category-card" key={name} onClick={() => { setCategory(categoryAliases[name] ?? name); setSearchMessage(`Showing ${name.toLowerCase()} around ${location}.`); document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" }); }}>
-              <span className="category-icon"><Icon size={24} /></span><span><strong>{name}</strong><small>{count} vendors</small></span><ArrowRight size={19} />
+        <div className="category-slider-heading">
+          <p>Explore by service</p>
+          <div className="category-slider-controls" aria-label="Category carousel controls">
+            <button type="button" onClick={() => scrollCategories("previous")} aria-label="Show previous categories"><ChevronLeft /></button>
+            <button type="button" onClick={() => scrollCategories("next")} aria-label="Show next categories"><ChevronRight /></button>
+          </div>
+        </div>
+        <div className="category-carousel" ref={categoryTrackRef} role="region" aria-label="Wedding vendor categories" tabIndex={0}>
+          {categories.map(({ name, icon: Icon, count }, index) => (
+            <button type="button" className="category-card" key={name} aria-label={`Browse ${name}`} onClick={() => { setCategory(categoryAliases[name] ?? name); document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" }); }}>
+              <span className="category-card-top"><small>Explore 0{index + 1}</small><span className="category-icon"><Icon /></span></span>
+              <span className="category-card-copy"><strong>{name}</strong><small>{count} trusted vendors</small></span>
+              <span className="category-card-link">Browse vendors <ArrowRight /></span>
             </button>
           ))}
         </div>
@@ -262,9 +272,8 @@ export default function Home() {
       <section className="section featured-section" id="featured">
         <div className="section-heading row-heading">
           <div><p className="eyebrow light"><span /> Curated for you</p><h2>Popular around <em>{location}</em></h2></div>
-          <button className="underlined-button" onClick={() => { setLocation("Nigeria"); setCategory("All vendors"); setBudget("Any budget"); setSearchMessage("Showing all trusted vendors across Nigeria."); }}>View all vendors <ArrowRight size={17} /></button>
+          <button className="underlined-button" onClick={() => { setLocation("Nigeria"); setCategory("All vendors"); setBudget("Any budget"); }}>View all vendors <ArrowRight size={17} /></button>
         </div>
-        {searchMessage && <div className="search-feedback" role="status">{searchMessage}</div>}
         {visibleVendors.length > 0 ? <div className="vendor-grid">
           {visibleVendors.map((vendor) => (
             <article className="vendor-card" key={vendor.name}>
@@ -282,7 +291,7 @@ export default function Home() {
         <div className="story-image"><img src="https://naphtalirentals.com/wp-content/uploads/2022/07/291952015_993524448004434_4768468144911484061_n.jpg" alt="Elegant Nigerian wedding reception setup" /><div className="story-sticker"><Heart fill="currentColor" size={24} /><strong>Made for<br />Naija love</strong></div></div>
         <div className="story-copy">
           <p className="eyebrow"><span /> How it works</p><h2>Less stress.<br /><em>More celebration.</em></h2>
-          <div className="steps"><div><span>01</span><p><strong>Discover your favourites</strong>Search by service, city, style and budget.</p></div><div><span>02</span><p><strong>Compare with confidence</strong>See real work, packages and verified reviews.</p></div><div><span>03</span><p><strong>Request a personal quote</strong>Tell vendors what you need and manage replies in one place.</p></div></div>
+          <ul className="steps"><li><span className="step-bullet" aria-hidden="true" /><p><strong>Discover your favourites</strong>Search by service, city, style and budget.</p></li><li><span className="step-bullet" aria-hidden="true" /><p><strong>Compare with confidence</strong>See real work, packages and verified reviews.</p></li><li><span className="step-bullet" aria-hidden="true" /><p><strong>Request a personal quote</strong>Tell vendors what you need and manage replies in one place.</p></li></ul>
           <Link href="/couples/sign-up" className="button button-primary">Start planning <ArrowRight size={18} /></Link>
         </div>
       </section>
@@ -305,18 +314,18 @@ export default function Home() {
       <section className="section location-section" id="inspiration">
         <div className="location-copy"><p className="eyebrow light"><span /> Near you</p><h2>Find wedding vendors<br /><em>across Nigeria.</em></h2><p>Local expertise matters. Browse professionals who know the venues, traditions and pace of your city.</p></div>
         <div className="location-list">
-          {locations.map((city, index) => <button key={city} onClick={() => { setLocation(city); setCategory("All vendors"); setBudget("Any budget"); setSearchMessage(`Showing trusted vendors around ${city}.`); document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" }); }}><span>0{index + 1}</span><strong>{city}</strong><ArrowRight /></button>)}
+          {locations.map((city, index) => <button key={city} onClick={() => { setLocation(city); setCategory("All vendors"); setBudget("Any budget"); document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" }); }}><span>0{index + 1}</span><strong>{city}</strong><ArrowRight /></button>)}
         </div>
       </section>
 
       <section className="vendor-cta">
         <div><p className="eyebrow"><span /> For wedding professionals</p><h2>Your best work deserves<br /><em>to be discovered.</em></h2></div>
-        <div><p>Build a beautiful profile, share your portfolio, respond to enquiries and send custom quotes—all from one place.</p><Link href="/onboarding" className="button button-dark">Grow your business <ArrowRight size={18} /></Link></div>
+        <div><p>Build a beautiful profile, share your portfolio, respond to enquiries and send custom quotes—all from one place.</p><Link href="/vendor/sign-up" className="button button-dark">Grow your business <ArrowRight size={18} /></Link></div>
       </section>
 
       <footer>
-        <div className="footer-top"><Brand light /><p>Celebrating love, culture and brilliant Nigerian businesses.</p><div className="socials"><a href="https://instagram.com" target="_blank" rel="noreferrer">Instagram</a><a href="https://tiktok.com" target="_blank" rel="noreferrer">TikTok</a><a href="https://pinterest.com" target="_blank" rel="noreferrer">Pinterest</a></div></div>
-        <div className="footer-bottom"><span>© 2026 Smitten</span><span>Made with love in Nigeria 🇳🇬</span><span>Privacy · Terms</span></div>
+        <div className="footer-top"><Brand light /><p>Celebrating love, culture and brilliant Nigerian businesses.</p><div className="socials"><a href="https://instagram.com/Smitten_NG" target="_blank" rel="noreferrer">Instagram: Smitten_NG</a><a href="https://x.com/Smitten_NG" target="_blank" rel="noreferrer">X: Smitten_NG</a></div></div>
+        <div className="footer-bottom"><span>© 2026 Smitten</span><span>Privacy · Terms</span></div>
       </footer>
 
       {activeVendor && <div className="vendor-modal-backdrop" onMouseDown={() => setActiveVendor(null)}>
