@@ -273,9 +273,9 @@ export default function Home() {
           </div>
         </div>
         <div className="category-carousel" ref={categoryTrackRef} role="region" aria-label="Wedding vendor categories" tabIndex={0}>
-          {categories.map(({ name, icon: Icon, count }, index) => (
+          {categories.map(({ name, icon: Icon, count }) => (
             <button type="button" className="category-card" key={name} aria-label={`Browse ${name}`} onClick={() => { setCategory(categoryAliases[name] ?? name); document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" }); }}>
-              <span className="category-card-top"><small>Explore 0{index + 1}</small><span className="category-icon"><Icon /></span></span>
+              <span className="category-card-top"><span className="category-icon"><Icon /></span></span>
               <span className="category-card-copy"><strong>{name}</strong><small>{count} trusted vendors</small></span>
               <span className="category-card-link">Browse vendors <ArrowRight /></span>
             </button>
