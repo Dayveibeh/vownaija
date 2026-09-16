@@ -5,6 +5,7 @@ import "./globals.css";
 import "./product.css";
 import "./couples.css";
 import "./vercel-theme.css";
+import "./vendor-polish.css";
 
 const geist = Geist({ variable: "--font-geist", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
