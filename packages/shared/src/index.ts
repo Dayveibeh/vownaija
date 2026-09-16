@@ -27,6 +27,50 @@ export type CoupleVendor = {
   reason: string;
 };
 
+export type MarketplaceVendorRecord = {
+  id: string;
+  businessName: string;
+  category: string;
+  location: string;
+  state: string;
+  startingPrice: string | number;
+  currencyCode: string;
+  tier: CoupleVendor["tier"];
+  rating: string | number;
+  reviewCount: number;
+  imageUrl: string;
+  styles: string[];
+  matchReason: string;
+  active?: boolean;
+};
+
+export type MarketplaceVendorListResponse = {
+  market: typeof DEFAULT_MARKET;
+  currency: typeof DEFAULT_CURRENCY;
+  count: number;
+  vendors: MarketplaceVendorRecord[];
+};
+
+export function coupleVendorFromMarketplaceRecord(record: MarketplaceVendorRecord): CoupleVendor {
+  const priceMin = Number(record.startingPrice);
+  return {
+    id: record.id,
+    name: record.businessName,
+    category: record.category,
+    location: record.location,
+    state: record.state,
+    currencyCode: DEFAULT_CURRENCY,
+    price: `From ${formatNaira(Number.isFinite(priceMin) ? priceMin : 0)}`,
+    priceMin: Number.isFinite(priceMin) ? priceMin : 0,
+    tier: record.tier,
+    rating: Number(record.rating).toFixed(1),
+    reviews: record.reviewCount,
+    image: record.imageUrl,
+    style: Array.isArray(record.styles) ? record.styles : [],
+    reason: record.matchReason,
+  };
+}
+
 export type VendorMatchPreferences = {
   location: string;
   budgetCeiling: number;
