@@ -24,82 +24,14 @@ import {
   WalletCards,
   X,
 } from "lucide-react";
-import { FormEvent, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import {
+  coupleVendorFromMarketplaceRecord,
+  type CoupleVendor,
+  type MarketplaceVendorListResponse,
+} from "@smitten/shared";
 
-const vendors = [
-  {
-    name: "Aurora Events NG",
-    category: "Planning & décor",
-    location: "Lekki, Lagos",
-    rating: "4.9",
-    reviews: 86,
-    price: "From ₦850,000",
-    priceMin: 850000,
-    tier: "Mid-range",
-    tag: "Most booked",
-    image: "https://ikejabird.com/wp-content/uploads/2025/10/2022-02-01-1.jpg",
-  },
-  {
-    name: "The Bridal Chair",
-    category: "Bridal beauty",
-    location: "Abuja, FCT",
-    rating: "4.8",
-    reviews: 54,
-    price: "From ₦180,000",
-    priceMin: 180000,
-    tier: "Budget-friendly",
-    tag: "Responds fast",
-    image: "https://i.pinimg.com/originals/33/9b/0f/339b0f6a388202ad731f89715e91e442.jpg",
-  },
-  {
-    name: "Dripples Cakes",
-    category: "Cakes & desserts",
-    location: "Ikeja, Lagos",
-    rating: "4.9",
-    reviews: 112,
-    price: "From ₦250,000",
-    priceMin: 250000,
-    tier: "Budget-friendly",
-    tag: "Top rated",
-    image: "https://gallery.dripplescakes.com/assets/images/traditional-marriage-cake-by-dripplescakes-2024-15-1000x1333.webp",
-  },
-  {
-    name: "Lagos Lens Co.",
-    category: "Photography",
-    location: "Victoria Island, Lagos",
-    rating: "4.8",
-    reviews: 73,
-    price: "From ₦450,000",
-    priceMin: 450000,
-    tier: "Mid-range",
-    tag: "Great value",
-    image: "https://static.wixstatic.com/media/fdf893_120788a0b4fa499fb373d950cc86501e~mv2.jpg/v1/fill/w_980%2Ch_980%2Cal_c%2Cq_85%2Cusm_0.66_1.00_0.01%2Cenc_avif%2Cquality_auto/fdf893_120788a0b4fa499fb373d950cc86501e~mv2.jpg",
-  },
-  {
-    name: "Grand Marquee Lagos",
-    category: "Venues",
-    location: "Ikeja, Lagos",
-    rating: "4.9",
-    reviews: 128,
-    price: "From ₦3,500,000",
-    priceMin: 3500000,
-    tier: "Luxury",
-    tag: "Premium pick",
-    image: "https://naphtalirentals.com/wp-content/uploads/2022/07/291952015_993524448004434_4768468144911484061_n.jpg",
-  },
-  {
-    name: "Buka & Bubbles",
-    category: "Catering",
-    location: "Lekki, Lagos",
-    rating: "4.7",
-    reviews: 61,
-    price: "From ₦6,500 per guest",
-    priceMin: 6500,
-    tier: "Budget-friendly",
-    tag: "Couples’ choice",
-    image: "https://www.eventdesignbybe.com/wp-content/uploads/2024/08/Modern-Nigerian-Wedding-Cake-Designs.jpg",
-  },
-];
+type HomeVendor = CoupleVendor & { tag: string };
 
 const categories = [
   { name: "Venues", icon: Gem, count: "680+" },
@@ -118,36 +50,117 @@ const categoryAliases: Record<string, string> = {
   Cakes: "Cakes & desserts",
 };
 
+function tagForVendor(vendor: CoupleVendor) {
+  if (vendor.reviews >= 100) return "Top rated";
+  if (vendor.tier === "Luxury") return "Premium pick";
+  if (Number(vendor.rating) >= 4.9) return "Highly rated";
+  if (vendor.tier === "Budget-friendly") return "Great value";
+  return "Verified";
+}
+
+function displayLocation(vendor: CoupleVendor) {
+  return vendor.state && vendor.state !== vendor.location
+    ? `${vendor.location}, ${vendor.state}`
+    : vendor.location;
+}
+
+function budgetParams(budget: string) {
+  if (budget === "Under ₦250k") return { maxPrice: 249999 };
+  if (budget === "₦250k – ₦1m") return { minPrice: 250000, maxPrice: 1000000 };
+  if (budget === "₦1m – ₦3m") return { minPrice: 1000000, maxPrice: 3000000 };
+  if (budget === "₦3m+") return { minPrice: 3000000 };
+  return {} as { minPrice?: number; maxPrice?: number };
+}
+
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [location, setLocation] = useState("Lagos");
   const [category, setCategory] = useState("All vendors");
   const [budget, setBudget] = useState("Any budget");
+  const [vendors, setVendors] = useState<HomeVendor[]>([]);
   const [saved, setSaved] = useState<string[]>([]);
-  const [activeVendor, setActiveVendor] = useState<(typeof vendors)[number] | null>(null);
+  const [activeVendor, setActiveVendor] = useState<HomeVendor | null>(null);
+  const [loadingVendors, setLoadingVendors] = useState(true);
+  const [marketplaceError, setMarketplaceError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
   const categoryTrackRef = useRef<HTMLDivElement>(null);
 
-  const visibleVendors = useMemo(() => {
-    return vendors.filter((vendor) => {
-      const locationMatch = location === "Nigeria" || vendor.location.toLowerCase().includes(location.toLowerCase());
-      const normalizedCategory = categoryAliases[category] ?? category;
-      const categoryMatch = category === "All vendors" || vendor.category === normalizedCategory;
-      const budgetMatch = budget === "Any budget"
-        || (budget === "Under ₦250k" && vendor.priceMin < 250000)
-        || (budget === "₦250k – ₦1m" && vendor.priceMin >= 250000 && vendor.priceMin <= 1000000)
-        || (budget === "₦1m – ₦3m" && vendor.priceMin > 1000000 && vendor.priceMin <= 3000000)
-        || (budget === "₦3m+" && vendor.priceMin > 3000000);
-      return locationMatch && categoryMatch && budgetMatch;
-    });
-  }, [budget, category, location]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams();
+    const normalizedCategory = categoryAliases[category] ?? category;
+    if (location !== "Nigeria") params.set("location", location);
+    if (category !== "All vendors") params.set("category", normalizedCategory);
+    const range = budgetParams(budget);
+    if (typeof range.minPrice === "number") params.set("minPrice", String(range.minPrice));
+    if (typeof range.maxPrice === "number") params.set("maxPrice", String(range.maxPrice));
+
+    setLoadingVendors(true);
+    setMarketplaceError("");
+    void fetch(`/api/vendors${params.size ? `?${params.toString()}` : ""}`, {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Marketplace request failed");
+        return response.json() as Promise<MarketplaceVendorListResponse>;
+      })
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        setVendors(result.vendors.map((record) => {
+          const vendor = coupleVendorFromMarketplaceRecord(record);
+          return { ...vendor, tag: tagForVendor(vendor) };
+        }));
+      })
+      .catch((error) => {
+        if (controller.signal.aborted || (error instanceof Error && error.name === "AbortError")) return;
+        setMarketplaceError("We couldn’t load the marketplace just now. Please try again.");
+        setVendors([]);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingVendors(false);
+      });
+
+    return () => controller.abort();
+  }, [budget, category, location, reloadKey]);
+
+  useEffect(() => {
+    void fetch("/api/favourites", { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((result) => {
+        if (Array.isArray(result?.favourites)) {
+          setSaved(result.favourites.map((item: { vendorId: string }) => item.vendorId));
+        }
+      })
+      .catch(() => {
+        // Public browsing should still work if the visitor is signed out.
+      });
+  }, []);
 
   function runSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" });
   }
 
-  function toggleSaved(name: string) {
-    setSaved((current) => current.includes(name) ? current.filter((item) => item !== name) : [...current, name]);
+  async function toggleSaved(vendorId: string) {
+    const wasSaved = saved.includes(vendorId);
+    setSaved((current) => wasSaved ? current.filter((item) => item !== vendorId) : [...current, vendorId]);
+
+    try {
+      const response = await fetch("/api/favourites", {
+        method: wasSaved ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vendorId }),
+      });
+      if (response.status === 401) {
+        setSaved((current) => wasSaved ? [...current, vendorId] : current.filter((item) => item !== vendorId));
+        window.location.href = "/couples/sign-up?mode=signin";
+        return;
+      }
+      if (!response.ok) throw new Error("Favourite update failed");
+    } catch {
+      setSaved((current) => wasSaved ? [...new Set([...current, vendorId])] : current.filter((item) => item !== vendorId));
+    }
   }
 
   function scrollCategories(direction: "previous" | "next") {
@@ -201,6 +214,7 @@ export default function Home() {
                   <option>Bridal beauty</option>
                   <option>Cakes & desserts</option>
                   <option>Photography</option>
+                  <option>Venues</option>
                 </select>
                 <ChevronDown size={16} />
               </div>
@@ -274,17 +288,19 @@ export default function Home() {
           <div><p className="eyebrow light"><span /> Curated for you</p><h2>Popular around <em>{location}</em></h2></div>
           <button className="underlined-button" onClick={() => { setLocation("Nigeria"); setCategory("All vendors"); setBudget("Any budget"); }}>View all vendors <ArrowRight size={17} /></button>
         </div>
-        {visibleVendors.length > 0 ? <div className="vendor-grid">
-          {visibleVendors.map((vendor) => (
-            <article className="vendor-card" key={vendor.name}>
-              <div className="vendor-image">
-                <img src={vendor.image} alt={`${vendor.name} wedding work`} /><span className="vendor-tag">{vendor.tag}</span>
-                <button className={saved.includes(vendor.name) ? "save-button saved" : "save-button"} onClick={() => toggleSaved(vendor.name)} aria-label={`${saved.includes(vendor.name) ? "Remove" : "Save"} ${vendor.name}`}><Heart size={18} fill={saved.includes(vendor.name) ? "currentColor" : "none"} /></button>
-              </div>
-              <div className="vendor-info"><div className="vendor-category-line"><p className="vendor-category">{vendor.category}</p><span>{vendor.tier}</span></div><div className="vendor-title-row"><h3>{vendor.name}</h3><BadgeCheck size={18} /></div><p className="vendor-location"><MapPin size={14} /> {vendor.location}</p><div className="vendor-meta"><span><Star size={14} fill="currentColor" /> <strong>{vendor.rating}</strong> ({vendor.reviews})</span><strong>{vendor.price}</strong></div><button className="vendor-profile-button" onClick={() => setActiveVendor(vendor)}>View profile <ArrowRight size={15} /></button></div>
-            </article>
-          ))}
-        </div> : <div className="vendor-empty" role="status"><Sparkles /><h3>We’re still growing in {location}.</h3><p>No exact match for {category.toLowerCase()} at {budget.toLowerCase()} yet. Try all vendors across Nigeria.</p><button className="button button-primary" onClick={() => { setLocation("Nigeria"); setCategory("All vendors"); setBudget("Any budget"); }}>Show all vendors</button></div>}
+        {loadingVendors && vendors.length === 0 ? <div className="vendor-empty" role="status"><Sparkles /><h3>Loading trusted vendors…</h3><p>We’re bringing the latest Smitten marketplace results from across Nigeria.</p></div>
+          : marketplaceError ? <div className="vendor-empty" role="alert"><Sparkles /><h3>Marketplace temporarily unavailable</h3><p>{marketplaceError}</p><button className="button button-primary" onClick={() => setReloadKey((value) => value + 1)}>Try again</button></div>
+            : vendors.length > 0 ? <div className="vendor-grid">
+              {vendors.map((vendor) => (
+                <article className="vendor-card" key={vendor.id}>
+                  <div className="vendor-image">
+                    <img src={vendor.image} alt={`${vendor.name} wedding work`} /><span className="vendor-tag">{vendor.tag}</span>
+                    <button className={saved.includes(vendor.id) ? "save-button saved" : "save-button"} onClick={() => void toggleSaved(vendor.id)} aria-label={`${saved.includes(vendor.id) ? "Remove" : "Save"} ${vendor.name}`}><Heart size={18} fill={saved.includes(vendor.id) ? "currentColor" : "none"} /></button>
+                  </div>
+                  <div className="vendor-info"><div className="vendor-category-line"><p className="vendor-category">{vendor.category}</p><span>{vendor.tier}</span></div><div className="vendor-title-row"><h3>{vendor.name}</h3><BadgeCheck size={18} /></div><p className="vendor-location"><MapPin size={14} /> {displayLocation(vendor)}</p><div className="vendor-meta"><span><Star size={14} fill="currentColor" /> <strong>{vendor.rating}</strong> ({vendor.reviews})</span><strong>{vendor.price}</strong></div><button className="vendor-profile-button" onClick={() => setActiveVendor(vendor)}>View profile <ArrowRight size={15} /></button></div>
+                </article>
+              ))}
+            </div> : <div className="vendor-empty" role="status"><Sparkles /><h3>We’re still growing in {location}.</h3><p>No exact match for {category.toLowerCase()} at {budget.toLowerCase()} yet. Try all vendors across Nigeria.</p><button className="button button-primary" onClick={() => { setLocation("Nigeria"); setCategory("All vendors"); setBudget("Any budget"); }}>Show all vendors</button></div>}
       </section>
 
       <section className="story-section" id="how-it-works">
@@ -332,7 +348,7 @@ export default function Home() {
         <section className="vendor-preview-modal" role="dialog" aria-modal="true" aria-label={`${activeVendor.name} profile`} onMouseDown={(event) => event.stopPropagation()}>
           <button className="vendor-modal-close" onClick={() => setActiveVendor(null)} aria-label="Close vendor profile"><X /></button>
           <img src={activeVendor.image} alt={`${activeVendor.name} wedding portfolio`} />
-          <div><p className="vendor-category">{activeVendor.category}</p><h2>{activeVendor.name}</h2><p className="vendor-location"><MapPin size={14} /> {activeVendor.location}</p><p>Verified on Smitten with {activeVendor.reviews} couple reviews and packages starting at {activeVendor.price.replace("From ", "")}.</p><div className="vendor-modal-actions">{activeVendor.name === "Aurora Events NG" ? <Link className="button button-dark" href="/vendor/aurora-events">Open full profile</Link> : <button className="button button-dark" onClick={() => setActiveVendor(null)}>Keep browsing</button>}<Link className="button button-primary" href="/couples/sign-up">Request a quote</Link></div></div>
+          <div><p className="vendor-category">{activeVendor.category}</p><h2>{activeVendor.name}</h2><p className="vendor-location"><MapPin size={14} /> {displayLocation(activeVendor)}</p><p>Verified on Smitten with {activeVendor.reviews} couple reviews and packages starting at {activeVendor.price.replace("From ", "")}.</p><div className="vendor-modal-actions">{activeVendor.id === "aurora-events-ng" ? <Link className="button button-dark" href="/vendor/aurora-events">Open full profile</Link> : <button className="button button-dark" onClick={() => setActiveVendor(null)}>Keep browsing</button>}<Link className="button button-primary" href="/couples/sign-up">Request a quote</Link></div></div>
         </section>
       </div>}
     </main>
