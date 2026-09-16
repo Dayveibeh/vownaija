@@ -1,6 +1,5 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronRight, Heart, MapPin, Sparkles, Star, UsersRound, WalletCards, WandSparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -15,7 +14,6 @@ function budgetCeiling(budget: string) {
 }
 
 export default function CoupleMatchPage() {
-  const { isLoaded, isSignedIn } = useAuth();
   const [step, setStep] = useState(0);
   const [location, setLocation] = useState("Lagos");
   const [weddingType, setWeddingType] = useState("Traditional & white wedding");
@@ -33,8 +31,6 @@ export default function CoupleMatchPage() {
   }, [budget, location, services, style]);
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-
     let cancelled = false;
     void Promise.all([
       fetch("/api/customer/preferences", { cache: "no-store" }).then((response) => response.ok ? response.json() : null),
@@ -55,11 +51,11 @@ export default function CoupleMatchPage() {
         setSaved(favouriteResult.favourites.map((item: { vendorId: string }) => item.vendorId));
       }
     }).catch(() => {
-      // Keep the local defaults if the profile service is temporarily unavailable.
+      // Signed-out users and temporarily unavailable services keep the local defaults.
     });
 
     return () => { cancelled = true; };
-  }, [isLoaded, isSignedIn]);
+  }, []);
 
   function toggleService(service: string) {
     setServices((current) => current.includes(service) ? current.filter((item) => item !== service) : [...current, service]);
@@ -69,14 +65,15 @@ export default function CoupleMatchPage() {
     const wasSaved = saved.includes(vendorId);
     setSaved((current) => wasSaved ? current.filter((item) => item !== vendorId) : [...current, vendorId]);
 
-    if (!isSignedIn) return;
-
     try {
       const response = await fetch("/api/favourites", {
         method: wasSaved ? "DELETE" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ vendorId }),
       });
+
+      // Signed-out users can still use favourites for the current session.
+      if (response.status === 401) return;
       if (!response.ok) throw new Error("Favourite update failed");
     } catch {
       setSaved((current) => wasSaved ? [...current, vendorId] : current.filter((item) => item !== vendorId));
@@ -86,11 +83,6 @@ export default function CoupleMatchPage() {
 
   async function buildShortlist() {
     setSaveError("");
-    if (!isSignedIn) {
-      setStep(4);
-      return;
-    }
-
     setSaving(true);
     try {
       const response = await fetch("/api/customer/preferences", {
@@ -106,6 +98,12 @@ export default function CoupleMatchPage() {
           requiredServices: services,
         }),
       });
+
+      // Matching remains available before sign-in; persistence begins after authentication.
+      if (response.status === 401) {
+        setStep(4);
+        return;
+      }
       if (!response.ok) throw new Error("Preference save failed");
       setStep(4);
     } catch {
