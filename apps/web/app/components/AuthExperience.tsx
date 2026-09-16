@@ -355,14 +355,14 @@ function ClerkAuthExperience({ role, initialMode }: { role: AccountRole; initial
         <div className="couple-auth-top">
           <span className="auth-mobile-brand"><Brand priority /></span>
           <Link href="/"><ArrowLeft size={16} /> Back to marketplace</Link>
-          <span>{role === "vendor" ? <>Planning a wedding? <Link href="/couples/sign-up">Create a couple account</Link></> : <>Are you a vendor? <Link href="/vendor/sign-up">List your business</Link></>}</span>
+          <span>{role === "vendor" ? <>Planning a wedding? <Link href="/couples/sign-up">Create an account</Link></> : <>Are you a vendor? <Link href="/vendor/sign-up">List your business</Link></>}</span>
         </div>
         <div className="couple-auth-card">
           {step === "credentials" && <div className="auth-tabs" role="tablist" aria-label="Account access"><button type="button" role="tab" aria-selected={mode === "signup"} className={mode === "signup" ? "active" : ""} onClick={() => changeMode("signup")}>Create account</button><button type="button" role="tab" aria-selected={mode === "signin"} className={mode === "signin" ? "active" : ""} onClick={() => changeMode("signin")}>Sign in</button></div>}
 
           <div className="auth-heading-row">
             <div className="auth-icon">{step.includes("code") ? <ShieldCheck /> : step.includes("reset") ? <KeyRound /> : <UserRound />}</div>
-            <span className="auth-role-pill">{role === "vendor" ? "Vendor account" : "Couple account"}</span>
+            {role === "vendor" && <span className="auth-role-pill">Vendor account</span>}
           </div>
           <h2>{title()}</h2>
           <p className="auth-intro">{step === "credentials" ? (mode === "signup" ? "Save favourites, manage quotes and keep your wedding plans together." : "Good to see you again. Sign in to pick up where you left off.") : step === "reset-password" ? "Choose a secure password you don’t use anywhere else." : "Enter the secure code from your email to continue."}</p>
