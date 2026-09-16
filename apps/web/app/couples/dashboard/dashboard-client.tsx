@@ -10,11 +10,23 @@ import { Brand } from "../../components/Brand";
 export default function CoupleDashboardClient({ profile }: { profile: { fullName: string; email: string } }) {
   const { signOut } = useClerk();
   const [mobileNav, setMobileNav] = useState(false);
-  const [saved, setSaved] = useState(coupleVendors.slice(2, 5).map((vendor) => vendor.name));
+  const [saved, setSaved] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
   const firstName = profile.fullName.split(/\s+/)[0] || "there";
   const initials = profile.fullName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "SM";
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/favourites", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((result) => {
+        if (cancelled || !Array.isArray(result?.favourites)) return;
+        setSaved(result.favourites.map((item: { vendorId: string }) => item.vendorId));
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (!notice) return;
@@ -22,8 +34,21 @@ export default function CoupleDashboardClient({ profile }: { profile: { fullName
     return () => window.clearTimeout(timeout);
   }, [notice]);
 
-  function toggleSaved(name: string) {
-    setSaved((current) => current.includes(name) ? current.filter((item) => item !== name) : [...current, name]);
+  async function toggleSaved(vendorId: string) {
+    const wasSaved = saved.includes(vendorId);
+    setSaved((current) => wasSaved ? current.filter((item) => item !== vendorId) : [...current, vendorId]);
+
+    try {
+      const response = await fetch("/api/favourites", {
+        method: wasSaved ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vendorId }),
+      });
+      if (!response.ok) throw new Error("Favourite update failed");
+    } catch {
+      setSaved((current) => wasSaved ? [...current, vendorId] : current.filter((item) => item !== vendorId));
+      setNotice("We couldn’t update your saved vendors. Please try again.");
+    }
   }
 
   function showNotice(message: string) {
@@ -52,10 +77,10 @@ export default function CoupleDashboardClient({ profile }: { profile: { fullName
 
           <section className="couple-ai-banner"><div className="couple-ai-icon"><Sparkles /></div><div><p>Smitten AI recommendations</p><h2>Your personalised vendor shortlist is ready</h2><span>We found 4 strong matches for your Lagos wedding and ₦1m–₦3m vendor budget.</span></div><Link href="/couples/match">View my matches <ArrowRight /></Link><div className="mini-matches"><span>AE</span><span>LL</span><span>DC</span><span>+1</span></div></section>
 
-          <div className="couple-stat-grid"><article><span className="coral"><Heart /></span><div><p>Saved vendors</p><strong>{saved.length}</strong><small>Across 3 categories</small></div></article><article><span className="plum"><FileText /></span><div><p>Quotes received</p><strong>2</strong><small>₦1.3m combined</small></div></article><article><span className="green"><CircleDollarSign /></span><div><p>Budget planned</p><strong>42%</strong><small>₦2.1m of ₦5m</small></div></article><article><span className="gold"><Mail /></span><div><p>Unread messages</p><strong>2</strong><small>Latest 10:42 today</small></div></article></div>
+          <div className="couple-stat-grid"><article><span className="coral"><Heart /></span><div><p>Saved vendors</p><strong>{saved.length}</strong><small>Across your shortlist</small></div></article><article><span className="plum"><FileText /></span><div><p>Quotes received</p><strong>2</strong><small>₦1.3m combined</small></div></article><article><span className="green"><CircleDollarSign /></span><div><p>Budget planned</p><strong>42%</strong><small>₦2.1m of ₦5m</small></div></article><article><span className="gold"><Mail /></span><div><p>Unread messages</p><strong>2</strong><small>Latest 10:42 today</small></div></article></div>
 
           <div className="couple-dashboard-grid">
-            <section className="couple-dash-card shortlist-card" id="couple-shortlist"><div className="couple-card-heading"><div><h2>Your shortlist</h2><p>Saved and AI-recommended vendors</p></div><Link href="/couples/match">See all <ArrowRight /></Link></div><div className="shortlist-row">{coupleVendors.slice(2, 5).map((vendor, index) => <article key={vendor.name}><div><img src={vendor.image} alt={`${vendor.name} portfolio`} /><span>{94 - index * 3}% match</span><button className={saved.includes(vendor.name) ? "saved" : ""} onClick={() => toggleSaved(vendor.name)}><Heart fill={saved.includes(vendor.name) ? "currentColor" : "none"} /></button></div><p>{vendor.category}</p><h3>{vendor.name}</h3><span><MapPin /> {vendor.location} · <Star fill="currentColor" /> {vendor.rating}</span><footer><strong>{vendor.price}</strong>{vendor.name === "Aurora Events NG" ? <Link href="/vendor/aurora-events" aria-label={`View ${vendor.name}`}><ChevronRight /></Link> : <Link href={`/couples/sign-up?vendor=${encodeURIComponent(vendor.name)}`} aria-label={`Enquire with ${vendor.name}`}><ChevronRight /></Link>}</footer></article>)}</div></section>
+            <section className="couple-dash-card shortlist-card" id="couple-shortlist"><div className="couple-card-heading"><div><h2>Your shortlist</h2><p>Saved and AI-recommended vendors</p></div><Link href="/couples/match">See all <ArrowRight /></Link></div><div className="shortlist-row">{coupleVendors.slice(2, 5).map((vendor, index) => <article key={vendor.id}><div><img src={vendor.image} alt={`${vendor.name} portfolio`} /><span>{94 - index * 3}% match</span><button className={saved.includes(vendor.id) ? "saved" : ""} onClick={() => void toggleSaved(vendor.id)}><Heart fill={saved.includes(vendor.id) ? "currentColor" : "none"} /></button></div><p>{vendor.category}</p><h3>{vendor.name}</h3><span><MapPin /> {vendor.location} · <Star fill="currentColor" /> {vendor.rating}</span><footer><strong>{vendor.price}</strong>{vendor.name === "Aurora Events NG" ? <Link href="/vendor/aurora-events" aria-label={`View ${vendor.name}`}><ChevronRight /></Link> : <Link href={`/couples/sign-up?vendor=${encodeURIComponent(vendor.name)}`} aria-label={`Enquire with ${vendor.name}`}><ChevronRight /></Link>}</footer></article>)}</div></section>
 
             <aside className="couple-side-column"><section className="couple-dash-card budget-card" id="couple-budget"><div className="couple-card-heading"><div><h2>Budget snapshot</h2><p>Vendor budget</p></div><button onClick={() => showNotice("Budget details opened")}>View</button></div><div className="budget-ring"><div><strong>42%</strong><small>allocated</small></div></div><div className="budget-numbers"><span><small>Planned</small><strong>₦5,000,000</strong></span><span><small>Allocated</small><strong>₦2,100,000</strong></span></div><div className="budget-remaining"><span>Remaining</span><strong>₦2,900,000</strong></div></section><section className="couple-dash-card next-steps-card" id="couple-planning"><div className="couple-card-heading"><div><h2>Next steps</h2><p>Keep things moving</p></div></div><label><input type="checkbox" defaultChecked /><span><strong>Set your wedding details</strong><small>Completed</small></span></label><label><input type="checkbox" /><span><strong>Request photographer quotes</strong><small>2 recommendations ready</small></span></label><label><input type="checkbox" /><span><strong>Shortlist your cake vendor</strong><small>Due this week</small></span></label></section></aside>
           </div>
