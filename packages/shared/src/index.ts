@@ -1,7 +1,22 @@
+export const DEFAULT_MARKET = "NG" as const;
+export const DEFAULT_CURRENCY = "NGN" as const;
+export const DEFAULT_LOCALE = "en-NG" as const;
+
+export function formatNaira(amount: number) {
+  return new Intl.NumberFormat(DEFAULT_LOCALE, {
+    style: "currency",
+    currency: DEFAULT_CURRENCY,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
 export type CoupleVendor = {
+  id: string;
   name: string;
   category: string;
   location: string;
+  state: string;
+  currencyCode: typeof DEFAULT_CURRENCY;
   price: string;
   priceMin: number;
   tier: "Budget-friendly" | "Mid-range" | "Premium" | "Luxury";
@@ -25,9 +40,12 @@ export const weddingLocations = ["Lagos", "Abuja", "Port Harcourt", "Ibadan", "B
 
 export const coupleVendors: CoupleVendor[] = [
   {
+    id: "the-bridal-chair",
     name: "The Bridal Chair",
     category: "Bridal beauty",
     location: "Abuja",
+    state: "FCT",
+    currencyCode: DEFAULT_CURRENCY,
     price: "From ₦180,000",
     priceMin: 180000,
     tier: "Budget-friendly",
@@ -38,9 +56,12 @@ export const coupleVendors: CoupleVendor[] = [
     reason: "Excellent reviews and one of the strongest value options for bridal beauty.",
   },
   {
+    id: "dripples-cakes",
     name: "Dripples Cakes",
     category: "Cakes & desserts",
     location: "Lagos",
+    state: "Lagos",
+    currencyCode: DEFAULT_CURRENCY,
     price: "From ₦250,000",
     priceMin: 250000,
     tier: "Budget-friendly",
@@ -51,9 +72,12 @@ export const coupleVendors: CoupleVendor[] = [
     reason: "Highly rated traditional designs with flexible options for different guest counts.",
   },
   {
+    id: "lagos-lens-co",
     name: "Lagos Lens Co.",
     category: "Photography",
     location: "Lagos",
+    state: "Lagos",
+    currencyCode: DEFAULT_CURRENCY,
     price: "From ₦450,000",
     priceMin: 450000,
     tier: "Mid-range",
@@ -64,9 +88,12 @@ export const coupleVendors: CoupleVendor[] = [
     reason: "A documentary style, strong value and experience with large Lagos celebrations.",
   },
   {
+    id: "aurora-events-ng",
     name: "Aurora Events NG",
     category: "Planning & décor",
     location: "Lagos",
+    state: "Lagos",
+    currencyCode: DEFAULT_CURRENCY,
     price: "From ₦850,000",
     priceMin: 850000,
     tier: "Mid-range",
@@ -77,9 +104,12 @@ export const coupleVendors: CoupleVendor[] = [
     reason: "A close fit for your style with flexible packages and strong planning reviews.",
   },
   {
+    id: "elan-signature-events",
     name: "Élan Signature Events",
     category: "Planning & décor",
     location: "Abuja",
+    state: "FCT",
+    currencyCode: DEFAULT_CURRENCY,
     price: "From ₦1,800,000",
     priceMin: 1800000,
     tier: "Premium",
@@ -90,9 +120,12 @@ export const coupleVendors: CoupleVendor[] = [
     reason: "Premium creative direction with a reputation for polished, guest-focused celebrations.",
   },
   {
+    id: "grand-marquee-lagos",
     name: "Grand Marquee Lagos",
     category: "Venues",
     location: "Lagos",
+    state: "Lagos",
+    currencyCode: DEFAULT_CURRENCY,
     price: "From ₦3,500,000",
     priceMin: 3500000,
     tier: "Luxury",
