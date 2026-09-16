@@ -6,16 +6,14 @@ import {
 
 const DEFAULT_API_BASE_URL = "https://vownaija-git-phase1-core-foundation-dayveibehs-projects.vercel.app";
 
-type ExpoProcess = {
-  process?: {
-    env?: {
-      EXPO_PUBLIC_API_BASE_URL?: string;
-    };
+declare const process: {
+  env: {
+    EXPO_PUBLIC_API_BASE_URL?: string;
   };
 };
 
 function apiBaseUrl() {
-  const configured = (globalThis as unknown as ExpoProcess).process?.env?.EXPO_PUBLIC_API_BASE_URL?.trim();
+  const configured = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
   return (configured || DEFAULT_API_BASE_URL).replace(/\/$/, "");
 }
 
