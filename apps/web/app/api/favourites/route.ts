@@ -3,11 +3,22 @@ import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { ensureDatabaseSchema, getDb } from "@/db";
 import { favourites, marketplaceVendors } from "@/db/schema";
+import { isClerkConfigured } from "@/lib/accounts";
 import { ensureMarketplaceSeed } from "@/lib/marketplace";
 
-export async function GET() {
+function authUnavailable() {
+  return NextResponse.json({ message: "Sign in required." }, { status: 401 });
+}
+
+async function authenticatedUserId() {
+  if (!isClerkConfigured()) return null;
   const { userId } = await auth();
-  if (!userId) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
+  return userId;
+}
+
+export async function GET() {
+  const userId = await authenticatedUserId();
+  if (!userId) return authUnavailable();
 
   try {
     await ensureMarketplaceSeed();
@@ -38,8 +49,8 @@ async function vendorIdFromRequest(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
+  const userId = await authenticatedUserId();
+  if (!userId) return authUnavailable();
 
   const vendorId = await vendorIdFromRequest(request);
   if (!vendorId) return NextResponse.json({ message: "Vendor is required." }, { status: 400 });
@@ -65,8 +76,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
+  const userId = await authenticatedUserId();
+  if (!userId) return authUnavailable();
 
   const vendorId = await vendorIdFromRequest(request);
   if (!vendorId) return NextResponse.json({ message: "Vendor is required." }, { status: 400 });
