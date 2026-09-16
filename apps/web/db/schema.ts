@@ -5,24 +5,26 @@ export const users = pgTable("smitten_users", {
   clerkUserId: text("clerk_user_id").primaryKey(),
   email: text("email").notNull().unique(),
   fullName: text("full_name").notNull(),
-  role: text("role", { enum: ["customer", "vendor", "admin"] }).notNull(),
+  role: text("role", { enum: ["couple", "vendor", "admin"] }).notNull(),
   countryCode: text("country_code").default("NG").notNull(),
   currencyCode: text("currency_code").default("NGN").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("smitten_users_role_idx").on(table.role),
-  check("smitten_users_role_check", sql`${table.role} in ('customer', 'vendor', 'admin')`),
+  check("smitten_users_role_check", sql`${table.role} in ('couple', 'vendor', 'admin')`),
 ]);
 
 export const customerProfiles = pgTable("customer_profiles", {
   clerkUserId: text("clerk_user_id").primaryKey().references(() => users.clerkUserId, { onDelete: "cascade" }),
   weddingDate: date("wedding_date"),
   weddingLocation: text("wedding_location"),
+  weddingState: text("wedding_state"),
   weddingType: text("wedding_type"),
   guestCount: text("guest_count"),
   budgetBand: text("budget_band"),
   budgetCeiling: numeric("budget_ceiling", { precision: 14, scale: 2 }),
+  currencyCode: text("currency_code").default("NGN").notNull(),
   weddingStyle: text("wedding_style"),
   requiredServices: jsonb("required_services").$type<string[]>().default([]).notNull(),
   onboardingComplete: boolean("onboarding_complete").default(false).notNull(),
@@ -30,6 +32,7 @@ export const customerProfiles = pgTable("customer_profiles", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("customer_profiles_location_idx").on(table.weddingLocation),
+  index("customer_profiles_state_idx").on(table.weddingState),
 ]);
 
 export const vendorProfiles = pgTable("vendor_profiles", {
@@ -41,6 +44,7 @@ export const vendorProfiles = pgTable("vendor_profiles", {
   yearsInBusiness: text("years_in_business").notNull(),
   primaryService: text("primary_service").notNull(),
   location: text("location").notNull(),
+  state: text("state"),
   travelDistance: text("travel_distance").notNull(),
   startingPrice: numeric("starting_price", { precision: 14, scale: 2 }),
   currencyCode: text("currency_code").default("NGN").notNull(),
@@ -56,6 +60,7 @@ export const marketplaceVendors = pgTable("marketplace_vendors", {
   businessName: text("business_name").notNull(),
   category: text("category").notNull(),
   location: text("location").notNull(),
+  state: text("state"),
   startingPrice: numeric("starting_price", { precision: 14, scale: 2 }).notNull(),
   currencyCode: text("currency_code").default("NGN").notNull(),
   tier: text("tier").notNull(),
@@ -70,6 +75,7 @@ export const marketplaceVendors = pgTable("marketplace_vendors", {
 }, (table) => [
   index("marketplace_vendors_category_idx").on(table.category),
   index("marketplace_vendors_location_idx").on(table.location),
+  index("marketplace_vendors_state_idx").on(table.state),
 ]);
 
 export const favourites = pgTable("favourites", {
@@ -81,7 +87,7 @@ export const favourites = pgTable("favourites", {
   index("favourites_user_idx").on(table.clerkUserId),
 ]);
 
-export type UserRole = "customer" | "vendor" | "admin";
+export type UserRole = "couple" | "vendor" | "admin";
 export type SmittenUser = typeof users.$inferSelect;
 export type CustomerProfile = typeof customerProfiles.$inferSelect;
 export type VendorProfile = typeof vendorProfiles.$inferSelect;
