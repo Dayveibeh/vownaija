@@ -7,10 +7,13 @@ import { useEffect, useState } from "react";
 import { coupleVendors } from "../vendor-data";
 import { Brand } from "../../components/Brand";
 
+type MobileTab = "home" | "matches" | "saved" | "account";
+
 export default function CoupleDashboardClient({ profile }: { profile: { fullName: string; email: string } }) {
   const { signOut } = useClerk();
   const [mobileNav, setMobileNav] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [mobileTab, setMobileTab] = useState<MobileTab>("home");
   const [saved, setSaved] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
@@ -55,12 +58,25 @@ export default function CoupleDashboardClient({ profile }: { profile: { fullName
   function showNotice(message: string) {
     setNotice(message);
     setMobileNav(false);
-    setAccountOpen(false);
   }
 
-  function goTo(id: string, message: string) {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    showNotice(message);
+  function goTo(id: string, message?: string, tab?: MobileTab) {
+    setAccountOpen(false);
+    setMobileNav(false);
+    if (tab) setMobileTab(tab);
+    window.requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    if (message) setNotice(message);
+  }
+
+  function openAccount() {
+    setMobileNav(false);
+    setMobileTab("account");
+    setAccountOpen(true);
+  }
+
+  function closeAccount() {
+    setAccountOpen(false);
+    setMobileTab("home");
   }
 
   return (
@@ -68,7 +84,7 @@ export default function CoupleDashboardClient({ profile }: { profile: { fullName
       <aside className={mobileNav ? "couple-sidebar open" : "couple-sidebar"}>
         <div className="couple-sidebar-brand"><Brand /><button onClick={() => setMobileNav(false)}><X /></button></div>
         <div className="wedding-countdown"><span><CalendarDays /></span><p><strong>Amara & Tunde</strong><small>18 December 2026</small></p><b>127 days</b></div>
-        <nav><small>My wedding</small><button className="active" onClick={() => goTo("couple-overview", "Overview opened")}><LayoutDashboard /> Overview</button><Link href="/couples/match"><Sparkles /> AI matches <span>New</span></Link><button onClick={() => goTo("couple-shortlist", "Saved vendors opened")}><Heart /> Saved vendors <b>{saved.length}</b></button><button onClick={() => goTo("couple-activity", "Quotes opened")}><FileText /> Quotes</button><button onClick={() => goTo("couple-activity", "Messages opened")}><MessageSquare /> Messages <b>2</b></button><small>Planning</small><button onClick={() => goTo("couple-budget", "Budget opened")}><WalletCards /> Budget</button><button onClick={() => goTo("couple-planning", "Guest planning opened")}><UsersRound /> Guest list</button><button onClick={() => showNotice("Wedding settings opened")}><Settings /> Wedding settings</button></nav>
+        <nav><small>My wedding</small><button className="active" onClick={() => goTo("couple-overview", "Overview opened", "home")}><LayoutDashboard /> Overview</button><Link href="/couples/match" onClick={() => setMobileTab("matches")}><Sparkles /> AI matches <span>New</span></Link><button onClick={() => goTo("couple-shortlist", "Saved vendors opened", "saved")}><Heart /> Saved vendors <b>{saved.length}</b></button><button onClick={() => goTo("couple-activity", "Quotes opened")}><FileText /> Quotes</button><button onClick={() => goTo("couple-activity", "Messages opened")}><MessageSquare /> Messages <b>2</b></button><small>Planning</small><button onClick={() => goTo("couple-budget", "Budget opened")}><WalletCards /> Budget</button><button onClick={() => goTo("couple-planning", "Guest planning opened")}><UsersRound /> Guest list</button><button onClick={openAccount}><Settings /> Wedding settings</button></nav>
         <div className="couple-sidebar-bottom"><span>{initials}</span><p><strong>{profile.fullName}</strong><small>{profile.email}</small></p><button onClick={() => signOut({ redirectUrl: "/" })} aria-label="Sign out" title="Sign out"><LogOut size={17} /></button></div>
       </aside>
       {mobileNav && <button className="couple-sidebar-scrim" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
@@ -82,13 +98,7 @@ export default function CoupleDashboardClient({ profile }: { profile: { fullName
             <Link href="/">Browse marketplace</Link>
             <button className="couple-notification-button" onClick={() => showNotice("You have 2 unread messages")} aria-label="Open notifications"><Bell /><span /></button>
             <div className="couple-account-wrap">
-              <button className="couple-account-trigger" onClick={() => setAccountOpen((current) => !current)} aria-expanded={accountOpen} aria-label="Open account menu">{initials}</button>
-              {accountOpen && <div className="couple-account-menu">
-                <div className="couple-account-summary"><span>{initials}</span><div><strong>{profile.fullName}</strong><small>{profile.email}</small></div></div>
-                <button onClick={() => showNotice("Wedding settings opened")}><Settings size={17} /><span><strong>Wedding settings</strong><small>Preferences and planning details</small></span></button>
-                <Link href="/"><Search size={17} /><span><strong>Browse marketplace</strong><small>Find more wedding vendors</small></span></Link>
-                <button className="logout" onClick={() => signOut({ redirectUrl: "/" })}><LogOut size={17} /><span><strong>Log out</strong><small>Sign out of Smitten</small></span></button>
-              </div>}
+              <button className="couple-account-trigger" onClick={() => accountOpen ? closeAccount() : openAccount()} aria-expanded={accountOpen} aria-label="Open account menu">{initials}</button>
             </div>
           </div>
         </header>
@@ -96,12 +106,12 @@ export default function CoupleDashboardClient({ profile }: { profile: { fullName
         <div className="couple-dashboard-content" id="couple-overview">
           <div className="couple-dash-heading"><div><p>Thursday, 13 August</p><h1>Good afternoon, {firstName}</h1><span>You’re making lovely progress. Here’s what’s next for your wedding.</span></div><Link href="/" className="button button-primary">Find vendors <Search size={16} /></Link></div>
 
-          <section className="couple-ai-banner"><div className="couple-ai-icon"><Sparkles /></div><div><p>Smitten AI recommendations</p><h2>Your personalised vendor shortlist is ready</h2><span>We found 4 strong matches for your Lagos wedding and ₦1m–₦3m vendor budget.</span></div><Link href="/couples/match">View my matches <ArrowRight /></Link><div className="mini-matches"><span>AE</span><span>LL</span><span>DC</span><span>+1</span></div></section>
+          <section className="couple-ai-banner"><div className="couple-ai-icon"><Sparkles /></div><div><p>Smitten AI recommendations</p><h2>Your personalised vendor shortlist is ready</h2><span>We found 4 strong matches for your Lagos wedding and ₦1m–₦3m vendor budget.</span></div><Link href="/couples/match" onClick={() => setMobileTab("matches")}>View my matches <ArrowRight /></Link><div className="mini-matches"><span>AE</span><span>LL</span><span>DC</span><span>+1</span></div></section>
 
           <div className="couple-stat-grid"><article><span className="coral"><Heart /></span><div><p>Saved vendors</p><strong>{saved.length}</strong><small>Across your shortlist</small></div></article><article><span className="plum"><FileText /></span><div><p>Quotes received</p><strong>2</strong><small>₦1.3m combined</small></div></article><article><span className="green"><CircleDollarSign /></span><div><p>Budget planned</p><strong>42%</strong><small>₦2.1m of ₦5m</small></div></article><article><span className="gold"><Mail /></span><div><p>Unread messages</p><strong>2</strong><small>Latest 10:42 today</small></div></article></div>
 
           <div className="couple-dashboard-grid">
-            <section className="couple-dash-card shortlist-card" id="couple-shortlist"><div className="couple-card-heading"><div><h2>Your shortlist</h2><p>Saved and AI-recommended vendors</p></div><Link href="/couples/match">See all <ArrowRight /></Link></div><div className="shortlist-row">{coupleVendors.slice(2, 5).map((vendor, index) => <article key={vendor.id}><div><img src={vendor.image} alt={`${vendor.name} portfolio`} /><span>{94 - index * 3}% match</span><button className={saved.includes(vendor.id) ? "saved" : ""} onClick={() => void toggleSaved(vendor.id)} aria-label={`${saved.includes(vendor.id) ? "Remove" : "Save"} ${vendor.name}`}><Heart fill={saved.includes(vendor.id) ? "currentColor" : "none"} /></button></div><p>{vendor.category}</p><h3>{vendor.name}</h3><span><MapPin /> {vendor.location} · <Star fill="currentColor" /> {vendor.rating}</span><footer><strong>{vendor.price}</strong>{vendor.name === "Aurora Events NG" ? <Link href="/vendor/aurora-events" aria-label={`View ${vendor.name}`}><ChevronRight /></Link> : <Link href={`/couples/sign-up?vendor=${encodeURIComponent(vendor.name)}`} aria-label={`Enquire with ${vendor.name}`}><ChevronRight /></Link>}</footer></article>)}</div></section>
+            <section className="couple-dash-card shortlist-card" id="couple-shortlist"><div className="couple-card-heading"><div><h2>Your shortlist</h2><p>Saved and AI-recommended vendors</p></div><Link href="/couples/match" onClick={() => setMobileTab("matches")}>See all <ArrowRight /></Link></div><div className="shortlist-row">{coupleVendors.slice(2, 5).map((vendor, index) => <article key={vendor.id}><div><img src={vendor.image} alt={`${vendor.name} portfolio`} /><span>{94 - index * 3}% match</span><button className={saved.includes(vendor.id) ? "saved" : ""} onClick={() => void toggleSaved(vendor.id)} aria-label={`${saved.includes(vendor.id) ? "Remove" : "Save"} ${vendor.name}`}><Heart fill={saved.includes(vendor.id) ? "currentColor" : "none"} /></button></div><p>{vendor.category}</p><h3>{vendor.name}</h3><span><MapPin /> {vendor.location} · <Star fill="currentColor" /> {vendor.rating}</span><footer><strong>{vendor.price}</strong>{vendor.name === "Aurora Events NG" ? <Link href="/vendor/aurora-events" aria-label={`View ${vendor.name}`}><ChevronRight /></Link> : <Link href={`/couples/sign-up?vendor=${encodeURIComponent(vendor.name)}`} aria-label={`Enquire with ${vendor.name}`}><ChevronRight /></Link>}</footer></article>)}</div></section>
 
             <aside className="couple-side-column"><section className="couple-dash-card budget-card" id="couple-budget"><div className="couple-card-heading"><div><h2>Budget snapshot</h2><p>Vendor budget</p></div><button onClick={() => showNotice("Budget details opened")}>View</button></div><div className="budget-ring"><div><strong>42%</strong><small>allocated</small></div></div><div className="budget-numbers"><span><small>Planned</small><strong>₦5,000,000</strong></span><span><small>Allocated</small><strong>₦2,100,000</strong></span></div><div className="budget-remaining"><span>Remaining</span><strong>₦2,900,000</strong></div></section><section className="couple-dash-card next-steps-card" id="couple-planning"><div className="couple-card-heading"><div><h2>Next steps</h2><p>Keep things moving</p></div></div><label><input type="checkbox" defaultChecked /><span><strong>Set your wedding details</strong><small>Completed</small></span></label><label><input type="checkbox" /><span><strong>Request photographer quotes</strong><small>2 recommendations ready</small></span></label><label><input type="checkbox" /><span><strong>Shortlist your cake vendor</strong><small>Due this week</small></span></label></section></aside>
           </div>
@@ -110,11 +120,21 @@ export default function CoupleDashboardClient({ profile }: { profile: { fullName
         </div>
       </section>
 
+      {accountOpen && <>
+        <button className="couple-account-scrim" aria-label="Close account menu" onClick={closeAccount} />
+        <div className="couple-account-menu couple-account-sheet">
+          <div className="couple-account-summary"><span>{initials}</span><div><strong>{profile.fullName}</strong><small>{profile.email}</small></div><button className="couple-account-close" onClick={closeAccount} aria-label="Close account menu"><X size={17} /></button></div>
+          <button onClick={() => showNotice("Wedding settings opened")}><Settings size={17} /><span><strong>Wedding settings</strong><small>Preferences and planning details</small></span></button>
+          <Link href="/"><Search size={17} /><span><strong>Browse marketplace</strong><small>Find more wedding vendors</small></span></Link>
+          <button className="logout" onClick={() => signOut({ redirectUrl: "/" })}><LogOut size={17} /><span><strong>Log out</strong><small>Sign out of Smitten</small></span></button>
+        </div>
+      </>}
+
       <nav className="couple-mobile-nav" aria-label="Mobile dashboard navigation">
-        <button onClick={() => goTo("couple-overview", "Overview opened")}><LayoutDashboard /><span>Home</span></button>
-        <Link href="/couples/match"><Sparkles /><span>Matches</span></Link>
-        <button onClick={() => goTo("couple-shortlist", "Saved vendors opened")}><Heart /><span>Saved</span></button>
-        <button onClick={() => setAccountOpen((current) => !current)}><UserRound /><span>Account</span></button>
+        <button className={mobileTab === "home" ? "active" : ""} onClick={() => goTo("couple-overview", undefined, "home")}><LayoutDashboard /><span>Home</span></button>
+        <Link className={mobileTab === "matches" ? "active" : ""} href="/couples/match" onClick={() => setMobileTab("matches")}><Sparkles /><span>Matches</span></Link>
+        <button className={mobileTab === "saved" ? "active" : ""} onClick={() => goTo("couple-shortlist", undefined, "saved")}><Heart /><span>Saved</span></button>
+        <button className={mobileTab === "account" ? "active" : ""} onClick={openAccount}><UserRound /><span>Account</span></button>
       </nav>
 
       {notice && <div className="dashboard-toast">{notice}</div>}
