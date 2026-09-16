@@ -1,0 +1,143 @@
+/* Mobile readability and interaction fixes for the customer dashboard */
+
+/* Keep the AI recommendation card light, but give every text layer explicit contrast. */
+.couple-ai-banner {
+  color:#2d2528;
+  background:linear-gradient(135deg,#fff8f3 0%,#f4eee6 56%,#e8eee1 100%);
+  border-color:#ddd3c8;
+}
+.couple-ai-banner::after { border-color:rgba(68,54,59,.14); }
+.couple-ai-banner .couple-ai-icon {
+  color:#fff;
+  background:linear-gradient(145deg,#3a2d32,#667453);
+  box-shadow:0 8px 20px rgba(54,42,46,.14);
+}
+.couple-ai-banner p,
+.couple-ai-banner > div > p {
+  color:#a0525d;
+  opacity:1;
+}
+.couple-ai-banner h2 {
+  color:#2d2528;
+  opacity:1;
+}
+.couple-ai-banner div > span,
+.couple-ai-banner > div > span {
+  color:#65595d;
+  opacity:1;
+}
+
+/* Vendor cards: never let price or metadata wash out on a light card. */
+.shortlist-row article { color:#2e2729; }
+.shortlist-row article > p { color:#9a4e55; opacity:1; }
+.shortlist-row article h3 { color:#2b2426; opacity:1; }
+.shortlist-row article > span { color:#6f6367; opacity:1; }
+.shortlist-row footer { background:#fffdfb; }
+.shortlist-row footer strong {
+  color:#272123 !important;
+  opacity:1 !important;
+  font-weight:700;
+}
+.shortlist-row footer a { color:#4d5a3f; }
+
+/* Slightly stronger secondary text across the small phone cards. */
+.couple-stat-grid p { color:#6f6367; }
+.couple-stat-grid small { color:#766a6e; }
+.couple-card-heading p { color:#766b6e; }
+
+/* Root-level account sheet so both the avatar and the bottom Account button work reliably. */
+.couple-account-scrim {
+  position:fixed;
+  inset:0;
+  z-index:205;
+  border:0;
+  background:rgba(34,26,29,.26);
+  backdrop-filter:blur(2px);
+}
+.couple-account-sheet {
+  position:fixed;
+  top:76px;
+  right:24px;
+  z-index:220;
+}
+.couple-account-summary { position:relative; }
+.couple-account-close {
+  width:34px;
+  height:34px;
+  margin-left:auto;
+  display:grid;
+  place-items:center;
+  color:#74686c;
+  border:0;
+  border-radius:10px;
+  background:#f3ede8;
+  cursor:pointer;
+}
+
+/* Improve tap feedback and make every bottom navigation target obviously interactive. */
+.couple-mobile-nav > button,
+.couple-mobile-nav > a,
+.couple-account-trigger,
+.couple-notification-button,
+.couple-menu {
+  cursor:pointer;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+.couple-mobile-nav > button:active,
+.couple-mobile-nav > a:active { transform:scale(.96); }
+.couple-mobile-nav > button.active,
+.couple-mobile-nav > a.active {
+  color:#3f4c34;
+  background:#eef1e9;
+}
+
+@media (max-width:760px) {
+  .couple-ai-banner {
+    color:#2d2528;
+    box-shadow:0 14px 34px rgba(66,52,55,.08);
+  }
+  .couple-ai-banner p,
+  .couple-ai-banner > div > p { color:#a0525d; font-weight:800; }
+  .couple-ai-banner h2 { color:#2d2528; text-shadow:none; }
+  .couple-ai-banner div > span,
+  .couple-ai-banner > div > span { color:#62565a; }
+  .couple-ai-banner > a {
+    color:#fff;
+    background:#2d2528;
+    box-shadow:0 8px 18px rgba(45,37,40,.15);
+  }
+
+  .shortlist-row footer strong {
+    color:#211b1d !important;
+    font-size:15px;
+    letter-spacing:-.01em;
+  }
+  .shortlist-row article > span { color:#62575b; }
+  .couple-stat-grid small { color:#6f6467; }
+
+  .couple-account-sheet {
+    width:auto;
+    left:12px;
+    right:12px;
+    top:auto;
+    bottom:88px;
+    padding:12px;
+    border-radius:24px;
+    background:#fffdfb;
+    box-shadow:0 26px 80px rgba(36,27,30,.28);
+  }
+  .couple-account-scrim { z-index:205; }
+  .couple-account-sheet { z-index:220; }
+
+  .couple-mobile-nav { z-index:200; }
+  .couple-mobile-nav > button,
+  .couple-mobile-nav > a {
+    min-height:56px;
+    transition:transform .12s ease,background .15s ease,color .15s ease;
+  }
+  .couple-mobile-nav > button:first-child:not(.active) {
+    color:#796d70;
+    background:transparent;
+  }
+}
