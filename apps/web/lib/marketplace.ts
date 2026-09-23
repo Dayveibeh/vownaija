@@ -120,7 +120,7 @@ export async function ensureMarketplaceSeed() {
       state: profile.state,
       startingPrice,
       currencyCode: "NGN",
-      tier: "New on Smitten",
+      tier: "Premium",
       rating: "5.00",
       reviewCount: 0,
       imageUrl: fallbackImage,
