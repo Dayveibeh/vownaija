@@ -5,9 +5,11 @@ import { useClerk } from "@clerk/nextjs";
 import { ArrowRight, Bell, CalendarDays, ChevronRight, CircleDollarSign, FileText, Heart, LayoutDashboard, LogOut, Mail, MapPin, Menu, MessageSquare, Search, Settings, Sparkles, Star, UserRound, UsersRound, WalletCards, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { coupleVendors } from "../vendor-data";
+import { coupleVendorFromMarketplaceRecord, type CoupleVendor, type MarketplaceVendorListResponse } from "@smitten/shared";
 import { Brand } from "../../components/Brand";
 
 type MobileTab = "home" | "matches" | "saved" | "account";
+type DashboardVendor = CoupleVendor & { acceptingEnquiries: boolean };
 
 export default function CoupleDashboardClient({ profile }: { profile: { fullName: string; email: string } }) {
   const { signOut } = useClerk();
@@ -17,6 +19,7 @@ export default function CoupleDashboardClient({ profile }: { profile: { fullName
   const [saved, setSaved] = useState<string[]>([]);
   const [conversationCount, setConversationCount] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [liveVendors, setLiveVendors] = useState<DashboardVendor[]>([]);
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
   const firstName = profile.fullName.split(/\s+/)[0] || "there";
@@ -42,6 +45,22 @@ export default function CoupleDashboardClient({ profile }: { profile: { fullName
         if (cancelled || !Array.isArray(result?.conversations)) return;
         setConversationCount(result.conversations.length);
         setUnreadMessages(result.conversations.reduce((total: number, item: { unreadCount?: number }) => total + Number(item.unreadCount ?? 0), 0));
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/vendors", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() as Promise<MarketplaceVendorListResponse> : null)
+      .then((result) => {
+        if (cancelled || !result?.vendors) return;
+        const mapped = result.vendors.map((record) => ({
+          ...coupleVendorFromMarketplaceRecord(record),
+          acceptingEnquiries: Boolean(record.acceptingEnquiries),
+        })).sort((a, b) => Number(b.acceptingEnquiries) - Number(a.acceptingEnquiries));
+        setLiveVendors(mapped);
       })
       .catch(() => undefined);
     return () => { cancelled = true; };
@@ -108,7 +127,7 @@ export default function CoupleDashboardClient({ profile }: { profile: { fullName
         <header className="couple-dashboard-top">
           <button className="couple-menu" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu /></button>
           <div className="couple-mobile-brand"><Brand /></div>
-          <label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") showNotice(query ? `Searching for “${query}”` : "Type something to search"); }} placeholder="Search vendors, quotes or messages…" /></label>
+          <label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && query.trim()) window.location.href = `/?q=${encodeURIComponent(query.trim())}#featured`; }} placeholder="Search vendors, quotes or messages…" /></label>
           <div className="couple-top-actions">
             <Link href="/">Browse marketplace</Link>
             <Link className="couple-notification-button" href="/couples/messages" aria-label="Open messages"><Bell />{unreadMessages > 0 && <span />}</Link>
@@ -126,7 +145,7 @@ export default function CoupleDashboardClient({ profile }: { profile: { fullName
           <div className="couple-stat-grid"><article><span className="coral"><Heart /></span><div><p>Saved vendors</p><strong>{saved.length}</strong><small>Across your shortlist</small></div></article><article><span className="plum"><FileText /></span><div><p>Quotes received</p><strong>2</strong><small>₦1.3m combined</small></div></article><article><span className="green"><CircleDollarSign /></span><div><p>Budget planned</p><strong>42%</strong><small>₦2.1m of ₦5m</small></div></article><article><span className="gold"><Mail /></span><div><p>Unread messages</p><strong>{unreadMessages}</strong><small>{conversationCount ? `${conversationCount} active conversation${conversationCount === 1 ? "" : "s"}` : "No vendor conversations yet"}</small></div></article></div>
 
           <div className="couple-dashboard-grid">
-            <section className="couple-dash-card shortlist-card" id="couple-shortlist"><div className="couple-card-heading"><div><h2>Your shortlist</h2><p>Saved and AI-recommended vendors</p></div><Link href="/couples/match" onClick={() => setMobileTab("matches")}>See all <ArrowRight /></Link></div><div className="shortlist-row">{coupleVendors.slice(2, 5).map((vendor, index) => <article key={vendor.id}><div><img src={vendor.image} alt={`${vendor.name} portfolio`} /><span>{94 - index * 3}% match</span><button className={saved.includes(vendor.id) ? "saved" : ""} onClick={() => void toggleSaved(vendor.id)} aria-label={`${saved.includes(vendor.id) ? "Remove" : "Save"} ${vendor.name}`}><Heart fill={saved.includes(vendor.id) ? "currentColor" : "none"} /></button></div><p>{vendor.category}</p><h3>{vendor.name}</h3><span><MapPin /> {vendor.location} · <Star fill="currentColor" /> {vendor.rating}</span><footer><strong>{vendor.price}</strong><Link href={`/vendor/${vendor.id}`} aria-label={`View ${vendor.name}`}><ChevronRight /></Link></footer></article>)}</div></section>
+            <section className="couple-dash-card shortlist-card" id="couple-shortlist"><div className="couple-card-heading"><div><h2>Vendors ready to hear from you</h2><p>Live Smitten vendors are shown first</p></div><Link href="/#featured">Browse all <ArrowRight /></Link></div><div className="shortlist-row">{(liveVendors.length ? liveVendors : coupleVendors.map((vendor) => ({ ...vendor, acceptingEnquiries: false }))).slice(0, 3).map((vendor, index) => <article key={vendor.id}><div><img src={vendor.image} alt={`${vendor.name} portfolio`} /><span>{vendor.acceptingEnquiries ? "Accepting enquiries" : `${94 - index * 3}% match`}</span><button className={saved.includes(vendor.id) ? "saved" : ""} onClick={() => void toggleSaved(vendor.id)} aria-label={`${saved.includes(vendor.id) ? "Remove" : "Save"} ${vendor.name}`}><Heart fill={saved.includes(vendor.id) ? "currentColor" : "none"} /></button></div><p>{vendor.category}</p><h3>{vendor.name}</h3><span><MapPin /> {vendor.location} · <Star fill="currentColor" /> {vendor.rating}</span><footer><strong>{vendor.price}</strong><Link href={`/vendor/${vendor.id}`} aria-label={`View ${vendor.name}`}><ChevronRight /></Link></footer></article>)}</div></section>
 
             <aside className="couple-side-column"><section className="couple-dash-card budget-card" id="couple-budget"><div className="couple-card-heading"><div><h2>Budget snapshot</h2><p>Vendor budget</p></div><button onClick={() => showNotice("Budget details opened")}>View</button></div><div className="budget-ring"><div><strong>42%</strong><small>allocated</small></div></div><div className="budget-numbers"><span><small>Planned</small><strong>₦5,000,000</strong></span><span><small>Allocated</small><strong>₦2,100,000</strong></span></div><div className="budget-remaining"><span>Remaining</span><strong>₦2,900,000</strong></div></section><section className="couple-dash-card next-steps-card" id="couple-planning"><div className="couple-card-heading"><div><h2>Next steps</h2><p>Keep things moving</p></div></div><label><input type="checkbox" defaultChecked /><span><strong>Set your wedding details</strong><small>Completed</small></span></label><label><input type="checkbox" /><span><strong>Request photographer quotes</strong><small>2 recommendations ready</small></span></label><label><input type="checkbox" /><span><strong>Shortlist your cake vendor</strong><small>Due this week</small></span></label></section></aside>
           </div>
