@@ -196,7 +196,7 @@ export const quoteItems = pgTable("quote_items", {
 export const bookings = pgTable("bookings", {
   id: text("id").primaryKey(),
   quoteId: text("quote_id").notNull().unique().references(() => quotes.id, { onDelete: "restrict" }),
-  conversationId: text("conversation_id").notNull().references(() => conversations.id, { onDelete: "restrict" }),
+  conversationId: text("conversation_id").notNull().unique().references(() => conversations.id, { onDelete: "restrict" }),
   enquiryId: text("enquiry_id").notNull().references(() => enquiries.id, { onDelete: "restrict" }),
   vendorId: text("vendor_id").notNull().references(() => marketplaceVendors.id, { onDelete: "restrict" }),
   vendorOwnerClerkUserId: text("vendor_owner_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "restrict" }),
