@@ -234,7 +234,7 @@ export default function ConversationClient({
                 <footer>
                   <span>{item.quote.validUntil ? <><Clock3 size={13} /> Valid until {dateLabel(item.quote.validUntil)}</> : "No expiry date"}</span>
                   {role === "couple" && ["sent","viewed"].includes(item.quote.status) && !hasBooking ? <div><button className="decline" disabled={respondingQuoteId === item.quote.id} onClick={() => void respondToQuote(item.quote.id, "decline")}>Decline</button><button className="accept" disabled={respondingQuoteId === item.quote.id} onClick={() => void respondToQuote(item.quote.id, "accept")}>{respondingQuoteId === item.quote.id ? "Updating…" : "Accept quote"} <Check size={15} /></button></div> : null}
-                  {item.quote.status === "accepted" && <Link href={role === "couple" ? "/couples/bookings" : "/dashboard/bookings"}>View booking <ChevronRight size={14} /></Link>}
+                  {item.quote.status === "accepted" && <Link href={item.quote.bookingId ? `/bookings/${item.quote.bookingId}` : (role === "couple" ? "/couples/bookings" : "/dashboard/bookings")}>View booking <ChevronRight size={14} /></Link>}
                 </footer>
               </article>
             ))}
