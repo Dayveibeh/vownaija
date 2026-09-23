@@ -22,6 +22,10 @@ import { SessionAccountNav } from "../../components/SessionAccountNav";
 export default function VendorProfileClient({ vendor }: { vendor: MarketplaceVendorDetailRecord }) {
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [enquiryError, setEnquiryError] = useState("");
+  const [conversationId, setConversationId] = useState("");
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [notice, setNotice] = useState("");
 
@@ -62,9 +66,45 @@ export default function VendorProfileClient({ vendor }: { vendor: MarketplaceVen
     }
   }
 
-  function sendQuote(event: FormEvent) {
+  async function sendQuote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitted(true);
+    setEnquiryError("");
+    setSubmitting(true);
+    const form = new FormData(event.currentTarget);
+
+    try {
+      const response = await fetch("/api/enquiries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vendorId: vendor.id,
+          packageId: selectedPackageId,
+          requestedService: selectedPackageId
+            ? vendor.packages.find((item) => item.id === selectedPackageId)?.title ?? vendor.category
+            : vendor.category,
+          weddingDate: String(form.get("weddingDate") ?? "") || null,
+          weddingLocation: String(form.get("weddingLocation") ?? ""),
+          guestCount: String(form.get("guestCount") ?? "") || null,
+          budgetBand: String(form.get("budgetBand") ?? "") || null,
+          message: String(form.get("message") ?? ""),
+        }),
+      });
+
+      if (response.status === 401) {
+        window.location.href = `/couples/sign-up?mode=signin&returnTo=${encodeURIComponent(window.location.pathname)}`;
+        return;
+      }
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result?.message || "We couldn’t send your enquiry.");
+
+      setConversationId(String(result.conversationId));
+      setSubmitted(true);
+    } catch (error) {
+      setEnquiryError(error instanceof Error ? error.message : "We couldn’t send your enquiry just now.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const gallery = vendor.gallery.length ? vendor.gallery : [vendor.imageUrl];
@@ -86,7 +126,7 @@ export default function VendorProfileClient({ vendor }: { vendor: MarketplaceVen
         </nav>
         <div className="profile-header-actions">
           <SessionAccountNav variant="compact" />
-          <button className="button button-primary button-small" onClick={() => setQuoteOpen(true)}>Request a quote</button>
+          <button className="button button-primary button-small" onClick={() => { setSelectedPackageId(null); setQuoteOpen(true); }}>Request a quote</button>
         </div>
       </header>
 
@@ -126,7 +166,7 @@ export default function VendorProfileClient({ vendor }: { vendor: MarketplaceVen
             <div className="package-list">
               {vendor.packages.map((item) => <article key={item.id}>
                 <div>{item.featured ? <span>Most popular</span> : null}<h3>{item.title}</h3><p>{item.description}</p></div>
-                <div><strong>From {formatNaira(item.price)}</strong><button onClick={() => setQuoteOpen(true)}>Get this quote <ChevronRight size={16} /></button></div>
+                <div><strong>From {formatNaira(item.price)}</strong><button onClick={() => { setSelectedPackageId(item.id); setQuoteOpen(true); }}>Get this quote <ChevronRight size={16} /></button></div>
               </article>)}
             </div>
           </section>
@@ -145,7 +185,7 @@ export default function VendorProfileClient({ vendor }: { vendor: MarketplaceVen
           <h3>Interested in {vendor.businessName}?</h3>
           <p>Share your wedding details and request a personalised quote.</p>
           <div className="vendor-profile-price"><small>Packages from</small><strong>{formatNaira(Number(vendor.startingPrice))}</strong></div>
-          <button className="button button-primary" onClick={() => setQuoteOpen(true)}>Request a free quote</button>
+          <button className="button button-primary" onClick={() => { setSelectedPackageId(null); setQuoteOpen(true); }}>Request a free quote</button>
           <div className="response-time"><MessageCircle size={17} /><span><strong>{vendor.responseTime}</strong>No booking fee to enquire</span></div>
         </aside>
       </section>
@@ -157,14 +197,16 @@ export default function VendorProfileClient({ vendor }: { vendor: MarketplaceVen
             <p className="eyebrow"><span /> Personal quote</p>
             <h2>Tell {vendor.businessName} about your day</h2>
             <p>The more detail you share, the more accurate your quote can be.</p>
+            {selectedPackageId && <div className="selected-package-note"><Check size={15} /><span>Enquiring about <strong>{vendor.packages.find((item) => item.id === selectedPackageId)?.title}</strong></span></div>}
             <form onSubmit={sendQuote} className="quote-request-form">
-              <div><label>Your name<input required placeholder="Your full name" /></label><label>Email<input required type="email" placeholder="you@email.com" /></label></div>
-              <div><label>Wedding date<input required type="date" /></label><label>Location<input required placeholder="City or venue" /></label></div>
-              <div><label>Guest count<input type="number" placeholder="e.g. 250" /></label><label>Budget range<select defaultValue=""><option value="" disabled>Choose a range</option><option>Under ₦1m</option><option>₦1m – ₦3m</option><option>₦3m – ₦7m</option><option>₦7m+</option></select></label></div>
-              <label>What do you need help with?<textarea required rows={4} placeholder="Tell the vendor about the style, traditions and services you have in mind…" /></label>
-              <button className="button button-primary" type="submit">Send quote request <ChevronRight size={17} /></button>
+              <div><label>Your name<input name="displayName" placeholder="Your account name will be shared" disabled /></label><label>Email<input name="displayEmail" placeholder="Your account email will be shared" disabled /></label></div>
+              <div><label>Wedding date<input name="weddingDate" required type="date" /></label><label>Location<input name="weddingLocation" required placeholder="City or venue" /></label></div>
+              <div><label>Guest count<input name="guestCount" type="number" placeholder="e.g. 250" /></label><label>Budget range<select name="budgetBand" defaultValue=""><option value="" disabled>Choose a range</option><option>Under ₦1m</option><option>₦1m – ₦3m</option><option>₦3m – ₦7m</option><option>₦7m+</option></select></label></div>
+              <label>What do you need help with?<textarea name="message" required minLength={10} rows={4} placeholder="Tell the vendor about the style, traditions and services you have in mind…" /></label>
+              {enquiryError && <p className="form-error" role="alert">{enquiryError}</p>}
+              <button className="button button-primary" type="submit" disabled={submitting}>{submitting ? "Sending enquiry…" : "Send enquiry"} {!submitting && <ChevronRight size={17} />}</button>
             </form>
-          </> : <div className="quote-success"><div><Check size={30} /></div><h2>Request prepared</h2><p>Enquiries become fully transactional in Phase 2. Your details have been captured for this preview.</p><button className="button button-dark" onClick={() => { setQuoteOpen(false); setSubmitted(false); }}>Done</button></div>}
+          </> : <div className="quote-success"><div><Check size={30} /></div><h2>Enquiry sent</h2><p>{vendor.businessName} now has your wedding details. Continue in your Smitten conversation to keep everything together.</p>{conversationId && <Link className="button button-primary" href={`/messages/${conversationId}`}>Open conversation <MessageCircle size={17} /></Link>}<button className="button button-dark" onClick={() => { setQuoteOpen(false); setSubmitted(false); setConversationId(""); setSelectedPackageId(null); }}>Keep browsing</button></div>}
         </section>
       </div>}
 
