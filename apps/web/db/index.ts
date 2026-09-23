@@ -195,6 +195,67 @@ export async function ensureDatabaseSchema() {
       `;
 
       await sql`
+        CREATE TABLE IF NOT EXISTS quotes (
+          id text PRIMARY KEY,
+          conversation_id text NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+          enquiry_id text NOT NULL REFERENCES enquiries(id) ON DELETE CASCADE,
+          vendor_id text NOT NULL REFERENCES marketplace_vendors(id) ON DELETE CASCADE,
+          vendor_owner_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
+          customer_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
+          title text NOT NULL,
+          notes text,
+          subtotal numeric(14,2) NOT NULL,
+          discount_amount numeric(14,2) NOT NULL DEFAULT 0,
+          additional_fees numeric(14,2) NOT NULL DEFAULT 0,
+          total numeric(14,2) NOT NULL,
+          currency_code text NOT NULL DEFAULT 'NGN',
+          valid_until date,
+          revision integer NOT NULL DEFAULT 1,
+          status text NOT NULL DEFAULT 'sent' CHECK (status IN ('sent','viewed','accepted','declined','expired')),
+          sent_at timestamptz NOT NULL DEFAULT now(),
+          viewed_at timestamptz,
+          responded_at timestamptz,
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS quote_items (
+          id text PRIMARY KEY,
+          quote_id text NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,
+          title text NOT NULL,
+          description text,
+          quantity integer NOT NULL DEFAULT 1,
+          unit_price numeric(14,2) NOT NULL,
+          line_total numeric(14,2) NOT NULL,
+          display_order integer NOT NULL DEFAULT 0,
+          created_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS bookings (
+          id text PRIMARY KEY,
+          quote_id text NOT NULL UNIQUE REFERENCES quotes(id) ON DELETE RESTRICT,
+          conversation_id text NOT NULL REFERENCES conversations(id) ON DELETE RESTRICT,
+          enquiry_id text NOT NULL REFERENCES enquiries(id) ON DELETE RESTRICT,
+          vendor_id text NOT NULL REFERENCES marketplace_vendors(id) ON DELETE RESTRICT,
+          vendor_owner_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE RESTRICT,
+          customer_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE RESTRICT,
+          wedding_date date,
+          wedding_location text NOT NULL,
+          service_summary text NOT NULL,
+          total numeric(14,2) NOT NULL,
+          currency_code text NOT NULL DEFAULT 'NGN',
+          status text NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed','completed','cancelled')),
+          confirmed_at timestamptz NOT NULL DEFAULT now(),
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
         CREATE TABLE IF NOT EXISTS favourites (
           clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
           vendor_id text NOT NULL REFERENCES marketplace_vendors(id) ON DELETE CASCADE,
@@ -220,6 +281,14 @@ export async function ensureDatabaseSchema() {
       await sql`CREATE INDEX IF NOT EXISTS conversations_vendor_idx ON conversations(vendor_id)`;
       await sql`CREATE INDEX IF NOT EXISTS messages_conversation_idx ON messages(conversation_id)`;
       await sql`CREATE INDEX IF NOT EXISTS messages_sender_idx ON messages(sender_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS quotes_conversation_idx ON quotes(conversation_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS quotes_vendor_owner_idx ON quotes(vendor_owner_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS quotes_customer_idx ON quotes(customer_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS quotes_status_idx ON quotes(status)`;
+      await sql`CREATE INDEX IF NOT EXISTS quote_items_quote_idx ON quote_items(quote_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS bookings_vendor_owner_idx ON bookings(vendor_owner_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS bookings_customer_idx ON bookings(customer_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS bookings_status_idx ON bookings(status)`;
       await sql`CREATE INDEX IF NOT EXISTS favourites_user_idx ON favourites(clerk_user_id)`;
     })().catch((error) => {
       schemaPromise = null;
