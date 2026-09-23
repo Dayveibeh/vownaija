@@ -122,6 +122,29 @@ export async function ensureDatabaseSchema() {
         )
       `;
 
+      await sql`ALTER TABLE marketplace_vendors ADD COLUMN IF NOT EXISTS about text NOT NULL DEFAULT ''`;
+      await sql`ALTER TABLE marketplace_vendors ADD COLUMN IF NOT EXISTS travel_distance text NOT NULL DEFAULT 'Nigeria'`;
+      await sql`ALTER TABLE marketplace_vendors ADD COLUMN IF NOT EXISTS gallery jsonb NOT NULL DEFAULT '[]'::jsonb`;
+      await sql`ALTER TABLE marketplace_vendors ADD COLUMN IF NOT EXISTS highlights jsonb NOT NULL DEFAULT '[]'::jsonb`;
+      await sql`ALTER TABLE marketplace_vendors ADD COLUMN IF NOT EXISTS instagram text`;
+      await sql`ALTER TABLE marketplace_vendors ADD COLUMN IF NOT EXISTS response_time text NOT NULL DEFAULT 'Usually replies within 1 business day'`;
+      await sql`ALTER TABLE marketplace_vendors ADD COLUMN IF NOT EXISTS availability text NOT NULL DEFAULT 'Contact vendor to confirm availability'`;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS vendor_packages (
+          id text PRIMARY KEY,
+          vendor_id text NOT NULL REFERENCES marketplace_vendors(id) ON DELETE CASCADE,
+          title text NOT NULL,
+          description text NOT NULL,
+          price numeric(14, 2) NOT NULL,
+          currency_code text NOT NULL DEFAULT 'NGN',
+          featured boolean NOT NULL DEFAULT false,
+          display_order integer NOT NULL DEFAULT 0,
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
       await sql`
         CREATE TABLE IF NOT EXISTS favourites (
           clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
@@ -138,6 +161,7 @@ export async function ensureDatabaseSchema() {
       await sql`CREATE INDEX IF NOT EXISTS marketplace_vendors_category_idx ON marketplace_vendors(category)`;
       await sql`CREATE INDEX IF NOT EXISTS marketplace_vendors_location_idx ON marketplace_vendors(location)`;
       await sql`CREATE INDEX IF NOT EXISTS marketplace_vendors_state_idx ON marketplace_vendors(state)`;
+      await sql`CREATE INDEX IF NOT EXISTS vendor_packages_vendor_idx ON vendor_packages(vendor_id)`;
       await sql`CREATE INDEX IF NOT EXISTS favourites_user_idx ON favourites(clerk_user_id)`;
     })().catch((error) => {
       schemaPromise = null;
