@@ -9,6 +9,8 @@ export type EnquiryInput = {
   weddingLocation: string;
   guestCount?: string | null;
   budgetBand?: string | null;
+  contactName?: string | null;
+  contactEmail?: string | null;
   message: string;
 };
 
@@ -85,12 +87,12 @@ export async function createEnquiry(customerClerkUserId: string, input: EnquiryI
   await sql`
     INSERT INTO enquiries (
       id, customer_clerk_user_id, vendor_id, package_id, requested_service,
-      wedding_date, wedding_location, guest_count, budget_band, message, status,
+      wedding_date, wedding_location, guest_count, budget_band, contact_name, contact_email, message, status,
       created_at, updated_at
     ) VALUES (
       ${enquiryId}, ${customerClerkUserId}, ${input.vendorId}, ${input.packageId ?? null},
       ${input.requestedService ?? null}, ${input.weddingDate || null}, ${input.weddingLocation},
-      ${input.guestCount ?? null}, ${input.budgetBand ?? null}, ${input.message}, 'new',
+      ${input.guestCount ?? null}, ${input.budgetBand ?? null}, ${input.contactName ?? null}, ${input.contactEmail ?? null}, ${input.message}, 'new',
       ${now}, ${now}
     )
   `;
@@ -129,8 +131,8 @@ export async function listConversationSummaries(clerkUserId: string, role: "coup
       c.vendor_id,
       mv.business_name AS vendor_name,
       mv.image_url AS vendor_image,
-      customer.full_name AS customer_name,
-      customer.email AS customer_email,
+      COALESCE(e.contact_name, customer.full_name) AS customer_name,
+      COALESCE(e.contact_email, customer.email) AS customer_email,
       c.last_message_at,
       e.status,
       e.requested_service,
@@ -199,8 +201,8 @@ export async function getConversationDetail(conversationId: string, clerkUserId:
       c.last_message_at,
       mv.business_name AS vendor_name,
       mv.image_url AS vendor_image,
-      customer.full_name AS customer_name,
-      customer.email AS customer_email,
+      COALESCE(e.contact_name, customer.full_name) AS customer_name,
+      COALESCE(e.contact_email, customer.email) AS customer_email,
       e.status,
       e.requested_service,
       e.wedding_date,
