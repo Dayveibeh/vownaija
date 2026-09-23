@@ -31,5 +31,10 @@ jobs:
           cache-dependency-path: apps/mobile/package-lock.json
       - working-directory: apps/mobile
         run: npm install --no-audit --no-fund
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-package-lock
+          path: apps/mobile/package-lock.json
+          retention-days: 1
       - working-directory: apps/mobile
         run: npm run typecheck
