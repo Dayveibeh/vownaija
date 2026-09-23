@@ -42,6 +42,7 @@ export type MarketplaceVendorRecord = {
   styles: string[];
   matchReason: string;
   active?: boolean;
+  acceptingEnquiries?: boolean;
 };
 
 export type MarketplaceVendorListResponse = {
