@@ -108,7 +108,7 @@ export default function QuoteDetailClient({
               <button className="decline" disabled={responding} onClick={() => void respond("decline")}><X size={15} /> Decline</button>
               <button className="accept" disabled={responding} onClick={() => void respond("accept")}>{responding ? "Updating…" : "Accept quote"} <Check size={15} /></button>
             </div>}
-            {quote.status === "accepted" && <div className="quote-accepted-banner"><Check size={16} /> Quote accepted — your booking is confirmed.</div>}
+            {quote.status === "accepted" && <div className="quote-accepted-banner"><Check size={16} /><span>Quote accepted — your booking is confirmed.</span>{quote.bookingId && <Link href={`/bookings/${quote.bookingId}`}>View booking</Link>}</div>}
             {error && <p className="quote-detail-error">{error}</p>}
           </footer>
         </article>
