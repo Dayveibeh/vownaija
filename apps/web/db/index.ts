@@ -238,7 +238,7 @@ export async function ensureDatabaseSchema() {
         CREATE TABLE IF NOT EXISTS bookings (
           id text PRIMARY KEY,
           quote_id text NOT NULL UNIQUE REFERENCES quotes(id) ON DELETE RESTRICT,
-          conversation_id text NOT NULL REFERENCES conversations(id) ON DELETE RESTRICT,
+          conversation_id text NOT NULL UNIQUE REFERENCES conversations(id) ON DELETE RESTRICT,
           enquiry_id text NOT NULL REFERENCES enquiries(id) ON DELETE RESTRICT,
           vendor_id text NOT NULL REFERENCES marketplace_vendors(id) ON DELETE RESTRICT,
           vendor_owner_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE RESTRICT,
@@ -286,6 +286,7 @@ export async function ensureDatabaseSchema() {
       await sql`CREATE INDEX IF NOT EXISTS quotes_customer_idx ON quotes(customer_clerk_user_id)`;
       await sql`CREATE INDEX IF NOT EXISTS quotes_status_idx ON quotes(status)`;
       await sql`CREATE INDEX IF NOT EXISTS quote_items_quote_idx ON quote_items(quote_id)`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS bookings_conversation_unique ON bookings(conversation_id)`;
       await sql`CREATE INDEX IF NOT EXISTS bookings_vendor_owner_idx ON bookings(vendor_owner_clerk_user_id)`;
       await sql`CREATE INDEX IF NOT EXISTS bookings_customer_idx ON bookings(customer_clerk_user_id)`;
       await sql`CREATE INDEX IF NOT EXISTS bookings_status_idx ON bookings(status)`;
