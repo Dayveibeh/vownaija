@@ -348,7 +348,7 @@ export default function Home() {
         <section className="vendor-preview-modal" role="dialog" aria-modal="true" aria-label={`${activeVendor.name} profile`} onMouseDown={(event) => event.stopPropagation()}>
           <button className="vendor-modal-close" onClick={() => setActiveVendor(null)} aria-label="Close vendor profile"><X /></button>
           <img src={activeVendor.image} alt={`${activeVendor.name} wedding portfolio`} />
-          <div><p className="vendor-category">{activeVendor.category}</p><h2>{activeVendor.name}</h2><p className="vendor-location"><MapPin size={14} /> {displayLocation(activeVendor)}</p><p>Verified on Smitten with {activeVendor.reviews} couple reviews and packages starting at {activeVendor.price.replace("From ", "")}.</p><div className="vendor-modal-actions">{activeVendor.id === "aurora-events-ng" ? <Link className="button button-dark" href="/vendor/aurora-events">Open full profile</Link> : <button className="button button-dark" onClick={() => setActiveVendor(null)}>Keep browsing</button>}<Link className="button button-primary" href="/couples/sign-up">Request a quote</Link></div></div>
+          <div><p className="vendor-category">{activeVendor.category}</p><h2>{activeVendor.name}</h2><p className="vendor-location"><MapPin size={14} /> {displayLocation(activeVendor)}</p><p>Verified on Smitten with {activeVendor.reviews} couple reviews and packages starting at {activeVendor.price.replace("From ", "")}.</p><div className="vendor-modal-actions"><Link className="button button-dark" href={`/vendor/${activeVendor.id}`}>Open full profile</Link><Link className="button button-primary" href="/couples/sign-up">Request a quote</Link></div></div>
         </section>
       </div>}
     </main>
