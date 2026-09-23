@@ -7,6 +7,7 @@ import {
   BarChart3,
   Bell,
   Bot,
+  CalendarCheck2,
   Check,
   ChevronDown,
   CircleDollarSign,
@@ -30,7 +31,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
 
 type Tab = "Overview" | "Enquiries" | "Quotes" | "Messages" | "Portfolio" | "Reviews";
@@ -75,6 +76,9 @@ export default function DashboardClient({ profile }: { profile: { fullName: stri
   const [emailText, setEmailText] = useState("Hi Amara,\n\nThank you for your message. We can absolutely swap the floral arch for a soft fabric installation and keep the same colour direction. I’ll update your quote and send it across this afternoon.\n\nWarmly,\nAdaeze");
   const [toast, setToast] = useState("");
   const [uploaded, setUploaded] = useState<string[]>([]);
+  const [liveQuoteCount, setLiveQuoteCount] = useState(0);
+  const [liveOpenQuoteValue, setLiveOpenQuoteValue] = useState(0);
+  const [liveBookingCount, setLiveBookingCount] = useState(0);
   const firstName = profile.fullName.split(/\s+/)[0] || "there";
   const initials = profile.businessName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "SM";
 
@@ -86,7 +90,11 @@ export default function DashboardClient({ profile }: { profile: { fullName: stri
   }
 
   function openQuote(quote?: (typeof initialQuotes)[number]) {
-    setEditQuote(quote ?? null);
+    if (!quote) {
+      window.location.href = "/dashboard/enquiries";
+      return;
+    }
+    setEditQuote(quote);
     if (quote) setLineItems([{ description: quote.title, amount: quote.amount }]);
     else setLineItems([{ description: "Planning and creative direction", amount: 1200000 }, { description: "Décor production and installation", amount: 1850000 }]);
     setQuoteOpen(true);
@@ -119,7 +127,8 @@ export default function DashboardClient({ profile }: { profile: { fullName: stri
           <small>Workspace</small>
           <button className={tab === "Overview" ? "active" : ""} onClick={() => setTab("Overview")}><LayoutDashboard size={18} /> Overview</button>
           <Link href="/dashboard/enquiries"><Users size={18} /> Enquiries</Link>
-          <button className={tab === "Quotes" ? "active" : ""} onClick={() => setTab("Quotes")}><FileText size={18} /> Quotes</button>
+          <Link href="/dashboard/quotes"><FileText size={18} /> Quotes {liveQuoteCount > 0 && <span>{liveQuoteCount}</span>}</Link>
+          <Link href="/dashboard/bookings"><CalendarCheck2 size={18} /> Bookings {liveBookingCount > 0 && <span>{liveBookingCount}</span>}</Link>
           <Link href="/dashboard/messages"><Mail size={18} /> Messages</Link>
           <small>Business</small>
           <button className={tab === "Portfolio" ? "active" : ""} onClick={() => setTab("Portfolio")}><ImagePlus size={18} /> Portfolio</button>
@@ -133,7 +142,7 @@ export default function DashboardClient({ profile }: { profile: { fullName: stri
         <header className="dashboard-topbar"><button className="dash-menu" onClick={() => setMobileNav(true)}><Menu /></button><div className="dash-search"><Search size={17} /><input placeholder="Search clients, quotes, messages…" /><kbd>⌘ K</kbd></div><div><button className="ai-top-button" onClick={() => setAiOpen(true)}><Sparkles size={16} /> Ask Smitten AI</button><Link className="notification-button" href="/dashboard/messages" aria-label="Open messages"><Bell size={19} /><span /></Link><span className="user-avatar">{initials}</span></div></header>
 
         <div className="dashboard-content">
-          {tab === "Overview" && <Overview setTab={setTab} openQuote={() => openQuote()} showToast={showToast} firstName={firstName} businessName={profile.businessName} />}
+          {tab === "Overview" && <Overview setTab={setTab} openQuote={() => openQuote()} showToast={showToast} firstName={firstName} businessName={profile.businessName} quoteCount={liveQuoteCount} quoteValue={liveOpenQuoteValue} bookingCount={liveBookingCount} />}
           {tab === "Enquiries" && <Enquiries openQuote={() => openQuote()} showToast={showToast} />}
           {tab === "Quotes" && <Quotes quotes={quotes} openQuote={openQuote} />}
           {tab === "Messages" && <Messages selected={selectedMessage} setSelected={setSelectedMessage} emailText={emailText} setEmailText={setEmailText} showToast={showToast} />}
@@ -173,12 +182,12 @@ function PageHeading({ eyebrow, title, text, action }: { eyebrow: string; title:
   return <div className="dash-page-heading"><div><p>{eyebrow}</p><h1>{title}</h1>{text && <span>{text}</span>}</div>{action}</div>;
 }
 
-function Overview({ setTab, openQuote, showToast, firstName, businessName }: { setTab: (tab: Tab) => void; openQuote: () => void; showToast: (message: string) => void; firstName: string; businessName: string }) {
+function Overview({ setTab, openQuote, showToast, firstName, businessName, quoteCount, quoteValue, bookingCount }: { setTab: (tab: Tab) => void; openQuote: () => void; showToast: (message: string) => void; firstName: string; businessName: string; quoteCount: number; quoteValue: number; bookingCount: number }) {
   return <>
     <PageHeading eyebrow="Thursday, 13 August" title={`Good afternoon, ${firstName}`} text={`Here’s what’s happening with ${businessName} today.`} action={<button className="button button-primary" onClick={openQuote}><Plus size={17} /> Create quote</button>} />
-    <div className="stat-grid"><article><span className="stat-icon coral"><Users /></span><div><p>New enquiries</p><strong>12</strong><small>↑ 20% this month</small></div></article><article><span className="stat-icon plum"><FileText /></span><div><p>Open quotes</p><strong>8</strong><small>₦9.4m potential</small></div></article><article><span className="stat-icon green"><CircleDollarSign /></span><div><p>Bookings</p><strong>5</strong><small>↑ 2 this month</small></div></article><article><span className="stat-icon gold"><Star /></span><div><p>Profile rating</p><strong>4.9</strong><small>86 reviews</small></div></article></div>
-    <div className="overview-grid"><section className="dash-card recent-enquiries"><div className="dash-card-title"><div><h2>New enquiries</h2><p>Couples waiting to hear from you</p></div><button onClick={() => setTab("Enquiries")}>View all <ArrowRight size={15} /></button></div>{leads.map((lead) => <article key={lead.name}><span className={`lead-avatar ${lead.tone}`}>{lead.initials}</span><div><strong>{lead.name}</strong><small>{lead.service} · {lead.date}</small></div><span>{lead.budget}</span><small>{lead.age}</small><button onClick={() => showToast(`${lead.name} enquiry menu opened`)} aria-label={`Open ${lead.name} enquiry menu`}><MoreHorizontal /></button></article>)}</section><section className="dash-card profile-strength"><div className="dash-card-title"><div><h2>Profile strength</h2><p>You’re almost there</p></div><strong>82%</strong></div><div className="strength-bar"><span /></div><ul><li className="done"><Check /> Business details</li><li className="done"><Check /> Portfolio uploaded</li><li><Plus /> Add 2 more packages</li><li><Plus /> Connect TikTok</li></ul><button onClick={() => setTab("Portfolio")}>Complete profile <ArrowRight size={15} /></button></section></div>
-    <div className="overview-grid bottom-overview"><section className="dash-card"><div className="dash-card-title"><div><h2>Quote activity</h2><p>Performance over the last 30 days</p></div><button onClick={() => setTab("Quotes")}>Manage quotes</button></div><div className="activity-bars"><div><span>Sent</span><i><b style={{ width: "86%" }} /></i><strong>14</strong></div><div><span>Viewed</span><i><b style={{ width: "67%" }} /></i><strong>11</strong></div><div><span>Accepted</span><i><b style={{ width: "41%" }} /></i><strong>7</strong></div></div></section><section className="dash-card ai-insight-card"><span><Sparkles /></span><p>Smitten’s tip</p><h3>Your quotes with a personal note are 34% more likely to be accepted.</h3><button onClick={() => setTab("Messages")}>See suggested template <ArrowRight size={15} /></button></section></div>
+    <div className="stat-grid"><article><span className="stat-icon coral"><Users /></span><div><p>New enquiries</p><strong>12</strong><small>↑ 20% this month</small></div></article><article><span className="stat-icon plum"><FileText /></span><div><p>Open quotes</p><strong>{quoteCount}</strong><small>{quoteCount ? new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(quoteValue) + " potential" : "No open quotes"}</small></div></article><article><span className="stat-icon green"><CircleDollarSign /></span><div><p>Bookings</p><strong>{bookingCount}</strong><small>{bookingCount ? "Confirmed through Smitten" : "No confirmed bookings yet"}</small></div></article><article><span className="stat-icon gold"><Star /></span><div><p>Profile rating</p><strong>4.9</strong><small>86 reviews</small></div></article></div>
+    <div className="overview-grid"><section className="dash-card recent-enquiries"><div className="dash-card-title"><div><h2>New enquiries</h2><p>Couples waiting to hear from you</p></div><Link href="/dashboard/enquiries">View all <ArrowRight size={15} /></Link></div>{leads.map((lead) => <article key={lead.name}><span className={`lead-avatar ${lead.tone}`}>{lead.initials}</span><div><strong>{lead.name}</strong><small>{lead.service} · {lead.date}</small></div><span>{lead.budget}</span><small>{lead.age}</small><button onClick={() => showToast(`${lead.name} enquiry menu opened`)} aria-label={`Open ${lead.name} enquiry menu`}><MoreHorizontal /></button></article>)}</section><section className="dash-card profile-strength"><div className="dash-card-title"><div><h2>Profile strength</h2><p>You’re almost there</p></div><strong>82%</strong></div><div className="strength-bar"><span /></div><ul><li className="done"><Check /> Business details</li><li className="done"><Check /> Portfolio uploaded</li><li><Plus /> Add 2 more packages</li><li><Plus /> Connect TikTok</li></ul><button onClick={() => setTab("Portfolio")}>Complete profile <ArrowRight size={15} /></button></section></div>
+    <div className="overview-grid bottom-overview"><section className="dash-card"><div className="dash-card-title"><div><h2>Quote activity</h2><p>Performance over the last 30 days</p></div><Link href="/dashboard/quotes">Manage quotes</Link></div><div className="activity-bars"><div><span>Sent</span><i><b style={{ width: "86%" }} /></i><strong>14</strong></div><div><span>Viewed</span><i><b style={{ width: "67%" }} /></i><strong>11</strong></div><div><span>Accepted</span><i><b style={{ width: "41%" }} /></i><strong>7</strong></div></div></section><section className="dash-card ai-insight-card"><span><Sparkles /></span><p>Smitten’s tip</p><h3>Your quotes with a personal note are 34% more likely to be accepted.</h3><button onClick={() => setTab("Messages")}>See suggested template <ArrowRight size={15} /></button></section></div>
   </>;
 }
 
