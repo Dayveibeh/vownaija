@@ -150,6 +150,72 @@ export const messages = pgTable("messages", {
   index("messages_sender_idx").on(table.senderClerkUserId),
 ]);
 
+export const quotes = pgTable("quotes", {
+  id: text("id").primaryKey(),
+  conversationId: text("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  enquiryId: text("enquiry_id").notNull().references(() => enquiries.id, { onDelete: "cascade" }),
+  vendorId: text("vendor_id").notNull().references(() => marketplaceVendors.id, { onDelete: "cascade" }),
+  vendorOwnerClerkUserId: text("vendor_owner_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "cascade" }),
+  customerClerkUserId: text("customer_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  notes: text("notes"),
+  subtotal: numeric("subtotal", { precision: 14, scale: 2 }).notNull(),
+  discountAmount: numeric("discount_amount", { precision: 14, scale: 2 }).default("0").notNull(),
+  additionalFees: numeric("additional_fees", { precision: 14, scale: 2 }).default("0").notNull(),
+  total: numeric("total", { precision: 14, scale: 2 }).notNull(),
+  currencyCode: text("currency_code").default("NGN").notNull(),
+  validUntil: date("valid_until"),
+  revision: integer("revision").default(1).notNull(),
+  status: text("status", { enum: ["sent", "viewed", "accepted", "declined", "expired"] }).default("sent").notNull(),
+  sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow().notNull(),
+  viewedAt: timestamp("viewed_at", { withTimezone: true }),
+  respondedAt: timestamp("responded_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("quotes_conversation_idx").on(table.conversationId),
+  index("quotes_vendor_owner_idx").on(table.vendorOwnerClerkUserId),
+  index("quotes_customer_idx").on(table.customerClerkUserId),
+  index("quotes_status_idx").on(table.status),
+]);
+
+export const quoteItems = pgTable("quote_items", {
+  id: text("id").primaryKey(),
+  quoteId: text("quote_id").notNull().references(() => quotes.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  quantity: integer("quantity").default(1).notNull(),
+  unitPrice: numeric("unit_price", { precision: 14, scale: 2 }).notNull(),
+  lineTotal: numeric("line_total", { precision: 14, scale: 2 }).notNull(),
+  displayOrder: integer("display_order").default(0).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("quote_items_quote_idx").on(table.quoteId),
+]);
+
+export const bookings = pgTable("bookings", {
+  id: text("id").primaryKey(),
+  quoteId: text("quote_id").notNull().unique().references(() => quotes.id, { onDelete: "restrict" }),
+  conversationId: text("conversation_id").notNull().references(() => conversations.id, { onDelete: "restrict" }),
+  enquiryId: text("enquiry_id").notNull().references(() => enquiries.id, { onDelete: "restrict" }),
+  vendorId: text("vendor_id").notNull().references(() => marketplaceVendors.id, { onDelete: "restrict" }),
+  vendorOwnerClerkUserId: text("vendor_owner_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "restrict" }),
+  customerClerkUserId: text("customer_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "restrict" }),
+  weddingDate: date("wedding_date"),
+  weddingLocation: text("wedding_location").notNull(),
+  serviceSummary: text("service_summary").notNull(),
+  total: numeric("total", { precision: 14, scale: 2 }).notNull(),
+  currencyCode: text("currency_code").default("NGN").notNull(),
+  status: text("status", { enum: ["confirmed", "completed", "cancelled"] }).default("confirmed").notNull(),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("bookings_vendor_owner_idx").on(table.vendorOwnerClerkUserId),
+  index("bookings_customer_idx").on(table.customerClerkUserId),
+  index("bookings_status_idx").on(table.status),
+]);
+
 export const favourites = pgTable("favourites", {
   clerkUserId: text("clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "cascade" }),
   vendorId: text("vendor_id").notNull().references(() => marketplaceVendors.id, { onDelete: "cascade" }),
@@ -170,3 +236,7 @@ export type VendorPackageRecord = typeof vendorPackages.$inferSelect;
 export type Enquiry = typeof enquiries.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
 export type ConversationMessage = typeof messages.$inferSelect;
+
+export type QuoteRecord = typeof quotes.$inferSelect;
+export type QuoteItemRecord = typeof quoteItems.$inferSelect;
+export type BookingRecord = typeof bookings.$inferSelect;
