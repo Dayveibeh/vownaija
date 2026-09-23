@@ -110,8 +110,13 @@ export default function ConversationClient({
     } finally { setSending(false); }
   }
 
-  function addLineItem() {
-    setLineItems((current) => [...current, { title: "", description: "", quantity: 1, unitPrice: 0 }]);
+  function addLineItem(prefill?: Partial<LineItem>) {
+    setLineItems((current) => [...current, {
+      title: prefill?.title ?? "",
+      description: prefill?.description ?? "",
+      quantity: prefill?.quantity ?? 1,
+      unitPrice: prefill?.unitPrice ?? 0,
+    }]);
   }
   function updateLineItem(index: number, patch: Partial<LineItem>) {
     setLineItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
@@ -249,11 +254,11 @@ export default function ConversationClient({
           <form onSubmit={sendQuote}>
             <label className="quote-builder-field">Quote title<input value={quoteTitle} onChange={(event) => setQuoteTitle(event.target.value)} required placeholder="e.g. Full Celebration Package" /></label>
             <div className="quote-builder-items">
-              <div className="quote-builder-section-title"><span><strong>Services</strong><small>Itemise exactly what the couple is paying for.</small></span><button type="button" onClick={addLineItem}><Plus size={14} /> Add item</button></div>
+              <div className="quote-builder-section-title"><span><strong>Services & bespoke charges</strong><small>Add the core package, optional extras or any one-off custom service. Each item appears separately on the couple’s quote and PDF.</small></span><div className="quote-builder-add-actions"><button type="button" onClick={() => addLineItem()}><Plus size={14} /> Add service</button><button type="button" className="bespoke" onClick={() => addLineItem({ title: "Bespoke service" })}><Sparkles size={14} /> Add bespoke charge</button></div></div>
               {lineItems.map((item, index) => <article key={index}>
-                <div className="quote-item-main"><label>Service<input value={item.title} onChange={(event) => updateLineItem(index, { title: event.target.value })} required placeholder="Service name" /></label><label>Description<input value={item.description} onChange={(event) => updateLineItem(index, { description: event.target.value })} placeholder="Optional detail" /></label></div>
+                <div className="quote-item-main"><label>Service / charge<input value={item.title} onChange={(event) => updateLineItem(index, { title: event.target.value })} required placeholder="e.g. Additional coordination hours" /></label><label>Description<input value={item.description} onChange={(event) => updateLineItem(index, { description: event.target.value })} placeholder="Explain what this covers (optional)" /></label></div>
                 <label>Qty<input type="number" min="1" value={item.quantity} onChange={(event) => updateLineItem(index, { quantity: Number(event.target.value) })} /></label>
-                <label>Price (₦)<input type="number" min="0" step="1000" value={item.unitPrice || ""} onChange={(event) => updateLineItem(index, { unitPrice: Number(event.target.value) })} required placeholder="0" /></label>
+                <label>Price (₦)<input type="number" min="0" step="1" value={item.unitPrice || ""} onChange={(event) => updateLineItem(index, { unitPrice: Number(event.target.value) })} required placeholder="0" /></label>
                 <button type="button" className="quote-remove-item" onClick={() => removeLineItem(index)} disabled={lineItems.length === 1} aria-label="Remove item"><Trash2 size={16} /></button>
               </article>)}
             </div>
