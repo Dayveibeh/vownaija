@@ -6,6 +6,7 @@ export type QuoteView = {
   subtotal: number; discountAmount: number; additionalFees: number; total: number;
   currencyCode: "NGN"; validUntil: string | null; revision: number;
   status: "sent" | "viewed" | "accepted" | "declined" | "expired";
+  bookingId: string | null;
   sentAt: string; viewedAt: string | null; respondedAt: string | null;
   items: Array<{ id: string; title: string; description: string | null; quantity: number; unitPrice: number; lineTotal: number }>;
 };
@@ -22,18 +23,20 @@ const dateOnly = (v: unknown) => v ? String(v).slice(0, 10) : null;
 const iso = (v: unknown) => v ? new Date(String(v)).toISOString() : null;
 
 async function mapQuote(row: Record<string, unknown>): Promise<QuoteView> {
-  const items = await getSql()`
+  const sql = getSql();
+  const items = await sql`
     SELECT id,title,description,quantity,unit_price,line_total
     FROM quote_items WHERE quote_id=${String(row.id)}
     ORDER BY display_order, created_at
   `;
+  const bookingRows = await sql`SELECT id FROM bookings WHERE quote_id=${String(row.id)} LIMIT 1`;
   return {
     id:String(row.id), conversationId:String(row.conversation_id), enquiryId:String(row.enquiry_id),
     vendorId:String(row.vendor_id), vendorName:String(row.vendor_name), customerName:String(row.customer_name),
     title:String(row.title), notes:row.notes ? String(row.notes) : null,
     subtotal:money(row.subtotal), discountAmount:money(row.discount_amount), additionalFees:money(row.additional_fees),
     total:money(row.total), currencyCode:"NGN", validUntil:dateOnly(row.valid_until), revision:Number(row.revision),
-    status:String(row.status) as QuoteView["status"], sentAt:iso(row.sent_at) ?? new Date().toISOString(),
+    status:String(row.status) as QuoteView["status"], bookingId: bookingRows[0] ? String(bookingRows[0].id) : null, sentAt:iso(row.sent_at) ?? new Date().toISOString(),
     viewedAt:iso(row.viewed_at), respondedAt:iso(row.responded_at),
     items:items.map(i=>({id:String(i.id),title:String(i.title),description:i.description?String(i.description):null,quantity:Number(i.quantity),unitPrice:money(i.unit_price),lineTotal:money(i.line_total)})),
   };
