@@ -15,6 +15,11 @@ const preferenceSchema = z.object({
   requiredServices: z.array(z.string().trim().min(1).max(120)).max(20),
 });
 
+const preferencePatchSchema = preferenceSchema.partial().refine(
+  (value) => Object.keys(value).length > 0,
+  { message: "At least one preference is required." },
+);
+
 const stateByCity: Record<string, string> = {
   Lagos: "Lagos",
   Abuja: "FCT",
@@ -105,5 +110,64 @@ export async function PUT(request: Request) {
   } catch (error) {
     console.error("Failed to save customer preferences", error);
     return NextResponse.json({ message: "Unable to save your wedding preferences right now." }, { status: 500 });
+  }
+}
+
+
+export async function PATCH(request: Request) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
+
+  let input: unknown;
+  try {
+    input = await request.json();
+  } catch {
+    return NextResponse.json({ message: "Invalid request." }, { status: 400 });
+  }
+
+  const parsed = preferencePatchSchema.safeParse(input);
+  if (!parsed.success) {
+    return NextResponse.json({ message: "Please check your wedding details.", issues: parsed.error.flatten() }, { status: 400 });
+  }
+
+  try {
+    await ensureDatabaseSchema();
+    const values = parsed.data;
+    const [existing] = await getDb().select().from(customerProfiles)
+      .where(eq(customerProfiles.clerkUserId, userId))
+      .limit(1);
+
+    if (!existing) {
+      return NextResponse.json({ message: "Your Smitten profile is not ready yet. Please sign in again." }, { status: 409 });
+    }
+
+    const updates: Partial<typeof customerProfiles.$inferInsert> = {
+      updatedAt: new Date(),
+    };
+
+    if ("weddingDate" in values) updates.weddingDate = values.weddingDate ? values.weddingDate + "-01" : null;
+    if (values.weddingLocation !== undefined) {
+      updates.weddingLocation = values.weddingLocation;
+      updates.weddingState = stateByCity[values.weddingLocation] ?? null;
+    }
+    if (values.weddingType !== undefined) updates.weddingType = values.weddingType;
+    if (values.guestCount !== undefined) updates.guestCount = values.guestCount;
+    if (values.budgetBand !== undefined) {
+      updates.budgetBand = values.budgetBand;
+      updates.budgetCeiling = ceilingForBand(values.budgetBand);
+    }
+    if (values.weddingStyle !== undefined) updates.weddingStyle = values.weddingStyle;
+    if (values.requiredServices !== undefined) updates.requiredServices = values.requiredServices;
+    updates.currencyCode = "NGN";
+
+    const [profile] = await getDb().update(customerProfiles)
+      .set(updates)
+      .where(eq(customerProfiles.clerkUserId, userId))
+      .returning();
+
+    return NextResponse.json({ ok: true, currency: "NGN", profile });
+  } catch (error) {
+    console.error("Failed to patch customer preferences", error);
+    return NextResponse.json({ message: "Unable to update your wedding preferences right now." }, { status: 500 });
   }
 }
