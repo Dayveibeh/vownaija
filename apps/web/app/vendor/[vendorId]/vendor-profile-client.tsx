@@ -26,8 +26,21 @@ export default function VendorProfileClient({ vendor }: { vendor: MarketplaceVen
   const [enquiryError, setEnquiryError] = useState("");
   const [conversationId, setConversationId] = useState("");
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
   const [saved, setSaved] = useState(false);
   const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    void fetch("/api/account/session", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((result) => {
+        if (!result?.profile) return;
+        setContactName(result.profile.fullName ?? "");
+        setContactEmail(result.profile.email ?? "");
+      })
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     void fetch("/api/favourites", { cache: "no-store" })
@@ -38,6 +51,22 @@ export default function VendorProfileClient({ vendor }: { vendor: MarketplaceVen
       })
       .catch(() => undefined);
   }, [vendor.id]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("enquire") !== "1") return;
+    const packageId = params.get("package");
+    const validPackage = packageId && vendor.packages.some((item) => item.id === packageId) ? packageId : null;
+    window.history.replaceState(null, "", window.location.pathname);
+    if (vendor.acceptingEnquiries) {
+      setSelectedPackageId(validPackage);
+      setEnquiryError("");
+      setSubmitted(false);
+      setQuoteOpen(true);
+    } else {
+      setNotice("This vendor hasn’t connected their Smitten inbox yet.");
+    }
+  }, [vendor.acceptingEnquiries, vendor.packages]);
 
   useEffect(() => {
     if (!notice) return;
@@ -97,6 +126,8 @@ export default function VendorProfileClient({ vendor }: { vendor: MarketplaceVen
           weddingLocation: String(form.get("weddingLocation") ?? ""),
           guestCount: String(form.get("guestCount") ?? "") || null,
           budgetBand: String(form.get("budgetBand") ?? "") || null,
+          contactName: String(form.get("contactName") ?? ""),
+          contactEmail: String(form.get("contactEmail") ?? ""),
           message: String(form.get("message") ?? ""),
         }),
       });
@@ -210,7 +241,7 @@ export default function VendorProfileClient({ vendor }: { vendor: MarketplaceVen
             <p>The more detail you share, the more accurate your quote can be.</p>
             {selectedPackageId && <div className="selected-package-note"><Check size={15} /><span>Enquiring about <strong>{vendor.packages.find((item) => item.id === selectedPackageId)?.title}</strong></span></div>}
             <form onSubmit={sendQuote} className="quote-request-form">
-              <div><label>Your name<input name="displayName" placeholder="Your account name will be shared" disabled /></label><label>Email<input name="displayEmail" placeholder="Your account email will be shared" disabled /></label></div>
+              <div><label>Your name<input name="contactName" value={contactName} onChange={(event) => setContactName(event.target.value)} required placeholder="Your full name" autoComplete="name" /></label><label>Email<input name="contactEmail" value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} required type="email" placeholder="you@example.com" autoComplete="email" /></label></div>
               <div><label>Wedding date<input name="weddingDate" required type="date" /></label><label>Location<input name="weddingLocation" required placeholder="City or venue" /></label></div>
               <div><label>Guest count<input name="guestCount" type="number" placeholder="e.g. 250" /></label><label>Budget range<select name="budgetBand" defaultValue=""><option value="" disabled>Choose a range</option><option>Under ₦1m</option><option>₦1m – ₦3m</option><option>₦3m – ₦7m</option><option>₦7m+</option></select></label></div>
               <label>What do you need help with?<textarea name="message" required minLength={10} rows={4} placeholder="Tell the vendor about the style, traditions and services you have in mind…" /></label>
