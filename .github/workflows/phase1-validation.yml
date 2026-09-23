@@ -1,0 +1,35 @@
+name: Phase 1 validation
+
+on:
+  push:
+    branches:
+      - phase1/core-foundation
+  workflow_dispatch:
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:vercel
+
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - working-directory: apps/mobile
+        run: npm install --no-audit --no-fund
+      - working-directory: apps/mobile
+        run: npm run typecheck
