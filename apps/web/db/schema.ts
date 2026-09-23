@@ -57,6 +57,7 @@ export const vendorProfiles = pgTable("vendor_profiles", {
 
 export const marketplaceVendors = pgTable("marketplace_vendors", {
   id: text("id").primaryKey(),
+  ownerClerkUserId: text("owner_clerk_user_id").references(() => users.clerkUserId, { onDelete: "set null" }),
   businessName: text("business_name").notNull(),
   category: text("category").notNull(),
   location: text("location").notNull(),
@@ -83,6 +84,7 @@ export const marketplaceVendors = pgTable("marketplace_vendors", {
   index("marketplace_vendors_category_idx").on(table.category),
   index("marketplace_vendors_location_idx").on(table.location),
   index("marketplace_vendors_state_idx").on(table.state),
+  index("marketplace_vendors_owner_idx").on(table.ownerClerkUserId),
 ]);
 
 export const vendorPackages = pgTable("vendor_packages", {
@@ -98,6 +100,54 @@ export const vendorPackages = pgTable("vendor_packages", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("vendor_packages_vendor_idx").on(table.vendorId),
+]);
+
+export const enquiries = pgTable("enquiries", {
+  id: text("id").primaryKey(),
+  customerClerkUserId: text("customer_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "cascade" }),
+  vendorId: text("vendor_id").notNull().references(() => marketplaceVendors.id, { onDelete: "cascade" }),
+  packageId: text("package_id").references(() => vendorPackages.id, { onDelete: "set null" }),
+  requestedService: text("requested_service"),
+  weddingDate: date("wedding_date"),
+  weddingLocation: text("wedding_location").notNull(),
+  guestCount: text("guest_count"),
+  budgetBand: text("budget_band"),
+  message: text("message").notNull(),
+  status: text("status", { enum: ["new", "active", "closed"] }).default("new").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("enquiries_customer_idx").on(table.customerClerkUserId),
+  index("enquiries_vendor_idx").on(table.vendorId),
+  index("enquiries_status_idx").on(table.status),
+]);
+
+export const conversations = pgTable("conversations", {
+  id: text("id").primaryKey(),
+  enquiryId: text("enquiry_id").notNull().unique().references(() => enquiries.id, { onDelete: "cascade" }),
+  customerClerkUserId: text("customer_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "cascade" }),
+  vendorId: text("vendor_id").notNull().references(() => marketplaceVendors.id, { onDelete: "cascade" }),
+  vendorOwnerClerkUserId: text("vendor_owner_clerk_user_id").references(() => users.clerkUserId, { onDelete: "set null" }),
+  lastMessageAt: timestamp("last_message_at", { withTimezone: true }).defaultNow().notNull(),
+  customerLastReadAt: timestamp("customer_last_read_at", { withTimezone: true }),
+  vendorLastReadAt: timestamp("vendor_last_read_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("conversations_customer_idx").on(table.customerClerkUserId),
+  index("conversations_vendor_owner_idx").on(table.vendorOwnerClerkUserId),
+  index("conversations_vendor_idx").on(table.vendorId),
+]);
+
+export const messages = pgTable("messages", {
+  id: text("id").primaryKey(),
+  conversationId: text("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  senderClerkUserId: text("sender_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("messages_conversation_idx").on(table.conversationId),
+  index("messages_sender_idx").on(table.senderClerkUserId),
 ]);
 
 export const favourites = pgTable("favourites", {
@@ -116,3 +166,7 @@ export type VendorProfile = typeof vendorProfiles.$inferSelect;
 export type MarketplaceVendor = typeof marketplaceVendors.$inferSelect;
 
 export type VendorPackageRecord = typeof vendorPackages.$inferSelect;
+
+export type Enquiry = typeof enquiries.$inferSelect;
+export type Conversation = typeof conversations.$inferSelect;
+export type ConversationMessage = typeof messages.$inferSelect;
