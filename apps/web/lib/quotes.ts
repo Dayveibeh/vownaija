@@ -156,3 +156,32 @@ export async function listAccountBookings(userId:string,role:"couple"|"vendor"|"
     ORDER BY b.confirmed_at DESC
   `; return rows.map(r=>mapBooking(r as Record<string,unknown>));
 }
+
+
+export async function getQuoteForAccount(
+  quoteId: string,
+  userId: string,
+  role: "couple" | "vendor" | "admin",
+) {
+  await ensureDatabaseSchema();
+  const sql = getSql();
+  const rows = await sql`
+    SELECT
+      q.*,
+      mv.business_name AS vendor_name,
+      COALESCE(e.contact_name, u.full_name) AS customer_name
+    FROM quotes q
+    JOIN marketplace_vendors mv ON mv.id = q.vendor_id
+    JOIN enquiries e ON e.id = q.enquiry_id
+    JOIN smitten_users u ON u.clerk_user_id = q.customer_clerk_user_id
+    WHERE q.id = ${quoteId}
+      AND (
+        (${role} = 'couple' AND q.customer_clerk_user_id = ${userId})
+        OR
+        (${role} <> 'couple' AND q.vendor_owner_clerk_user_id = ${userId})
+      )
+    LIMIT 1
+  `;
+  if (!rows[0]) return null;
+  return mapQuote(rows[0] as Record<string, unknown>);
+}
