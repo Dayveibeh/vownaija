@@ -32,7 +32,7 @@ import {
   type MarketplaceVendorListResponse,
 } from "@smitten/shared";
 
-type HomeVendor = CoupleVendor & { tag: string };
+type HomeVendor = CoupleVendor & { tag: string; acceptingEnquiries: boolean };
 
 const categories = [
   { name: "Venues", icon: Gem, count: "680+" },
@@ -123,7 +123,7 @@ export default function Home() {
         if (controller.signal.aborted) return;
         setVendors(result.vendors.map((record) => {
           const vendor = coupleVendorFromMarketplaceRecord(record);
-          return { ...vendor, tag: tagForVendor(vendor) };
+          return { ...vendor, tag: tagForVendor(vendor), acceptingEnquiries: Boolean(record.acceptingEnquiries) };
         }));
       })
       .catch((error) => {
@@ -363,7 +363,7 @@ export default function Home() {
         <section className="vendor-preview-modal" role="dialog" aria-modal="true" aria-label={`${activeVendor.name} profile`} onMouseDown={(event) => event.stopPropagation()}>
           <button className="vendor-modal-close" onClick={() => setActiveVendor(null)} aria-label="Close vendor profile"><X /></button>
           <img src={activeVendor.image} alt={`${activeVendor.name} wedding portfolio`} />
-          <div><p className="vendor-category">{activeVendor.category}</p><h2>{activeVendor.name}</h2><p className="vendor-location"><MapPin size={14} /> {displayLocation(activeVendor)}</p><p>Verified on Smitten with {activeVendor.reviews} couple reviews and packages starting at {activeVendor.price.replace("From ", "")}.</p><div className="vendor-modal-actions"><Link className="button button-dark" href={`/vendor/${activeVendor.id}`}>Open full profile</Link><Link className="button button-primary" href="/couples/sign-up">Request a quote</Link></div></div>
+          <div><p className="vendor-category">{activeVendor.category}</p><h2>{activeVendor.name}</h2><p className="vendor-location"><MapPin size={14} /> {displayLocation(activeVendor)}</p><p>Verified on Smitten with {activeVendor.reviews} couple reviews and packages starting at {activeVendor.price.replace("From ", "")}.</p><div className="vendor-modal-actions"><Link className="button button-dark" href={`/vendor/${activeVendor.id}`}>Open full profile</Link>{activeVendor.acceptingEnquiries ? <Link className="button button-primary" href={`/vendor/${activeVendor.id}?enquire=1`}>Request a quote</Link> : <Link className="button button-primary" href={`/vendor/${activeVendor.id}`}>View services</Link>}</div></div>
         </section>
       </div>}
     </main>
