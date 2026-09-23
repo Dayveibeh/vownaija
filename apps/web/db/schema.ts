@@ -112,6 +112,8 @@ export const enquiries = pgTable("enquiries", {
   weddingLocation: text("wedding_location").notNull(),
   guestCount: text("guest_count"),
   budgetBand: text("budget_band"),
+  contactName: text("contact_name"),
+  contactEmail: text("contact_email"),
   message: text("message").notNull(),
   status: text("status", { enum: ["new", "active", "closed"] }).default("new").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
