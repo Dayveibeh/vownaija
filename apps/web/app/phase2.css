@@ -2065,6 +2065,18 @@ button.user-avatar {
   font-weight: 700;
 }
 
+.quote-accepted-banner > span {
+  flex: 1;
+}
+
+.quote-accepted-banner > a {
+  color: #435235;
+  font-size: 8px;
+  font-weight: 760;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .quote-detail-error {
   margin: 0;
   color: #a24e4c;
