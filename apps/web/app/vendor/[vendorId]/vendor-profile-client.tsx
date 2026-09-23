@@ -66,6 +66,17 @@ export default function VendorProfileClient({ vendor }: { vendor: MarketplaceVen
     }
   }
 
+  function openEnquiry(packageId: string | null = null) {
+    if (!vendor.acceptingEnquiries) {
+      setNotice("This showcase profile hasn’t connected its Smitten inbox yet. Try a vendor marked as accepting enquiries.");
+      return;
+    }
+    setSelectedPackageId(packageId);
+    setEnquiryError("");
+    setSubmitted(false);
+    setQuoteOpen(true);
+  }
+
   async function sendQuote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setEnquiryError("");
@@ -126,7 +137,7 @@ export default function VendorProfileClient({ vendor }: { vendor: MarketplaceVen
         </nav>
         <div className="profile-header-actions">
           <SessionAccountNav variant="compact" />
-          <button className="button button-primary button-small" onClick={() => { setSelectedPackageId(null); setQuoteOpen(true); }}>Request a quote</button>
+          <button className="button button-primary button-small" onClick={() => openEnquiry()}>Request a quote</button>
         </div>
       </header>
 
@@ -166,7 +177,7 @@ export default function VendorProfileClient({ vendor }: { vendor: MarketplaceVen
             <div className="package-list">
               {vendor.packages.map((item) => <article key={item.id}>
                 <div>{item.featured ? <span>Most popular</span> : null}<h3>{item.title}</h3><p>{item.description}</p></div>
-                <div><strong>From {formatNaira(item.price)}</strong><button onClick={() => { setSelectedPackageId(item.id); setQuoteOpen(true); }}>Get this quote <ChevronRight size={16} /></button></div>
+                <div><strong>From {formatNaira(item.price)}</strong><button onClick={() => openEnquiry(item.id)}>Get this quote <ChevronRight size={16} /></button></div>
               </article>)}
             </div>
           </section>
@@ -181,12 +192,12 @@ export default function VendorProfileClient({ vendor }: { vendor: MarketplaceVen
         </article>
 
         <aside className="profile-enquiry-card">
-          <div className="availability"><span /><strong>{vendor.availability}</strong></div>
+          <div className="availability"><span /><strong>{vendor.acceptingEnquiries ? vendor.availability : "Showcase profile · Inbox not connected yet"}</strong></div>
           <h3>Interested in {vendor.businessName}?</h3>
           <p>Share your wedding details and request a personalised quote.</p>
           <div className="vendor-profile-price"><small>Packages from</small><strong>{formatNaira(Number(vendor.startingPrice))}</strong></div>
-          <button className="button button-primary" onClick={() => { setSelectedPackageId(null); setQuoteOpen(true); }}>Request a free quote</button>
-          <div className="response-time"><MessageCircle size={17} /><span><strong>{vendor.responseTime}</strong>No booking fee to enquire</span></div>
+          <button className="button button-primary" onClick={() => openEnquiry()}>Request a free quote</button>
+          <div className="response-time"><MessageCircle size={17} /><span><strong>{vendor.acceptingEnquiries ? vendor.responseTime : "Browse their work for inspiration"}</strong>{vendor.acceptingEnquiries ? "No booking fee to enquire" : "Live enquiries are available on connected vendor profiles"}</span></div>
         </aside>
       </section>
 
