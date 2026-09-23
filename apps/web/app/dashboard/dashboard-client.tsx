@@ -118,9 +118,9 @@ export default function DashboardClient({ profile }: { profile: { fullName: stri
         <nav>
           <small>Workspace</small>
           <button className={tab === "Overview" ? "active" : ""} onClick={() => setTab("Overview")}><LayoutDashboard size={18} /> Overview</button>
-          <button className={tab === "Enquiries" ? "active" : ""} onClick={() => setTab("Enquiries")}><Users size={18} /> Enquiries <span>3</span></button>
+          <Link href="/dashboard/enquiries"><Users size={18} /> Enquiries</Link>
           <button className={tab === "Quotes" ? "active" : ""} onClick={() => setTab("Quotes")}><FileText size={18} /> Quotes</button>
-          <button className={tab === "Messages" ? "active" : ""} onClick={() => setTab("Messages")}><Mail size={18} /> Messages <span>2</span></button>
+          <Link href="/dashboard/messages"><Mail size={18} /> Messages</Link>
           <small>Business</small>
           <button className={tab === "Portfolio" ? "active" : ""} onClick={() => setTab("Portfolio")}><ImagePlus size={18} /> Portfolio</button>
           <button className={tab === "Reviews" ? "active" : ""} onClick={() => setTab("Reviews")}><Star size={18} /> Reviews</button>
@@ -130,7 +130,7 @@ export default function DashboardClient({ profile }: { profile: { fullName: stri
       </aside>
 
       <section className="dashboard-main">
-        <header className="dashboard-topbar"><button className="dash-menu" onClick={() => setMobileNav(true)}><Menu /></button><div className="dash-search"><Search size={17} /><input placeholder="Search clients, quotes, messages…" /><kbd>⌘ K</kbd></div><div><button className="ai-top-button" onClick={() => setAiOpen(true)}><Sparkles size={16} /> Ask Smitten AI</button><button className="notification-button" onClick={() => showToast("You have 2 unread messages")}><Bell size={19} /><span /></button><span className="user-avatar">{initials}</span></div></header>
+        <header className="dashboard-topbar"><button className="dash-menu" onClick={() => setMobileNav(true)}><Menu /></button><div className="dash-search"><Search size={17} /><input placeholder="Search clients, quotes, messages…" /><kbd>⌘ K</kbd></div><div><button className="ai-top-button" onClick={() => setAiOpen(true)}><Sparkles size={16} /> Ask Smitten AI</button><Link className="notification-button" href="/dashboard/messages" aria-label="Open messages"><Bell size={19} /><span /></Link><span className="user-avatar">{initials}</span></div></header>
 
         <div className="dashboard-content">
           {tab === "Overview" && <Overview setTab={setTab} openQuote={() => openQuote()} showToast={showToast} firstName={firstName} businessName={profile.businessName} />}
