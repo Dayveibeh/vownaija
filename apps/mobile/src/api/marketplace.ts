@@ -12,7 +12,7 @@ declare const process: {
   };
 };
 
-function apiBaseUrl() {
+export function apiBaseUrl() {
   const configured = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
   return (configured || DEFAULT_API_BASE_URL).replace(/\/$/, "");
 }
