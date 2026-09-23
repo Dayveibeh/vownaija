@@ -1,4 +1,5 @@
 import { StatusBar } from "expo-status-bar";
+import { useAuth, useClerk, useSignIn, useSignUp, useUser } from "@clerk/expo";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -11,6 +12,7 @@ import { MatchModal } from "./src/components/MatchModal";
 import { MotionPressable } from "./src/components/MotionPressable";
 import { VendorCard } from "./src/components/VendorCard";
 import { cardShadow, colors, fonts } from "./src/theme";
+import { bootstrapAccount, loadCustomerPreferences, loadFavourites, patchCustomerPreferences, updateFavourite, type MobileCustomerPreferences } from "./src/api/account";
 
 type Tab = "Home" | "Discover" | "Saved" | "Planning" | "Profile";
 type SymbolPair = { symbol: AppSymbolName; fallback: AppSymbolFallback };
@@ -38,6 +40,10 @@ export default function App() {
 
 function SmittenApp() {
   const insets = useSafeAreaInsets();
+  const { isLoaded: authLoaded, isSignedIn, getToken } = useAuth();
+  const { signOut } = useClerk();
+  const { user } = useUser();
+  const signedIn = Boolean(isSignedIn);
   const screenOpacity = useRef(new Animated.Value(1)).current;
   const screenOffset = useRef(new Animated.Value(0)).current;
   const [tab, setTab] = useState<Tab>("Home");
@@ -53,18 +59,52 @@ function SmittenApp() {
   const [homeCategory, setHomeCategory] = useState("All");
   const [selectedVendor, setSelectedVendor] = useState<CoupleVendor | null>(null);
   const [notice, setNotice] = useState("");
-  const [signedIn, setSignedIn] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [planningReminders, setPlanningReminders] = useState(true);
   const [unreadNotifications, setUnreadNotifications] = useState(2);
   const [checklist, setChecklist] = useState([true, false, false, false, false]);
+  const [customerPreferences, setCustomerPreferences] = useState<MobileCustomerPreferences | null>(null);
+  const [accountSyncing, setAccountSyncing] = useState(false);
 
   useEffect(() => {
     if (!notice) return;
     const timeout = setTimeout(() => setNotice(""), 2600);
     return () => clearTimeout(timeout);
   }, [notice]);
+
+  useEffect(() => {
+    if (!authLoaded) return;
+    if (!isSignedIn) {
+      setSaved([]);
+      setCustomerPreferences(null);
+      setAccountSyncing(false);
+      return;
+    }
+
+    let cancelled = false;
+    setAccountSyncing(true);
+
+    void (async () => {
+      await bootstrapAccount(getToken);
+      const [favouriteIds, preferences] = await Promise.all([
+        loadFavourites(getToken),
+        loadCustomerPreferences(getToken),
+      ]);
+      if (cancelled) return;
+      setSaved(favouriteIds);
+      setCustomerPreferences(preferences);
+      if (preferences?.weddingLocation) setLocation(preferences.weddingLocation);
+    })()
+      .catch(() => {
+        if (!cancelled) showNotice("Your account is signed in, but Smitten couldn’t sync all of your planning data yet.");
+      })
+      .finally(() => {
+        if (!cancelled) setAccountSyncing(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [authLoaded, getToken, isSignedIn]);
 
   useEffect(() => {
     screenOpacity.setValue(0);
@@ -75,31 +115,43 @@ function SmittenApp() {
     ]).start();
   }, [screenOffset, screenOpacity, tab]);
 
-  function toggleSaved(name: string) {
-    setSaved((current) => current.includes(name) ? current.filter((item) => item !== name) : [...current, name]);
+  async function toggleSaved(vendorId: string) {
+    if (!signedIn) {
+      setAuthVisible(true);
+      showNotice("Sign in to keep saved vendors synced across your devices.");
+      return;
+    }
+
+    const wasSaved = saved.includes(vendorId);
+    setSaved((current) => wasSaved ? current.filter((item) => item !== vendorId) : [...current, vendorId]);
+
+    try {
+      await updateFavourite(getToken, vendorId, !wasSaved);
+    } catch {
+      setSaved((current) => wasSaved ? [...new Set([...current, vendorId])] : current.filter((item) => item !== vendorId));
+      showNotice("We couldn’t sync that saved vendor. Please try again.");
+    }
   }
 
   function showNotice(message: string) {
     setNotice(message);
   }
 
-  function closeAccount() {
+  function resetLocalPlanningData() {
     Alert.alert(
-      "Close your Smitten account?",
-      "This clears your saved vendors, matches and planning progress from this device. This action cannot be undone.",
+      "Reset this device’s planning view?",
+      "This clears local match results and checklist progress on this device. Your Smitten account and synced favourites stay intact.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Close account",
+          text: "Reset local data",
           style: "destructive",
           onPress: () => {
-            setSignedIn(false);
-            setSaved([]);
             setMatches(null);
             setChecklist([false, false, false, false, false]);
             setSettingsVisible(false);
             setTab("Home");
-            showNotice("Account closed and local data cleared");
+            showNotice("Local planning view reset");
           },
         },
       ],
@@ -114,7 +166,7 @@ function SmittenApp() {
         ? <SavedScreen darkMode={darkMode} saved={saved} onSave={toggleSaved} onView={setSelectedVendor} openDiscover={() => setTab("Discover")} />
         : tab === "Planning"
           ? <PlanningScreen darkMode={darkMode} checklist={checklist} onToggle={(index) => setChecklist((current) => current.map((item, itemIndex) => itemIndex === index ? !item : item))} openMatch={() => setMatchVisible(true)} />
-          : <ProfileScreen darkMode={darkMode} signedIn={signedIn} savedCount={saved.length} completedCount={checklist.filter(Boolean).length} matchCount={matches?.length ?? 0} openAuth={() => setAuthVisible(true)} openSettings={() => setSettingsVisible(true)} onAction={showNotice} />;
+          : <ProfileScreen darkMode={darkMode} signedIn={signedIn} displayName={user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? "Your Smitten"} email={user?.primaryEmailAddress?.emailAddress ?? ""} syncing={accountSyncing} savedCount={saved.length} completedCount={checklist.filter(Boolean).length} matchCount={matches?.length ?? 0} openAuth={() => setAuthVisible(true)} openSettings={() => setSettingsVisible(true)} onAction={showNotice} />;
 
   return (
     <View style={[styles.app, darkMode && styles.appDark]}>
@@ -127,16 +179,48 @@ function SmittenApp() {
       </BlurView>
       <MatchModal
         visible={matchVisible}
+        initialPreferences={customerPreferences ? {
+          location: customerPreferences.weddingLocation ?? undefined,
+          budgetCeiling: customerPreferences.budgetCeiling ? Number(customerPreferences.budgetCeiling) : undefined,
+          services: customerPreferences.requiredServices,
+          style: customerPreferences.weddingStyle ?? undefined,
+        } : undefined}
         onClose={() => setMatchVisible(false)}
         onComplete={(preferences) => {
           setMatches(recommendCoupleVendors(preferences).slice(0, 5));
+          setLocation(preferences.location);
           setMatchVisible(false);
           setTab("Home");
+
+          if (signedIn) {
+            const budgetBand = preferences.budgetCeiling < 1000000
+              ? "Under ₦1m"
+              : preferences.budgetCeiling <= 3000000
+                ? "₦1m–₦3m"
+                : preferences.budgetCeiling <= 7000000
+                  ? "₦3m–₦7m"
+                  : "₦7m+";
+            setCustomerPreferences((current) => ({
+              ...(current ?? {}),
+              weddingLocation: preferences.location,
+              budgetBand,
+              budgetCeiling: preferences.budgetCeiling,
+              weddingStyle: preferences.style,
+              requiredServices: preferences.services,
+              currencyCode: "NGN",
+            }));
+            void patchCustomerPreferences(getToken, {
+              weddingLocation: preferences.location,
+              budgetBand,
+              weddingStyle: preferences.style,
+              requiredServices: preferences.services,
+            }).catch(() => showNotice("Your matches are ready, but those preferences couldn’t be synced yet."));
+          }
         }}
       />
-      <AuthModal visible={authVisible} onClose={() => setAuthVisible(false)} onComplete={() => { setSignedIn(true); setAuthVisible(false); showNotice("You’re signed in to Smitten"); }} />
+      <AuthModal visible={authVisible} onClose={() => setAuthVisible(false)} onComplete={() => { setAuthVisible(false); showNotice("You’re signed in to Smitten"); }} />
       <LocationModal visible={locationVisible} selected={location} onClose={() => setLocationVisible(false)} onSelect={(city) => { setLocation(city); setLocationVisible(false); showNotice(`Location changed to ${city}`); }} />
-      <VendorModal vendor={selectedVendor} saved={selectedVendor ? saved.includes(selectedVendor.name) : false} onClose={() => setSelectedVendor(null)} onSave={() => selectedVendor && toggleSaved(selectedVendor.name)} onQuote={() => { if (selectedVendor) showNotice(`Enquiry started for ${selectedVendor.name}`); setSelectedVendor(null); }} />
+      <VendorModal vendor={selectedVendor} saved={selectedVendor ? saved.includes(selectedVendor.id) : false} onClose={() => setSelectedVendor(null)} onSave={() => selectedVendor && toggleSaved(selectedVendor.id)} onQuote={() => { if (selectedVendor) showNotice(`Enquiry started for ${selectedVendor.name}`); setSelectedVendor(null); }} />
       <NotificationsModal visible={notificationsVisible} darkMode={darkMode} unreadCount={unreadNotifications} onClose={() => setNotificationsVisible(false)} onMarkAllRead={() => { setUnreadNotifications(0); showNotice("Notifications marked as read"); }} />
       <SettingsModal
         visible={settingsVisible}
@@ -148,8 +232,8 @@ function SmittenApp() {
         onDarkMode={setDarkMode}
         onPushNotifications={setPushNotifications}
         onPlanningReminders={setPlanningReminders}
-        onSignOut={() => { setSignedIn(false); setSettingsVisible(false); showNotice("You’re signed out of Smitten"); }}
-        onCloseAccount={closeAccount}
+        onSignOut={() => { void signOut().then(() => { setSaved([]); setCustomerPreferences(null); setMatches(null); setSettingsVisible(false); setTab("Home"); showNotice("You’re signed out of Smitten"); }); }}
+        onCloseAccount={resetLocalPlanningData}
       />
       {notice ? <View accessibilityLiveRegion="polite" style={[styles.toast, { bottom: 96 + insets.bottom }]}><AppSymbol name="checkmark.circle.fill" fallback="checkmark-circle" size={18} color={colors.white} weight="semibold" /><Text style={styles.toastText}>{notice}</Text></View> : null}
     </View>
@@ -239,9 +323,9 @@ function HomeScreen({ darkMode, unreadNotifications, saved, matches, location, q
       </View>
       {vendors.length > 0 ? (
         <View style={styles.vendorMosaic}>
-          <VendorPlanCard vendor={vendors[0]} tone="peach" tall saved={saved.includes(vendors[0].name)} score={matches ? (vendors[0] as CoupleVendor & { score: number }).score : undefined} onSave={() => onSave(vendors[0].name)} onView={() => onView(vendors[0])} />
+          <VendorPlanCard vendor={vendors[0]} tone="peach" tall saved={saved.includes(vendors[0].id)} score={matches ? (vendors[0] as CoupleVendor & { score: number }).score : undefined} onSave={() => onSave(vendors[0].id)} onView={() => onView(vendors[0])} />
           <View style={styles.vendorMosaicSide}>
-            {vendors.slice(1, 3).map((vendor, index) => <VendorPlanCard key={vendor.name} vendor={vendor} tone={index === 0 ? "blue" : "mint"} saved={saved.includes(vendor.name)} score={matches ? (vendor as CoupleVendor & { score: number }).score : undefined} onSave={() => onSave(vendor.name)} onView={() => onView(vendor)} />)}
+            {vendors.slice(1, 3).map((vendor, index) => <VendorPlanCard key={vendor.name} vendor={vendor} tone={index === 0 ? "blue" : "mint"} saved={saved.includes(vendor.id)} score={matches ? (vendor as CoupleVendor & { score: number }).score : undefined} onSave={() => onSave(vendor.id)} onView={() => onView(vendor)} />)}
             {vendors.length < 3 ? <Pressable onPress={openDiscover} style={[styles.vendorPlanCard, styles.vendorPlanBlue, styles.vendorExploreCard]}><View style={styles.vendorExploreIcon}><AppSymbol name="plus" fallback="add" size={20} color={colors.ink} weight="medium" /></View><Text style={styles.vendorPlanName}>Explore more vendors</Text></Pressable> : null}
           </View>
         </View>
@@ -275,20 +359,20 @@ function DiscoverScreen({ darkMode, saved, onSave, onView }: { darkMode: boolean
           {["All", ...serviceOptions].map((item) => <Pressable key={item} onPress={() => setCategory(item)} accessibilityRole="button" accessibilityState={{ selected: category === item }} style={[styles.filterChip, category === item && styles.filterChipActive]}><Text style={[styles.filterText, category === item && styles.filterTextActive]}>{item}</Text></Pressable>)}
         </ScrollView>
         <Text style={styles.resultCount}>{results.length} trusted vendors</Text>
-        {results.length > 0 ? <View style={styles.verticalList}>{results.map((vendor) => <VendorCard key={vendor.name} fullWidth darkMode={darkMode} vendor={vendor} saved={saved.includes(vendor.name)} onSave={() => onSave(vendor.name)} onView={() => onView(vendor)} />)}</View> : <View style={styles.emptyState}><View style={styles.emptyIcon}><AppSymbol name="magnifyingglass" fallback="search-outline" size={28} color={colors.plum} weight="light" /></View><Text style={styles.emptyTitle}>No matches yet</Text><Text style={styles.emptyText}>Try a broader search or choose All services.</Text></View>}
+        {results.length > 0 ? <View style={styles.verticalList}>{results.map((vendor) => <VendorCard key={vendor.name} fullWidth darkMode={darkMode} vendor={vendor} saved={saved.includes(vendor.id)} onSave={() => onSave(vendor.id)} onView={() => onView(vendor)} />)}</View> : <View style={styles.emptyState}><View style={styles.emptyIcon}><AppSymbol name="magnifyingglass" fallback="search-outline" size={28} color={colors.plum} weight="light" /></View><Text style={styles.emptyTitle}>No matches yet</Text><Text style={styles.emptyText}>Try a broader search or choose All services.</Text></View>}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 function SavedScreen({ darkMode, saved, onSave, onView, openDiscover }: { darkMode: boolean; saved: string[]; onSave: (name: string) => void; onView: (vendor: CoupleVendor) => void; openDiscover: () => void }) {
-  const savedVendors = coupleVendors.filter((vendor) => saved.includes(vendor.name));
+  const savedVendors = coupleVendors.filter((vendor) => saved.includes(vendor.id));
   return (
     <SafeAreaView style={[styles.safeScreen, darkMode && styles.darkScreen]} edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.pagePadding}>
         <PageHeader darkMode={darkMode} title="Saved" subtitle="Keep your favourite vendors close." />
         {savedVendors.length > 0
-          ? <View style={styles.verticalList}>{savedVendors.map((vendor) => <VendorCard key={vendor.name} fullWidth darkMode={darkMode} vendor={vendor} saved onSave={() => onSave(vendor.name)} onView={() => onView(vendor)} />)}</View>
+          ? <View style={styles.verticalList}>{savedVendors.map((vendor) => <VendorCard key={vendor.name} fullWidth darkMode={darkMode} vendor={vendor} saved onSave={() => onSave(vendor.id)} onView={() => onView(vendor)} />)}</View>
           : <View style={styles.emptyState}><View style={styles.emptyIcon}><AppSymbol name="heart" fallback="heart-outline" size={29} color={colors.plum} weight="light" /></View><Text style={styles.emptyTitle}>Your shortlist starts here</Text><Text style={styles.emptyText}>Tap the heart on any vendor to save them and compare your favourites.</Text><Pressable onPress={openDiscover} style={styles.emptyButton}><Text style={styles.emptyButtonText}>Discover vendors</Text></Pressable></View>}
       </ScrollView>
     </SafeAreaView>
