@@ -2,7 +2,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { ensureDatabaseSchema, getDb } from "@/db";
-import { users, vendorProfiles, type SmittenUser, type UserRole } from "@/db/schema";
+import { customerProfiles, users, vendorProfiles, type SmittenUser, type UserRole } from "@/db/schema";
 
 export function isClerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY);
@@ -12,7 +12,7 @@ function roleFromMetadata(metadata: Record<string, unknown> | undefined, fallbac
   const smitten = metadata?.smitten;
   if (smitten && typeof smitten === "object" && "role" in smitten) {
     const role = (smitten as { role?: unknown }).role;
-    if (role === "couple" || role === "vendor") return role;
+    if (role === "couple" || role === "vendor" || role === "admin") return role;
   }
   return fallback;
 }
@@ -32,10 +32,25 @@ export async function getUserProfile(clerkUserId: string) {
   return profile ?? null;
 }
 
+export async function getCustomerProfile(clerkUserId: string) {
+  await ensureDatabaseSchema();
+  const [profile] = await getDb().select().from(customerProfiles).where(eq(customerProfiles.clerkUserId, clerkUserId)).limit(1);
+  return profile ?? null;
+}
+
 export async function getVendorProfile(clerkUserId: string) {
   await ensureDatabaseSchema();
   const [profile] = await getDb().select().from(vendorProfiles).where(eq(vendorProfiles.clerkUserId, clerkUserId)).limit(1);
   return profile ?? null;
+}
+
+async function ensureRoleProfile(clerkUserId: string, role: UserRole) {
+  if (role !== "couple") return;
+
+  await getDb().insert(customerProfiles).values({
+    clerkUserId,
+    currencyCode: "NGN",
+  }).onConflictDoNothing({ target: customerProfiles.clerkUserId });
 }
 
 export async function syncCurrentUserProfile(fallbackRole: UserRole = "couple"): Promise<SmittenUser> {
@@ -60,11 +75,14 @@ export async function syncCurrentUserProfile(fallbackRole: UserRole = "couple"):
     email,
     fullName,
     role,
+    countryCode: "NG",
+    currencyCode: "NGN",
   }).onConflictDoUpdate({
     target: users.clerkUserId,
     set: { email, fullName, updatedAt: new Date() },
   }).returning();
 
+  await ensureRoleProfile(userId, profile.role);
   return profile;
 }
 
@@ -82,5 +100,6 @@ export async function requireUserRole(expectedRole: UserRole) {
     redirect(profile.role === "vendor" ? "/dashboard" : "/couples/dashboard");
   }
 
+  await ensureRoleProfile(userId, profile.role);
   return profile;
 }

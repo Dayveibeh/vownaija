@@ -1,0 +1,68 @@
+/* Simplified vendor onboarding icon / currency inputs */
+.form-step .input-icon,
+.form-step .input-prefix {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-height:58px;
+  padding:0 16px;
+  overflow:hidden;
+  border:1px solid #ded7d1;
+  border-radius:14px;
+  background:#fcfbf9;
+  color:#968b8d;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9);
+  transition:border-color .18s ease,box-shadow .18s ease,background .18s ease;
+}
+
+.form-step .input-icon:hover,
+.form-step .input-prefix:hover {
+  border-color:#cfc4bc;
+  background:#fff;
+}
+
+.form-step .input-icon:focus-within,
+.form-step .input-prefix:focus-within {
+  border-color:#76835f;
+  background:#fff;
+  box-shadow:0 0 0 4px rgba(118,131,95,.12),0 10px 28px rgba(69,56,57,.06);
+}
+
+.form-step .input-icon svg {
+  flex:0 0 auto;
+  color:#968b8d;
+}
+
+.form-step .input-prefix > span {
+  flex:0 0 auto;
+  display:grid;
+  place-items:center;
+  min-width:auto;
+  padding:0;
+  color:#7d7174;
+  font-size:17px;
+  font-weight:700;
+  line-height:1;
+}
+
+.form-step .input-icon input,
+.form-step .input-prefix input {
+  flex:1;
+  min-width:0;
+  min-height:56px;
+  padding:0;
+  border:0 !important;
+  border-radius:0 !important;
+  outline:0;
+  background:transparent !important;
+  box-shadow:none !important;
+}
+
+.form-step .input-icon input:hover,
+.form-step .input-prefix input:hover,
+.form-step .input-icon input:focus,
+.form-step .input-prefix input:focus {
+  border:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+}
