@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LayoutAnimation, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { serviceOptions, styleOptions, weddingLocations, type VendorMatchPreferences } from "@smitten/shared";
 import { AnimatedProgress } from "./AnimatedProgress";
@@ -9,18 +9,26 @@ const appFont = fonts.regular;
 const mediumFont = fonts.medium;
 const headingFont = fonts.semibold;
 
-export function MatchModal({ visible, onClose, onComplete }: { visible: boolean; onClose: () => void; onComplete: (preferences: VendorMatchPreferences) => void }) {
+export function MatchModal({ visible, initialPreferences, onClose, onComplete }: { visible: boolean; initialPreferences?: Partial<VendorMatchPreferences>; onClose: () => void; onComplete: (preferences: VendorMatchPreferences) => void }) {
   const [step, setStep] = useState(0);
   const [location, setLocation] = useState("Lagos");
   const [budgetCeiling, setBudgetCeiling] = useState(1000000);
   const [services, setServices] = useState<string[]>(["Planning & décor", "Photography"]);
   const [style, setStyle] = useState("Modern");
   const budgets = [
-    { label: "Under ₦1m", value: 500000, detail: "Keep it lean" },
-    { label: "₦1m–₦3m", value: 1000000, detail: "Value-focused" },
-    { label: "₦3m–₦7m", value: 2200000, detail: "More flexibility" },
-    { label: "₦7m+", value: 10000000, detail: "Premium & luxury" }
+    { label: "Under ₦1m", value: 999999, detail: "Keep it lean" },
+    { label: "₦1m–₦3m", value: 3000000, detail: "Value-focused" },
+    { label: "₦3m–₦7m", value: 7000000, detail: "More flexibility" },
+    { label: "₦7m+", value: 50000000, detail: "Premium & luxury" }
   ];
+
+  useEffect(() => {
+    if (!visible || !initialPreferences) return;
+    if (initialPreferences.location) setLocation(initialPreferences.location);
+    if (typeof initialPreferences.budgetCeiling === "number" && Number.isFinite(initialPreferences.budgetCeiling)) setBudgetCeiling(initialPreferences.budgetCeiling);
+    if (Array.isArray(initialPreferences.services) && initialPreferences.services.length) setServices(initialPreferences.services);
+    if (initialPreferences.style) setStyle(initialPreferences.style);
+  }, [initialPreferences, visible]);
 
   function toggleService(service: string) {
     setServices((current) => current.includes(service) ? current.filter((item) => item !== service) : [...current, service]);
