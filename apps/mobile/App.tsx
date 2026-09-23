@@ -409,7 +409,7 @@ function PlanningScreen({ darkMode, checklist, onToggle, openMatch }: { darkMode
   );
 }
 
-function ProfileScreen({ darkMode, signedIn, savedCount, completedCount, matchCount, openAuth, openSettings, onAction }: { darkMode: boolean; signedIn: boolean; savedCount: number; completedCount: number; matchCount: number; openAuth: () => void; openSettings: () => void; onAction: (message: string) => void }) {
+function ProfileScreen({ darkMode, signedIn, displayName, email, syncing, savedCount, completedCount, matchCount, openAuth, openSettings, onAction }: { darkMode: boolean; signedIn: boolean; displayName: string; email: string; syncing: boolean; savedCount: number; completedCount: number; matchCount: number; openAuth: () => void; openSettings: () => void; onAction: (message: string) => void }) {
   return (
     <SafeAreaView style={[styles.safeScreen, darkMode && styles.darkScreen]} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.pagePadding} showsVerticalScrollIndicator={false}>
@@ -420,7 +420,7 @@ function ProfileScreen({ darkMode, signedIn, savedCount, completedCount, matchCo
         </View>
         <View style={styles.profileIdentity}>
           <View style={styles.profileAvatar}><Text style={styles.profileAvatarText}>S</Text><View style={styles.profileStatusDot} /></View>
-          <View style={styles.profileIdentityCopy}><Text style={[styles.profileName, darkMode && styles.pageTitleDark]}>{signedIn ? "Your Smitten" : "Wedding dreamer"}</Text><Text style={[styles.profileLocation, darkMode && styles.pageSubtitleDark]}>{signedIn ? "Your plans are synced" : "Planning beautifully, one step at a time"}</Text></View>
+          <View style={styles.profileIdentityCopy}><Text style={[styles.profileName, darkMode && styles.pageTitleDark]}>{signedIn ? displayName : "Wedding dreamer"}</Text><Text style={[styles.profileLocation, darkMode && styles.pageSubtitleDark]}>{signedIn ? (syncing ? "Syncing your Smitten plans…" : email || "Your plans are synced") : "Planning beautifully, one step at a time"}</Text></View>
           <Pressable onPress={signedIn ? () => onAction("Your Smitten profile is up to date") : openAuth} accessibilityRole="button" style={[styles.profileMiniAction, darkMode && styles.darkIconButton]}><AppSymbol name={signedIn ? "checkmark.seal.fill" : "pencil"} fallback={signedIn ? "checkmark-circle" : "create-outline"} size={18} color={darkMode ? colors.white : colors.ink} type="hierarchical" weight="medium" /></Pressable>
         </View>
         <View style={styles.profileMetrics}>
@@ -436,64 +436,207 @@ function ProfileScreen({ darkMode, signedIn, savedCount, completedCount, matchCo
 }
 
 function AuthModal({ visible, onClose, onComplete }: { visible: boolean; onClose: () => void; onComplete: () => void }) {
+  const { signIn, fetchStatus: signInFetchStatus } = useSignIn();
+  const { signUp, fetchStatus: signUpFetchStatus } = useSignUp();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [role, setRole] = useState<"couple" | "vendor">("couple");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [verificationMode, setVerificationMode] = useState<"signup" | "device-trust" | null>(null);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [error, setError] = useState("");
-  const [focusedField, setFocusedField] = useState<"name" | "email" | "password" | "confirm" | null>(null);
+  const [focusedField, setFocusedField] = useState<"name" | "email" | "password" | "confirm" | "code" | null>(null);
+  const busy = signInFetchStatus === "fetching" || signUpFetchStatus === "fetching";
 
-  function submit() {
+  function errorMessage(value: unknown) {
+    if (!value || typeof value !== "object") return "Something went wrong. Please try again.";
+    const item = value as { longMessage?: string; message?: string; errors?: Array<{ longMessage?: string; message?: string }> };
+    return item.longMessage || item.message || item.errors?.[0]?.longMessage || item.errors?.[0]?.message || "Something went wrong. Please try again.";
+  }
+
+  async function finishSignIn() {
+    await signIn.finalize();
+    onComplete();
+  }
+
+  async function submit() {
+    setError("");
     const strongPassword = password.length >= 8 && /\d/.test(password) && /[^A-Za-z0-9]/.test(password);
-    if (mode === "signup" && name.trim().length < 2) {
-      setError("Enter your name to create your Smitten account.");
-      return;
-    }
+
     if (!/^\S+@\S+\.\S+$/.test(email)) {
       setError("Enter a valid email address.");
       return;
     }
     if (!strongPassword) {
-      setError("Use a valid email and a password with 8+ characters, a number and a special character.");
+      setError("Use a password with 8+ characters, a number and a special character.");
       return;
     }
-    if (mode === "signup" && password !== confirmPassword) {
-      setError("Your passwords do not match.");
+
+    if (mode === "signup") {
+      if (name.trim().length < 2) {
+        setError("Enter your name to create your Smitten account.");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError("Your passwords do not match.");
+        return;
+      }
+
+      const parts = name.trim().split(/\s+/);
+      const firstName = parts[0];
+      const lastName = parts.slice(1).join(" ") || undefined;
+      const { error: signUpError } = await signUp.password({
+        emailAddress: email.trim().toLowerCase(),
+        password,
+        firstName,
+        lastName,
+        unsafeMetadata: {
+          smitten: {
+            role: "couple",
+            fullName: name.trim(),
+          },
+        },
+      });
+      if (signUpError) {
+        setError(errorMessage(signUpError));
+        return;
+      }
+
+      const { error: sendError } = await signUp.verifications.sendEmailCode();
+      if (sendError) {
+        setError(errorMessage(sendError));
+        return;
+      }
+      setCode("");
+      setVerificationMode("signup");
       return;
     }
+
+    const { error: signInError } = await signIn.password({
+      emailAddress: email.trim().toLowerCase(),
+      password,
+    });
+    if (signInError) {
+      setError(errorMessage(signInError));
+      return;
+    }
+
+    if (signIn.status === "complete") {
+      await finishSignIn();
+      return;
+    }
+
+    if (signIn.status === "needs_client_trust") {
+      const emailCodeFactor = signIn.supportedSecondFactors.find((factor) => factor.strategy === "email_code");
+      if (emailCodeFactor) {
+        const { error: sendError } = await signIn.mfa.sendEmailCode();
+        if (sendError) {
+          setError(errorMessage(sendError));
+          return;
+        }
+        setCode("");
+        setVerificationMode("device-trust");
+        return;
+      }
+    }
+
+    if (signIn.status === "needs_second_factor") {
+      setError("This account uses additional verification that isn’t available in this Phase 1 mobile build yet. Please sign in on the Smitten website.");
+      return;
+    }
+
+    setError("We couldn’t complete sign-in. Please try again.");
+  }
+
+  async function verifyCode() {
     setError("");
-    onComplete();
+    if (code.trim().length < 4) {
+      setError("Enter the verification code sent to your email.");
+      return;
+    }
+
+    if (verificationMode === "signup") {
+      const { error: verifyError } = await signUp.verifications.verifyEmailCode({ code: code.trim() });
+      if (verifyError) {
+        setError(errorMessage(verifyError));
+        return;
+      }
+      if (signUp.status === "complete") {
+        const { error: finalizeError } = await signUp.finalize();
+        if (finalizeError) {
+          setError(errorMessage(finalizeError));
+          return;
+        }
+        onComplete();
+        return;
+      }
+      setError("Your email was verified, but account setup needs one more step. Please try again.");
+      return;
+    }
+
+    if (verificationMode === "device-trust") {
+      const { error: verifyError } = await signIn.mfa.verifyEmailCode({ code: code.trim() });
+      if (verifyError) {
+        setError(errorMessage(verifyError));
+        return;
+      }
+      if (signIn.status === "complete") {
+        await finishSignIn();
+        return;
+      }
+      setError("The code was accepted, but sign-in is not complete yet.");
+    }
   }
 
   function changeMode(nextMode: "signin" | "signup") {
     LayoutAnimation.configureNext(LayoutAnimation.create(240, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity));
     setMode(nextMode);
+    setVerificationMode(null);
+    setCode("");
     setError("");
     setFocusedField(null);
   }
 
+  function close() {
+    setVerificationMode(null);
+    setCode("");
+    setError("");
+    onClose();
+  }
+
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={close}>
       <SafeAreaView style={styles.authScreen}>
-        <View style={styles.authTop}><Brand /><Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" style={styles.closeButton}><AppSymbol name="xmark" fallback="close" size={17} color={colors.ink} weight="semibold" /></Pressable></View>
+        <View style={styles.authTop}><Brand /><Pressable onPress={close} accessibilityRole="button" accessibilityLabel="Close" style={styles.closeButton}><AppSymbol name="xmark" fallback="close" size={17} color={colors.ink} weight="semibold" /></Pressable></View>
         <ScrollView contentContainerStyle={styles.authContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <Text style={styles.authKicker}>{mode === "signin" ? "WELCOME BACK" : "JOIN SMITTEN"}</Text><Text style={styles.authTitle}>{mode === "signin" ? "Your plans, right where you left them." : "Start planning something beautiful."}</Text><Text style={styles.authSubtitle}>{mode === "signin" ? "Sign in to continue your shortlist and checklist." : "Create one calm place for vendors, ideas and every detail."}</Text>
-          <View style={styles.authSegment}>
-            <Pressable onPress={() => changeMode("signin")} accessibilityRole="tab" accessibilityState={{ selected: mode === "signin" }} style={[styles.authSegmentItem, mode === "signin" && styles.authSegmentItemActive]}><Text style={[styles.authSegmentText, mode === "signin" && styles.authSegmentTextActive]}>Sign in</Text></Pressable>
-            <Pressable onPress={() => changeMode("signup")} accessibilityRole="tab" accessibilityState={{ selected: mode === "signup" }} style={[styles.authSegmentItem, mode === "signup" && styles.authSegmentItemActive]}><Text style={[styles.authSegmentText, mode === "signup" && styles.authSegmentTextActive]}>Create account</Text></Pressable>
-          </View>
-          <Text style={styles.inputLabel}>I’M HERE TO</Text>
-          <View style={styles.roleRow}><RoleCard symbol="heart" fallback="heart-outline" label="Plan a wedding" selected={role === "couple"} onPress={() => setRole("couple")} /><RoleCard symbol="storefront" fallback="briefcase-outline" label="Grow my business" selected={role === "vendor"} onPress={() => setRole("vendor")} /></View>
-          {mode === "signup" ? <><Text style={styles.inputLabel}>YOUR NAME</Text><View style={[styles.authField, focusedField === "name" && styles.inputFocused]}><AppSymbol name="person" fallback="person-outline" size={18} color={colors.muted} weight="regular" /><TextInput value={name} onChangeText={setName} onFocus={() => setFocusedField("name")} onBlur={() => setFocusedField(null)} style={styles.authFieldInput} placeholder="Your full name" placeholderTextColor="#96958F" autoCapitalize="words" textContentType="name" /></View></> : null}
-          <Text style={styles.inputLabel}>EMAIL ADDRESS</Text><View style={[styles.authField, focusedField === "email" && styles.inputFocused]}><AppSymbol name="envelope" fallback="mail-outline" size={18} color={colors.muted} weight="regular" /><TextInput value={email} onChangeText={setEmail} onFocus={() => setFocusedField("email")} onBlur={() => setFocusedField(null)} style={styles.authFieldInput} placeholder="you@example.com" placeholderTextColor="#96958F" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} textContentType="emailAddress" /></View>
-          <Text style={styles.inputLabel}>PASSWORD</Text><View style={[styles.authField, focusedField === "password" && styles.inputFocused]}><AppSymbol name="lock" fallback="lock-closed-outline" size={18} color={colors.muted} weight="regular" /><TextInput value={password} onChangeText={setPassword} onFocus={() => setFocusedField("password")} onBlur={() => setFocusedField(null)} style={styles.authFieldInput} placeholder="Enter your password" placeholderTextColor="#96958F" secureTextEntry={!passwordVisible} textContentType={mode === "signin" ? "password" : "newPassword"} /><Pressable onPress={() => setPasswordVisible((current) => !current)} accessibilityRole="button" accessibilityLabel={passwordVisible ? "Hide password" : "Show password"} hitSlop={10}><AppSymbol name={passwordVisible ? "eye.slash" : "eye"} fallback={passwordVisible ? "eye-off-outline" : "eye-outline"} size={18} color={colors.muted} weight="regular" /></Pressable></View>
-          {mode === "signup" ? <><Text style={styles.passwordHint}>8+ characters · 1 number · 1 special character</Text><Text style={styles.inputLabel}>CONFIRM PASSWORD</Text><View style={[styles.authField, focusedField === "confirm" && styles.inputFocused]}><AppSymbol name="lock.shield" fallback="shield-checkmark-outline" size={18} color={colors.muted} weight="regular" /><TextInput value={confirmPassword} onChangeText={setConfirmPassword} onFocus={() => setFocusedField("confirm")} onBlur={() => setFocusedField(null)} style={styles.authFieldInput} placeholder="Enter it again" placeholderTextColor="#96958F" secureTextEntry={!passwordVisible} textContentType="newPassword" /></View></> : <Pressable onPress={() => setError("Password reset will be available once account services are connected.")} accessibilityRole="button" style={styles.forgotButton}><Text style={styles.forgotText}>Forgot password?</Text></Pressable>}
-          {error ? <Text style={styles.formError}>{error}</Text> : null}
-          <MotionPressable onPress={submit} containerStyle={styles.primaryButton} style={styles.primaryButtonContent} pressedScale={0.975}><Text style={styles.primaryButtonText}>{mode === "signin" ? "Sign in" : role === "vendor" ? "Join as a vendor" : "Create account"}</Text></MotionPressable>
-          <Text style={styles.terms}>{mode === "signin" ? "Secure sign-in for your Smitten account." : "By creating an account, you agree to Smitten’s Terms and Privacy Policy."}</Text>
+          {verificationMode ? <>
+            <Text style={styles.authKicker}>CHECK YOUR EMAIL</Text>
+            <Text style={styles.authTitle}>{verificationMode === "signup" ? "Verify your Smitten account." : "Confirm it’s really you."}</Text>
+            <Text style={styles.authSubtitle}>We sent a verification code to {email.trim().toLowerCase()}. Enter it below to continue.</Text>
+            <Text style={styles.inputLabel}>VERIFICATION CODE</Text>
+            <View style={[styles.authField, focusedField === "code" && styles.inputFocused]}><AppSymbol name="envelope" fallback="mail-outline" size={18} color={colors.muted} weight="regular" /><TextInput value={code} onChangeText={setCode} onFocus={() => setFocusedField("code")} onBlur={() => setFocusedField(null)} style={styles.authFieldInput} placeholder="Enter code" placeholderTextColor="#96958F" keyboardType="number-pad" autoCapitalize="none" /></View>
+            {error ? <Text style={styles.formError}>{error}</Text> : null}
+            <MotionPressable onPress={() => void verifyCode()} disabled={busy} containerStyle={styles.primaryButton} style={styles.primaryButtonContent} pressedScale={0.975}><Text style={styles.primaryButtonText}>{busy ? "Checking…" : "Verify & continue"}</Text></MotionPressable>
+            <Pressable onPress={() => { setVerificationMode(null); setError(""); }} accessibilityRole="button" style={styles.forgotButton}><Text style={styles.forgotText}>Back to {mode === "signup" ? "create account" : "sign in"}</Text></Pressable>
+          </> : <>
+            <Text style={styles.authKicker}>{mode === "signin" ? "WELCOME BACK" : "JOIN SMITTEN"}</Text>
+            <Text style={styles.authTitle}>{mode === "signin" ? "Your plans, right where you left them." : "Start planning something beautiful."}</Text>
+            <Text style={styles.authSubtitle}>{mode === "signin" ? "Sign in to sync your shortlist and wedding preferences across devices." : "Create one account for your vendors, matches and wedding plans."}</Text>
+            <View style={styles.authSegment}>
+              <Pressable onPress={() => changeMode("signin")} accessibilityRole="tab" accessibilityState={{ selected: mode === "signin" }} style={[styles.authSegmentItem, mode === "signin" && styles.authSegmentItemActive]}><Text style={[styles.authSegmentText, mode === "signin" && styles.authSegmentTextActive]}>Sign in</Text></Pressable>
+              <Pressable onPress={() => changeMode("signup")} accessibilityRole="tab" accessibilityState={{ selected: mode === "signup" }} style={[styles.authSegmentItem, mode === "signup" && styles.authSegmentItemActive]}><Text style={[styles.authSegmentText, mode === "signup" && styles.authSegmentTextActive]}>Create account</Text></Pressable>
+            </View>
+            {mode === "signup" ? <><Text style={styles.inputLabel}>NAME AND SURNAME</Text><View style={[styles.authField, focusedField === "name" && styles.inputFocused]}><AppSymbol name="person" fallback="person-outline" size={18} color={colors.muted} weight="regular" /><TextInput value={name} onChangeText={setName} onFocus={() => setFocusedField("name")} onBlur={() => setFocusedField(null)} style={styles.authFieldInput} placeholder="e.g. Amara Okoye" placeholderTextColor="#96958F" autoCapitalize="words" textContentType="name" /></View></> : null}
+            <Text style={styles.inputLabel}>EMAIL ADDRESS</Text><View style={[styles.authField, focusedField === "email" && styles.inputFocused]}><AppSymbol name="envelope" fallback="mail-outline" size={18} color={colors.muted} weight="regular" /><TextInput value={email} onChangeText={setEmail} onFocus={() => setFocusedField("email")} onBlur={() => setFocusedField(null)} style={styles.authFieldInput} placeholder="you@example.com" placeholderTextColor="#96958F" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} textContentType="emailAddress" /></View>
+            <Text style={styles.inputLabel}>PASSWORD</Text><View style={[styles.authField, focusedField === "password" && styles.inputFocused]}><AppSymbol name="lock" fallback="lock-closed-outline" size={18} color={colors.muted} weight="regular" /><TextInput value={password} onChangeText={setPassword} onFocus={() => setFocusedField("password")} onBlur={() => setFocusedField(null)} style={styles.authFieldInput} placeholder="Enter your password" placeholderTextColor="#96958F" secureTextEntry={!passwordVisible} textContentType={mode === "signin" ? "password" : "newPassword"} /><Pressable onPress={() => setPasswordVisible((current) => !current)} accessibilityRole="button" accessibilityLabel={passwordVisible ? "Hide password" : "Show password"} hitSlop={10}><AppSymbol name={passwordVisible ? "eye.slash" : "eye"} fallback={passwordVisible ? "eye-off-outline" : "eye-outline"} size={18} color={colors.muted} weight="regular" /></Pressable></View>
+            {mode === "signup" ? <><Text style={styles.passwordHint}>8+ characters · 1 number · 1 special character</Text><Text style={styles.inputLabel}>CONFIRM PASSWORD</Text><View style={[styles.authField, focusedField === "confirm" && styles.inputFocused]}><AppSymbol name="lock.shield" fallback="shield-checkmark-outline" size={18} color={colors.muted} weight="regular" /><TextInput value={confirmPassword} onChangeText={setConfirmPassword} onFocus={() => setFocusedField("confirm")} onBlur={() => setFocusedField(null)} style={styles.authFieldInput} placeholder="Enter it again" placeholderTextColor="#96958F" secureTextEntry={!passwordVisible} textContentType="newPassword" /></View></> : <Text style={styles.passwordHint}>Use the same account as the Smitten website.</Text>}
+            {error ? <Text style={styles.formError}>{error}</Text> : null}
+            <MotionPressable onPress={() => void submit()} disabled={busy} containerStyle={styles.primaryButton} style={styles.primaryButtonContent} pressedScale={0.975}><Text style={styles.primaryButtonText}>{busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}</Text></MotionPressable>
+            <Text style={styles.terms}>{mode === "signin" ? "Secure sign-in powered by the same Smitten account as the web experience." : "By creating an account, you agree to Smitten’s Terms and Privacy Policy."}</Text>
+            <View nativeID="clerk-captcha" />
+          </>}
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -558,7 +701,7 @@ function SettingsModal({ visible, signedIn, darkMode, pushNotifications, plannin
           <Text style={[styles.settingsSectionLabel, darkMode && styles.modalMutedDark]}>ACCOUNT</Text>
           <View style={[styles.settingsGroup, darkMode && styles.settingsGroupDark]}>
             <Pressable onPress={onSignOut} disabled={!signedIn} accessibilityRole="button" accessibilityState={{ disabled: !signedIn }} style={[styles.settingsAction, !signedIn && styles.settingsActionDisabled]}><View style={[styles.settingsIcon, darkMode && styles.settingsIconDark]}><AppSymbol name="rectangle.portrait.and.arrow.right" fallback="log-out-outline" size={20} color={darkMode ? colors.white : colors.plum} weight="medium" /></View><View style={styles.settingsCopy}><Text style={[styles.settingsTitle, darkMode && styles.modalTitleDark]}>{signedIn ? "Sign out" : "You’re signed out"}</Text><Text style={[styles.settingsSubtitle, darkMode && styles.modalBodyDark]}>Sign out of Smitten on this device</Text></View><AppSymbol name="chevron.right" fallback="chevron-forward" size={13} color={colors.muted} weight="semibold" /></Pressable>
-            <Pressable onPress={onCloseAccount} disabled={!signedIn} accessibilityRole="button" accessibilityState={{ disabled: !signedIn }} style={[styles.settingsAction, !signedIn && styles.settingsActionDisabled]}><View style={styles.settingsDangerIcon}><AppSymbol name="trash" fallback="trash-outline" size={19} color="#B43C36" weight="medium" /></View><View style={styles.settingsCopy}><Text style={styles.settingsDangerTitle}>Close account</Text><Text style={[styles.settingsSubtitle, darkMode && styles.modalBodyDark]}>Permanently remove your Smitten profile</Text></View><AppSymbol name="chevron.right" fallback="chevron-forward" size={13} color="#B43C36" weight="semibold" /></Pressable>
+            <Pressable onPress={onCloseAccount} disabled={!signedIn} accessibilityRole="button" accessibilityState={{ disabled: !signedIn }} style={[styles.settingsAction, !signedIn && styles.settingsActionDisabled]}><View style={styles.settingsDangerIcon}><AppSymbol name="trash" fallback="trash-outline" size={19} color="#B43C36" weight="medium" /></View><View style={styles.settingsCopy}><Text style={styles.settingsDangerTitle}>Reset local planning data</Text><Text style={[styles.settingsSubtitle, darkMode && styles.modalBodyDark]}>Clear matches and checklist progress on this device</Text></View><AppSymbol name="chevron.right" fallback="chevron-forward" size={13} color="#B43C36" weight="semibold" /></Pressable>
           </View>
           {!signedIn ? <Text style={[styles.settingsFootnote, darkMode && styles.modalBodyDark]}>Sign in from your profile to manage account actions.</Text> : null}
         </ScrollView>
