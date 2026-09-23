@@ -27,6 +27,7 @@ export default async function VendorProfilePage({
     styles: Array.isArray(record.styles) ? record.styles : [],
     matchReason: record.matchReason,
     active: record.active,
+    acceptingEnquiries: Boolean(record.ownerClerkUserId),
     about: record.about,
     travelDistance: record.travelDistance,
     gallery: Array.isArray(record.gallery) ? record.gallery : [record.imageUrl],
