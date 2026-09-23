@@ -15,6 +15,7 @@ import {
   ImagePlus,
   Instagram,
   LayoutDashboard,
+  LogOut,
   Mail,
   Menu,
   MessageSquare,
@@ -28,13 +29,30 @@ import {
   Star,
   Trash2,
   Upload,
+  UserRound,
   Users,
   X,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Brand } from "../components/Brand";
+import type { ConversationSummary } from "@/lib/messaging";
 
 type Tab = "Overview" | "Enquiries" | "Quotes" | "Messages" | "Portfolio" | "Reviews";
+
+function compactAge(value: string) {
+  const diff = Math.max(0, Date.now() - new Date(value).getTime());
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "Now";
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
+
+function shortWeddingDate(value: string | null) {
+  if (!value) return "Date flexible";
+  return new Intl.DateTimeFormat("en-NG", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value + "T12:00:00"));
+}
 
 const leads = [
   { initials: "AO", name: "Amara & Tunde", service: "Full wedding planning", date: "18 Dec 2026", budget: "₦3m–₦5m", age: "12m", tone: "peach" },
@@ -79,10 +97,43 @@ export default function DashboardClient({ profile }: { profile: { fullName: stri
   const [liveQuoteCount, setLiveQuoteCount] = useState(0);
   const [liveOpenQuoteValue, setLiveOpenQuoteValue] = useState(0);
   const [liveBookingCount, setLiveBookingCount] = useState(0);
+  const [liveEnquiries, setLiveEnquiries] = useState<ConversationSummary[]>([]);
+  const [quoteStats, setQuoteStats] = useState({ sent: 0, viewed: 0, accepted: 0 });
+  const [publicVendorId, setPublicVendorId] = useState("");
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const firstName = profile.fullName.split(/\s+/)[0] || "there";
   const initials = profile.businessName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "SM";
 
   const quoteTotal = useMemo(() => lineItems.reduce((total, item) => total + Number(item.amount || 0), 0), [lineItems]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([
+      fetch("/api/conversations", { cache: "no-store" }).then((response) => response.ok ? response.json() : null),
+      fetch("/api/quotes", { cache: "no-store" }).then((response) => response.ok ? response.json() : null),
+      fetch("/api/bookings", { cache: "no-store" }).then((response) => response.ok ? response.json() : null),
+      fetch(`/api/vendors?q=${encodeURIComponent(profile.businessName)}`, { cache: "no-store" }).then((response) => response.ok ? response.json() : null),
+    ]).then(([conversationResult, quoteResult, bookingResult, vendorResult]) => {
+      if (cancelled) return;
+      if (Array.isArray(conversationResult?.conversations)) setLiveEnquiries(conversationResult.conversations);
+      if (Array.isArray(quoteResult?.quotes)) {
+        const open = quoteResult.quotes.filter((quote: { status?: string }) => ["sent", "viewed"].includes(String(quote.status)));
+        setLiveQuoteCount(open.length);
+        setLiveOpenQuoteValue(open.reduce((total: number, quote: { total?: number }) => total + Number(quote.total ?? 0), 0));
+        setQuoteStats({
+          sent: quoteResult.quotes.filter((quote: { status?: string }) => String(quote.status) === "sent").length,
+          viewed: quoteResult.quotes.filter((quote: { status?: string }) => String(quote.status) === "viewed").length,
+          accepted: quoteResult.quotes.filter((quote: { status?: string }) => String(quote.status) === "accepted").length,
+        });
+      }
+      if (Array.isArray(bookingResult?.bookings)) setLiveBookingCount(bookingResult.bookings.length);
+      if (Array.isArray(vendorResult?.vendors)) {
+        const exact = vendorResult.vendors.find((vendor: { businessName?: string }) => vendor.businessName === profile.businessName) ?? vendorResult.vendors[0];
+        if (exact?.id) setPublicVendorId(String(exact.id));
+      }
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [profile.businessName]);
 
   function showToast(message: string) {
     setToast(message);
@@ -135,14 +186,14 @@ export default function DashboardClient({ profile }: { profile: { fullName: stri
           <button className={tab === "Reviews" ? "active" : ""} onClick={() => setTab("Reviews")}><Star size={18} /> Reviews</button>
           <button onClick={() => showToast("Insights report opened")}><BarChart3 size={18} /> Insights</button>
         </nav>
-        <div className="sidebar-bottom"><button onClick={() => showToast("Business settings opened")}><Settings size={18} /> Settings</button><Link href="/vendor/aurora-events"><ArrowRight size={17} /> View public profile</Link><button onClick={() => signOut({ redirectUrl: "/" })}><ArrowRight size={17} /> Sign out</button></div>
+        <div className="sidebar-bottom"><button onClick={() => showToast("Business settings opened")}><Settings size={18} /> Settings</button>{publicVendorId ? <Link href={`/vendor/${publicVendorId}`}><ArrowRight size={17} /> View public profile</Link> : <Link href="/"><ArrowRight size={17} /> Browse marketplace</Link>}<button onClick={() => signOut({ redirectUrl: "/" })}><LogOut size={17} /> Sign out</button></div>
       </aside>
 
       <section className="dashboard-main">
-        <header className="dashboard-topbar"><button className="dash-menu" onClick={() => setMobileNav(true)}><Menu /></button><div className="dash-search"><Search size={17} /><input placeholder="Search clients, quotes, messages…" /><kbd>⌘ K</kbd></div><div><button className="ai-top-button" onClick={() => setAiOpen(true)}><Sparkles size={16} /> Ask Smitten AI</button><Link className="notification-button" href="/dashboard/messages" aria-label="Open messages"><Bell size={19} /><span /></Link><span className="user-avatar">{initials}</span></div></header>
+        <header className="dashboard-topbar"><button className="dash-menu" onClick={() => setMobileNav(true)}><Menu /></button><div className="dash-search"><Search size={17} /><input placeholder="Search clients, quotes, messages…" /><kbd>⌘ K</kbd></div><div><button className="ai-top-button" onClick={() => setAiOpen(true)}><Sparkles size={16} /> Ask Smitten AI</button><Link className="notification-button" href="/dashboard/messages" aria-label="Open messages"><Bell size={19} /><span /></Link><div className="dashboard-account-wrap"><button className="user-avatar" onClick={() => setAccountMenuOpen((open) => !open)} aria-label="Open account menu" aria-expanded={accountMenuOpen}>{initials}</button>{accountMenuOpen && <div className="dashboard-account-menu"><div><span>{initials}</span><p><strong>{profile.fullName}</strong><small>{profile.email}</small></p></div>{publicVendorId && <Link href={`/vendor/${publicVendorId}`} onClick={() => setAccountMenuOpen(false)}><UserRound size={16} /> Public profile</Link>}<button onClick={() => { setAccountMenuOpen(false); showToast("Business settings opened"); }}><Settings size={16} /> Settings</button><button className="logout" onClick={() => signOut({ redirectUrl: "/" })}><LogOut size={16} /> Log out</button></div>}</div></div></header>
 
         <div className="dashboard-content">
-          {tab === "Overview" && <Overview setTab={setTab} openQuote={() => openQuote()} showToast={showToast} firstName={firstName} businessName={profile.businessName} quoteCount={liveQuoteCount} quoteValue={liveOpenQuoteValue} bookingCount={liveBookingCount} />}
+          {tab === "Overview" && <Overview setTab={setTab} showToast={showToast} firstName={firstName} businessName={profile.businessName} quoteCount={liveQuoteCount} quoteValue={liveOpenQuoteValue} bookingCount={liveBookingCount} enquiries={liveEnquiries} quoteStats={quoteStats} />}
           {tab === "Enquiries" && <Enquiries openQuote={() => openQuote()} showToast={showToast} />}
           {tab === "Quotes" && <Quotes quotes={quotes} openQuote={openQuote} />}
           {tab === "Messages" && <Messages selected={selectedMessage} setSelected={setSelectedMessage} emailText={emailText} setEmailText={setEmailText} showToast={showToast} />}
@@ -182,12 +233,13 @@ function PageHeading({ eyebrow, title, text, action }: { eyebrow: string; title:
   return <div className="dash-page-heading"><div><p>{eyebrow}</p><h1>{title}</h1>{text && <span>{text}</span>}</div>{action}</div>;
 }
 
-function Overview({ setTab, openQuote, showToast, firstName, businessName, quoteCount, quoteValue, bookingCount }: { setTab: (tab: Tab) => void; openQuote: () => void; showToast: (message: string) => void; firstName: string; businessName: string; quoteCount: number; quoteValue: number; bookingCount: number }) {
+function Overview({ setTab, showToast, firstName, businessName, quoteCount, quoteValue, bookingCount, enquiries, quoteStats }: { setTab: (tab: Tab) => void; showToast: (message: string) => void; firstName: string; businessName: string; quoteCount: number; quoteValue: number; bookingCount: number; enquiries: ConversationSummary[]; quoteStats: { sent: number; viewed: number; accepted: number } }) {
+  const maxQuoteStat = Math.max(quoteStats.sent, quoteStats.viewed, quoteStats.accepted, 1);
   return <>
-    <PageHeading eyebrow="Thursday, 13 August" title={`Good afternoon, ${firstName}`} text={`Here’s what’s happening with ${businessName} today.`} action={<button className="button button-primary" onClick={openQuote}><Plus size={17} /> Create quote</button>} />
-    <div className="stat-grid"><article><span className="stat-icon coral"><Users /></span><div><p>New enquiries</p><strong>12</strong><small>↑ 20% this month</small></div></article><article><span className="stat-icon plum"><FileText /></span><div><p>Open quotes</p><strong>{quoteCount}</strong><small>{quoteCount ? new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(quoteValue) + " potential" : "No open quotes"}</small></div></article><article><span className="stat-icon green"><CircleDollarSign /></span><div><p>Bookings</p><strong>{bookingCount}</strong><small>{bookingCount ? "Confirmed through Smitten" : "No confirmed bookings yet"}</small></div></article><article><span className="stat-icon gold"><Star /></span><div><p>Profile rating</p><strong>4.9</strong><small>86 reviews</small></div></article></div>
-    <div className="overview-grid"><section className="dash-card recent-enquiries"><div className="dash-card-title"><div><h2>New enquiries</h2><p>Couples waiting to hear from you</p></div><Link href="/dashboard/enquiries">View all <ArrowRight size={15} /></Link></div>{leads.map((lead) => <article key={lead.name}><span className={`lead-avatar ${lead.tone}`}>{lead.initials}</span><div><strong>{lead.name}</strong><small>{lead.service} · {lead.date}</small></div><span>{lead.budget}</span><small>{lead.age}</small><button onClick={() => showToast(`${lead.name} enquiry menu opened`)} aria-label={`Open ${lead.name} enquiry menu`}><MoreHorizontal /></button></article>)}</section><section className="dash-card profile-strength"><div className="dash-card-title"><div><h2>Profile strength</h2><p>You’re almost there</p></div><strong>82%</strong></div><div className="strength-bar"><span /></div><ul><li className="done"><Check /> Business details</li><li className="done"><Check /> Portfolio uploaded</li><li><Plus /> Add 2 more packages</li><li><Plus /> Connect TikTok</li></ul><button onClick={() => setTab("Portfolio")}>Complete profile <ArrowRight size={15} /></button></section></div>
-    <div className="overview-grid bottom-overview"><section className="dash-card"><div className="dash-card-title"><div><h2>Quote activity</h2><p>Performance over the last 30 days</p></div><Link href="/dashboard/quotes">Manage quotes</Link></div><div className="activity-bars"><div><span>Sent</span><i><b style={{ width: "86%" }} /></i><strong>14</strong></div><div><span>Viewed</span><i><b style={{ width: "67%" }} /></i><strong>11</strong></div><div><span>Accepted</span><i><b style={{ width: "41%" }} /></i><strong>7</strong></div></div></section><section className="dash-card ai-insight-card"><span><Sparkles /></span><p>Smitten’s tip</p><h3>Your quotes with a personal note are 34% more likely to be accepted.</h3><button onClick={() => setTab("Messages")}>See suggested template <ArrowRight size={15} /></button></section></div>
+    <PageHeading eyebrow="Vendor workspace" title={`Good afternoon, ${firstName}`} text={`A clear view of what needs attention across ${businessName}.`} action={<Link className="button button-primary" href="/dashboard/enquiries"><Users size={17} /> View enquiries</Link>} />
+    <div className="stat-grid"><article><span className="stat-icon coral"><Users /></span><div><p>Enquiries</p><strong>{enquiries.length}</strong><small>{enquiries.length ? "Active customer conversations" : "No enquiries yet"}</small></div></article><article><span className="stat-icon plum"><FileText /></span><div><p>Open quotes</p><strong>{quoteCount}</strong><small>{quoteCount ? new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(quoteValue) + " potential" : "No open quotes"}</small></div></article><article><span className="stat-icon green"><CircleDollarSign /></span><div><p>Bookings</p><strong>{bookingCount}</strong><small>{bookingCount ? "Confirmed through Smitten" : "No confirmed bookings yet"}</small></div></article><article><span className="stat-icon gold"><Star /></span><div><p>Reviews</p><strong>—</strong><small>Your verified reviews will appear here</small></div></article></div>
+    <div className="overview-grid"><section className="dash-card recent-enquiries"><div className="dash-card-title"><div><h2>Recent enquiries</h2><p>Couples waiting to hear from you</p></div><Link href="/dashboard/enquiries">View all <ArrowRight size={15} /></Link></div><div className="live-enquiry-list">{enquiries.length ? enquiries.slice(0, 3).map((enquiry) => <Link className="live-enquiry-row" href={`/messages/${enquiry.id}`} key={enquiry.id}><span className="lead-avatar peach">{enquiry.customerName.split(/\s+/).slice(0,2).map((part) => part[0]).join("").toUpperCase()}</span><div><strong>{enquiry.customerName}</strong><small>{enquiry.requestedService || "Wedding enquiry"} · {shortWeddingDate(enquiry.weddingDate)}</small></div><span>{enquiry.budgetBand || "Budget flexible"}</span><small>{compactAge(enquiry.lastMessageAt)}</small><ArrowRight size={15} /></Link>) : <div className="dashboard-empty-row"><Users size={18} /><span><strong>No enquiries yet</strong><small>New customer requests will appear here automatically.</small></span></div>}</div></section><section className="dash-card profile-strength"><div className="dash-card-title"><div><h2>Profile strength</h2><p>Keep your storefront ready for couples</p></div><strong>82%</strong></div><div className="strength-bar"><span /></div><ul><li className="done"><Check /> Business details</li><li className="done"><Check /> Portfolio uploaded</li><li><Plus /> Add 2 more packages</li><li><Plus /> Connect TikTok</li></ul><button onClick={() => setTab("Portfolio")}>Complete profile <ArrowRight size={15} /></button></section></div>
+    <div className="overview-grid bottom-overview"><section className="dash-card"><div className="dash-card-title"><div><h2>Quote activity</h2><p>Live proposal status</p></div><Link href="/dashboard/quotes">Manage quotes</Link></div><div className="activity-bars"><div><span>Sent</span><i><b style={{ width: `${Math.round((quoteStats.sent / maxQuoteStat) * 100)}%` }} /></i><strong>{quoteStats.sent}</strong></div><div><span>Viewed</span><i><b style={{ width: `${Math.round((quoteStats.viewed / maxQuoteStat) * 100)}%` }} /></i><strong>{quoteStats.viewed}</strong></div><div><span>Accepted</span><i><b style={{ width: `${Math.round((quoteStats.accepted / maxQuoteStat) * 100)}%` }} /></i><strong>{quoteStats.accepted}</strong></div></div></section><section className="dash-card ai-insight-card"><span><Sparkles /></span><p>Smitten assistant</p><h3>Open an enquiry before creating a quote so every proposal stays linked to the right couple.</h3><Link href="/dashboard/enquiries">Open enquiries <ArrowRight size={15} /></Link></section></div>
   </>;
 }
 
