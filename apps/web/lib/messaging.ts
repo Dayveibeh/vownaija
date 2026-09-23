@@ -122,10 +122,6 @@ export async function listConversationSummaries(clerkUserId: string, role: "coup
   await ensureDatabaseSchema();
   await ensureMarketplaceSeed();
   const sql = getSql();
-  const roleWhere = role === "couple"
-    ? sql`c.customer_clerk_user_id = ${clerkUserId}`
-    : sql`c.vendor_owner_clerk_user_id = ${clerkUserId}`;
-
   const rows = await sql`
     SELECT
       c.id,
@@ -162,7 +158,11 @@ export async function listConversationSummaries(clerkUserId: string, role: "coup
     JOIN enquiries e ON e.id = c.enquiry_id
     JOIN marketplace_vendors mv ON mv.id = c.vendor_id
     JOIN smitten_users customer ON customer.clerk_user_id = c.customer_clerk_user_id
-    WHERE ${roleWhere}
+    WHERE (
+      (${role} = 'couple' AND c.customer_clerk_user_id = ${clerkUserId})
+      OR
+      (${role} <> 'couple' AND c.vendor_owner_clerk_user_id = ${clerkUserId})
+    )
     ORDER BY c.last_message_at DESC
   `;
 
