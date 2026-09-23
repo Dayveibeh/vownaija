@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Brand } from "./components/Brand";
+import { SessionAccountNav } from "./components/SessionAccountNav";
 import {
   ArrowRight,
   BadgeCheck,
@@ -183,13 +184,13 @@ export default function Home() {
           <a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a>
           <Link href="/couples/match" onClick={() => setMenuOpen(false)}>AI recommendations</Link>
           <a href="#inspiration" onClick={() => setMenuOpen(false)}>Inspiration</a>
-          <Link href="/couples/sign-up" className="mobile-auth-link" onClick={() => setMenuOpen(false)}>Sign in</Link>
-          <Link href="/vendor/sign-up" className="mobile-vendor-join" onClick={() => setMenuOpen(false)}>Join as vendor <ArrowRight size={16} /></Link>
+          <div className="mobile-session-nav">
+            <SessionAccountNav variant="mobile" withVendorJoin onNavigate={() => setMenuOpen(false)} />
+          </div>
         </nav>
 
         <div className="header-actions">
-          <Link href="/couples/sign-up" className="couple-sign-in"><UserRound size={15} /> Sign in</Link>
-          <Link href="/vendor/sign-up" className="button button-dark button-small">Join as vendor</Link>
+          <SessionAccountNav withVendorJoin />
         </div>
 
         <button className="menu-button" onClick={() => setMenuOpen((value) => !value)} aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} aria-controls="primary-navigation">
