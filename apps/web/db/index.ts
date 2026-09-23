@@ -157,12 +157,17 @@ export async function ensureDatabaseSchema() {
           wedding_location text NOT NULL,
           guest_count text,
           budget_band text,
+          contact_name text,
+          contact_email text,
           message text NOT NULL,
           status text NOT NULL DEFAULT 'new' CHECK (status IN ('new','active','closed')),
           created_at timestamptz NOT NULL DEFAULT now(),
           updated_at timestamptz NOT NULL DEFAULT now()
         )
       `;
+
+      await sql`ALTER TABLE enquiries ADD COLUMN IF NOT EXISTS contact_name text`;
+      await sql`ALTER TABLE enquiries ADD COLUMN IF NOT EXISTS contact_email text`;
 
       await sql`
         CREATE TABLE IF NOT EXISTS conversations (
