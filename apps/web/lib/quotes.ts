@@ -121,7 +121,11 @@ export async function respondToQuote(quoteId:string,customerUserId:string,action
   if(!["sent","viewed"].includes(String(q.status))) throw new Error("QUOTE_ALREADY_RESPONDED");
   if(action==="accept" && q.valid_until && dateOnly(q.valid_until)! < new Date().toISOString().slice(0,10)){await sql`UPDATE quotes SET status='expired',updated_at=now() WHERE id=${quoteId}`;throw new Error("QUOTE_EXPIRED");}
   const now=new Date();
-  if(action==="decline"){await sql`UPDATE quotes SET status='declined',responded_at=${now},updated_at=${now} WHERE id=${quoteId} AND status IN ('sent','viewed')`;return {booking:null};}
+  if(action==="decline"){
+    await sql`UPDATE quotes SET status='declined',responded_at=${now},updated_at=${now} WHERE id=${quoteId} AND status IN ('sent','viewed')`;
+    await sql`UPDATE conversations SET last_message_at=${now},customer_last_read_at=${now},updated_at=${now} WHERE id=${String(q.conversation_id)}`;
+    return {booking:null};
+  }
   const existing=await sql`SELECT id FROM bookings WHERE conversation_id=${String(q.conversation_id)} LIMIT 1`; if(existing[0]) throw new Error("CONVERSATION_BOOKED");
   const updated=await sql`UPDATE quotes SET status='accepted',responded_at=${now},updated_at=${now} WHERE id=${quoteId} AND status IN ('sent','viewed') RETURNING id`; if(!updated[0]) throw new Error("QUOTE_ALREADY_RESPONDED");
   const bookingId=crypto.randomUUID();
@@ -131,6 +135,7 @@ export async function respondToQuote(quoteId:string,customerUserId:string,action
   `;
   await sql`UPDATE quotes SET status='declined',responded_at=COALESCE(responded_at,${now}),updated_at=${now} WHERE conversation_id=${String(q.conversation_id)} AND id<>${quoteId} AND status IN ('sent','viewed')`;
   await sql`UPDATE enquiries SET status='closed',updated_at=${now} WHERE id=${String(q.enquiry_id)}`;
+  await sql`UPDATE conversations SET last_message_at=${now},customer_last_read_at=${now},updated_at=${now} WHERE id=${String(q.conversation_id)}`;
   return {booking:mapBooking({...q,id:bookingId,quote_id:quoteId,status:"confirmed",service_summary:q.title,confirmed_at:now} as Record<string,unknown>)};
 }
 
