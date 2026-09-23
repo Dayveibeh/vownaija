@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronRight, Heart, MapPin
 import { useEffect, useMemo, useState } from "react";
 import { recommendCoupleVendors, serviceOptions, styleOptions, weddingLocations } from "../vendor-data";
 import { Brand } from "../../components/Brand";
+import { SessionAccountNav } from "../../components/SessionAccountNav";
 
 function budgetCeiling(budget: string) {
   if (budget === "Under ₦1m") return 999999;
@@ -118,6 +119,7 @@ export default function CoupleMatchPage() {
       <header className="match-header">
         <Brand />
         {step > 0 && step < 4 && <div className="match-progress"><span>Step {step} of 3</span><i><b style={{ width: `${(step / 3) * 100}%` }} /></i></div>}
+        <SessionAccountNav variant="compact" />
       </header>
 
       {step === 0 && <section className="match-welcome">
