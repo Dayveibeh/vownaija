@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { formatNaira, type MarketplaceVendorDetailRecord } from "@smitten/shared";
 import { Brand } from "../../components/Brand";
+import { SessionAccountNav } from "../../components/SessionAccountNav";
 
 export default function VendorProfileClient({ vendor }: { vendor: MarketplaceVendorDetailRecord }) {
   const [quoteOpen, setQuoteOpen] = useState(false);
@@ -83,7 +84,10 @@ export default function VendorProfileClient({ vendor }: { vendor: MarketplaceVen
           <a href="#packages">Packages</a>
           <a href="#reviews">Reviews</a>
         </nav>
-        <button className="button button-primary button-small" onClick={() => setQuoteOpen(true)}>Request a quote</button>
+        <div className="profile-header-actions">
+          <SessionAccountNav variant="compact" />
+          <button className="button button-primary button-small" onClick={() => setQuoteOpen(true)}>Request a quote</button>
+        </div>
       </header>
 
       <section className="profile-gallery">
