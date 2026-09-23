@@ -1074,7 +1074,16 @@
 .quote-builder-section-title > span {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
+  max-width: 520px;
+}
+
+.quote-builder-add-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .quote-builder-section-title strong {
@@ -1103,6 +1112,16 @@
   background: #edf1e7;
   font-size: 8px;
   font-weight: 700;
+}
+
+.quote-builder-section-title button.bespoke {
+  color: #6c4353;
+  background: #f7eaee;
+}
+
+.quote-builder-section-title button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 7px 18px rgba(62,49,51,.08);
 }
 
 .quote-builder-items article {
@@ -1366,6 +1385,16 @@
   .quote-builder > form {
     padding-left: 16px;
     padding-right: 16px;
+  }
+
+  .quote-builder-section-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .quote-builder-add-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .quote-builder-items article {
