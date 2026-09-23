@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useClerk } from "@clerk/nextjs";
-import { ArrowRight, Bell, CalendarDays, ChevronRight, CircleDollarSign, FileText, Heart, LayoutDashboard, LogOut, Mail, MapPin, Menu, MessageSquare, Search, Settings, Sparkles, Star, UserRound, UsersRound, WalletCards, X } from "lucide-react";
+import { ArrowRight, Bell, CalendarCheck2, CalendarDays, ChevronRight, CircleDollarSign, FileText, Heart, LayoutDashboard, LogOut, Mail, MapPin, Menu, MessageSquare, Search, Settings, Sparkles, Star, UserRound, UsersRound, WalletCards, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { coupleVendors } from "../vendor-data";
 import { coupleVendorFromMarketplaceRecord, type CoupleVendor, type MarketplaceVendorListResponse } from "@smitten/shared";
@@ -20,6 +20,9 @@ export default function CoupleDashboardClient({ profile }: { profile: { fullName
   const [conversationCount, setConversationCount] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [liveVendors, setLiveVendors] = useState<DashboardVendor[]>([]);
+  const [quoteCount, setQuoteCount] = useState(0);
+  const [quoteValue, setQuoteValue] = useState(0);
+  const [bookingCount, setBookingCount] = useState(0);
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
   const firstName = profile.fullName.split(/\s+/)[0] || "there";
@@ -47,6 +50,22 @@ export default function CoupleDashboardClient({ profile }: { profile: { fullName
         setUnreadMessages(result.conversations.reduce((total: number, item: { unreadCount?: number }) => total + Number(item.unreadCount ?? 0), 0));
       })
       .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([
+      fetch("/api/quotes", { cache: "no-store" }).then((response) => response.ok ? response.json() : null),
+      fetch("/api/bookings", { cache: "no-store" }).then((response) => response.ok ? response.json() : null),
+    ]).then(([quoteResult, bookingResult]) => {
+      if (cancelled) return;
+      if (Array.isArray(quoteResult?.quotes)) {
+        setQuoteCount(quoteResult.quotes.length);
+        setQuoteValue(quoteResult.quotes.reduce((total: number, quote: { total?: number }) => total + Number(quote.total ?? 0), 0));
+      }
+      if (Array.isArray(bookingResult?.bookings)) setBookingCount(bookingResult.bookings.length);
+    }).catch(() => undefined);
     return () => { cancelled = true; };
   }, []);
 
@@ -118,7 +137,7 @@ export default function CoupleDashboardClient({ profile }: { profile: { fullName
       <aside className={mobileNav ? "couple-sidebar open" : "couple-sidebar"}>
         <div className="couple-sidebar-brand"><Brand /><button onClick={() => setMobileNav(false)}><X /></button></div>
         <div className="wedding-countdown"><span><CalendarDays /></span><p><strong>Amara & Tunde</strong><small>18 December 2026</small></p><b>127 days</b></div>
-        <nav><small>My wedding</small><button className="active" onClick={() => goTo("couple-overview", "Overview opened", "home")}><LayoutDashboard /> Overview</button><Link href="/couples/match" onClick={() => setMobileTab("matches")}><Sparkles /> AI matches <span>New</span></Link><button onClick={() => goTo("couple-shortlist", "Saved vendors opened", "saved")}><Heart /> Saved vendors <b>{saved.length}</b></button><button onClick={() => goTo("couple-activity", "Quotes opened")}><FileText /> Quotes</button><Link href="/couples/messages"><MessageSquare /> Messages {unreadMessages > 0 && <b>{unreadMessages}</b>}</Link><small>Planning</small><button onClick={() => goTo("couple-budget", "Budget opened")}><WalletCards /> Budget</button><button onClick={() => goTo("couple-planning", "Guest planning opened")}><UsersRound /> Guest list</button><button onClick={openAccount}><Settings /> Wedding settings</button></nav>
+        <nav><small>My wedding</small><button className="active" onClick={() => goTo("couple-overview", "Overview opened", "home")}><LayoutDashboard /> Overview</button><Link href="/couples/match" onClick={() => setMobileTab("matches")}><Sparkles /> AI matches <span>New</span></Link><button onClick={() => goTo("couple-shortlist", "Saved vendors opened", "saved")}><Heart /> Saved vendors <b>{saved.length}</b></button><Link href="/couples/quotes"><FileText /> Quotes {quoteCount > 0 && <b>{quoteCount}</b>}</Link><Link href="/couples/bookings"><CalendarCheck2 /> Bookings {bookingCount > 0 && <b>{bookingCount}</b>}</Link><Link href="/couples/messages"><MessageSquare /> Messages {unreadMessages > 0 && <b>{unreadMessages}</b>}</Link><small>Planning</small><button onClick={() => goTo("couple-budget", "Budget opened")}><WalletCards /> Budget</button><button onClick={() => goTo("couple-planning", "Guest planning opened")}><UsersRound /> Guest list</button><button onClick={openAccount}><Settings /> Wedding settings</button></nav>
         <div className="couple-sidebar-bottom"><span>{initials}</span><p><strong>{profile.fullName}</strong><small>{profile.email}</small></p><button onClick={() => signOut({ redirectUrl: "/" })} aria-label="Sign out" title="Sign out"><LogOut size={17} /></button></div>
       </aside>
       {mobileNav && <button className="couple-sidebar-scrim" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
@@ -142,7 +161,7 @@ export default function CoupleDashboardClient({ profile }: { profile: { fullName
 
           <section className="couple-ai-banner"><div className="couple-ai-icon"><Sparkles /></div><div><p>Smitten AI recommendations</p><h2>Your personalised vendor shortlist is ready</h2><span>We found 4 strong matches for your Lagos wedding and ₦1m–₦3m vendor budget.</span></div><Link href="/couples/match" onClick={() => setMobileTab("matches")}>View my matches <ArrowRight /></Link><div className="mini-matches"><span>AE</span><span>LL</span><span>DC</span><span>+1</span></div></section>
 
-          <div className="couple-stat-grid"><article><span className="coral"><Heart /></span><div><p>Saved vendors</p><strong>{saved.length}</strong><small>Across your shortlist</small></div></article><article><span className="plum"><FileText /></span><div><p>Quotes received</p><strong>2</strong><small>₦1.3m combined</small></div></article><article><span className="green"><CircleDollarSign /></span><div><p>Budget planned</p><strong>42%</strong><small>₦2.1m of ₦5m</small></div></article><article><span className="gold"><Mail /></span><div><p>Unread messages</p><strong>{unreadMessages}</strong><small>{conversationCount ? `${conversationCount} active conversation${conversationCount === 1 ? "" : "s"}` : "No vendor conversations yet"}</small></div></article></div>
+          <div className="couple-stat-grid"><article><span className="coral"><Heart /></span><div><p>Saved vendors</p><strong>{saved.length}</strong><small>Across your shortlist</small></div></article><article><span className="plum"><FileText /></span><div><p>Quotes received</p><strong>{quoteCount}</strong><small>{quoteCount ? `${new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(quoteValue)} combined` : "No quotes yet"}</small></div></article><article><span className="green"><CircleDollarSign /></span><div><p>Budget planned</p><strong>42%</strong><small>₦2.1m of ₦5m</small></div></article><article><span className="gold"><Mail /></span><div><p>Unread messages</p><strong>{unreadMessages}</strong><small>{conversationCount ? `${conversationCount} active conversation${conversationCount === 1 ? "" : "s"}` : "No vendor conversations yet"}</small></div></article></div>
 
           <div className="couple-dashboard-grid">
             <section className="couple-dash-card shortlist-card" id="couple-shortlist"><div className="couple-card-heading"><div><h2>Vendors ready to hear from you</h2><p>Live Smitten vendors are shown first</p></div><Link href="/#featured">Browse all <ArrowRight /></Link></div><div className="shortlist-row">{(liveVendors.length ? liveVendors : coupleVendors.map((vendor) => ({ ...vendor, acceptingEnquiries: false }))).slice(0, 3).map((vendor, index) => <article key={vendor.id}><div><img src={vendor.image} alt={`${vendor.name} portfolio`} /><span>{vendor.acceptingEnquiries ? "Accepting enquiries" : `${94 - index * 3}% match`}</span><button className={saved.includes(vendor.id) ? "saved" : ""} onClick={() => void toggleSaved(vendor.id)} aria-label={`${saved.includes(vendor.id) ? "Remove" : "Save"} ${vendor.name}`}><Heart fill={saved.includes(vendor.id) ? "currentColor" : "none"} /></button></div><p>{vendor.category}</p><h3>{vendor.name}</h3><span><MapPin /> {vendor.location} · <Star fill="currentColor" /> {vendor.rating}</span><footer><strong>{vendor.price}</strong><Link href={`/vendor/${vendor.id}`} aria-label={`View ${vendor.name}`}><ChevronRight /></Link></footer></article>)}</div></section>
