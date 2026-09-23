@@ -78,6 +78,21 @@ export const marketplaceVendors = pgTable("marketplace_vendors", {
   index("marketplace_vendors_state_idx").on(table.state),
 ]);
 
+export const vendorPackages = pgTable("vendor_packages", {
+  id: text("id").primaryKey(),
+  vendorId: text("vendor_id").notNull().references(() => marketplaceVendors.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  price: numeric("price", { precision: 14, scale: 2 }).notNull(),
+  currencyCode: text("currency_code").default("NGN").notNull(),
+  featured: boolean("featured").default(false).notNull(),
+  displayOrder: integer("display_order").default(0).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("vendor_packages_vendor_idx").on(table.vendorId),
+]);
+
 export const favourites = pgTable("favourites", {
   clerkUserId: text("clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "cascade" }),
   vendorId: text("vendor_id").notNull().references(() => marketplaceVendors.id, { onDelete: "cascade" }),
@@ -92,3 +107,5 @@ export type SmittenUser = typeof users.$inferSelect;
 export type CustomerProfile = typeof customerProfiles.$inferSelect;
 export type VendorProfile = typeof vendorProfiles.$inferSelect;
 export type MarketplaceVendor = typeof marketplaceVendors.$inferSelect;
+
+export type VendorPackageRecord = typeof vendorPackages.$inferSelect;
