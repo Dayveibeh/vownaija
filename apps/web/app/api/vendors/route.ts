@@ -23,7 +23,23 @@ export async function GET(request: NextRequest) {
       market: "NG",
       currency: "NGN",
       count: vendors.length,
-      vendors,
+      vendors: vendors.map((vendor) => ({
+        id: vendor.id,
+        businessName: vendor.businessName,
+        category: vendor.category,
+        location: vendor.location,
+        state: vendor.state ?? "",
+        startingPrice: vendor.startingPrice,
+        currencyCode: vendor.currencyCode,
+        tier: vendor.tier,
+        rating: vendor.rating,
+        reviewCount: vendor.reviewCount,
+        imageUrl: vendor.imageUrl,
+        styles: Array.isArray(vendor.styles) ? vendor.styles : [],
+        matchReason: vendor.matchReason,
+        active: vendor.active,
+        acceptingEnquiries: Boolean(vendor.ownerClerkUserId),
+      })),
     });
   } catch (error) {
     console.error("Failed to load marketplace vendors", error);
