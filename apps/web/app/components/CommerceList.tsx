@@ -37,7 +37,7 @@ export function CommerceList({
 
         {items.length === 0 ? <section className="phase2-empty"><span>{kind === "quotes" ? <FileText /> : <CalendarCheck2 />}</span><h2>No {title.toLowerCase()} yet</h2><p>{kind === "quotes" ? (isVendor ? "Open an enquiry conversation to create and send your first quote." : "Quotes from vendors will appear here and inside the conversation.") : "When a customer accepts a quote, the confirmed booking will appear here."}</p><Link className="button button-primary" href={isVendor ? "/dashboard/enquiries" : "/"}>{isVendor ? "Open enquiries" : "Find vendors"} <ArrowRight size={16} /></Link></section>
         : <div className="commerce-list-grid">
-          {kind === "quotes" ? quotes.map((quote) => <Link href={`/messages/${quote.conversationId}`} className="commerce-card" key={quote.id}>
+          {kind === "quotes" ? quotes.map((quote) => <Link href={`/quotes/${quote.id}`} className="commerce-card" key={quote.id}>
             <header><span><FileText /><small>Revision {quote.revision}</small></span><b className={`commerce-status ${quote.status}`}>{quote.status}</b></header>
             <h2>{quote.title}</h2><p>{isVendor ? quote.customerName : quote.vendorName}</p>
             <div className="commerce-amount">{formatNaira(quote.total)}</div>
