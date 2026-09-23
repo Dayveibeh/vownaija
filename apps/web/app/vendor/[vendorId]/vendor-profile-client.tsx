@@ -19,13 +19,21 @@ import { formatNaira, type MarketplaceVendorDetailRecord } from "@smitten/shared
 import { Brand } from "../../components/Brand";
 import { SessionAccountNav } from "../../components/SessionAccountNav";
 
-export default function VendorProfileClient({ vendor }: { vendor: MarketplaceVendorDetailRecord }) {
-  const [quoteOpen, setQuoteOpen] = useState(false);
+export default function VendorProfileClient({
+  vendor,
+  autoOpenEnquiry = false,
+  initialPackageId = null,
+}: {
+  vendor: MarketplaceVendorDetailRecord;
+  autoOpenEnquiry?: boolean;
+  initialPackageId?: string | null;
+}) {
+  const [quoteOpen, setQuoteOpen] = useState(autoOpenEnquiry && Boolean(vendor.acceptingEnquiries));
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [enquiryError, setEnquiryError] = useState("");
   const [conversationId, setConversationId] = useState("");
-  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(initialPackageId);
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [saved, setSaved] = useState(false);
@@ -53,20 +61,12 @@ export default function VendorProfileClient({ vendor }: { vendor: MarketplaceVen
   }, [vendor.id]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("enquire") !== "1") return;
-    const packageId = params.get("package");
-    const validPackage = packageId && vendor.packages.some((item) => item.id === packageId) ? packageId : null;
+    if (!autoOpenEnquiry) return;
     window.history.replaceState(null, "", window.location.pathname);
-    if (vendor.acceptingEnquiries) {
-      setSelectedPackageId(validPackage);
-      setEnquiryError("");
-      setSubmitted(false);
-      setQuoteOpen(true);
-    } else {
+    if (!vendor.acceptingEnquiries) {
       setNotice("This vendor hasn’t connected their Smitten inbox yet.");
     }
-  }, [vendor.acceptingEnquiries, vendor.packages]);
+  }, [autoOpenEnquiry, vendor.acceptingEnquiries]);
 
   useEffect(() => {
     if (!notice) return;
