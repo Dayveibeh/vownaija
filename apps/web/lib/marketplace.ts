@@ -1,7 +1,7 @@
 import { and, eq, gte, ilike, lte, or, type SQL } from "drizzle-orm";
 import { coupleVendors, vendorProfileDetails } from "@smitten/shared";
 import { ensureDatabaseSchema, getDb, getSql } from "@/db";
-import { marketplaceVendors } from "@/db/schema";
+import { marketplaceVendors, vendorProfiles } from "@/db/schema";
 
 export type VendorFilters = {
   category?: string;
@@ -93,6 +93,63 @@ export async function ensureMarketplaceSeed() {
           updated_at = now()
       `;
     }
+  }
+
+  const onboardedVendors = await getDb().select().from(vendorProfiles);
+  for (const profile of onboardedVendors) {
+    const [existing] = await getDb().select({ id: marketplaceVendors.id })
+      .from(marketplaceVendors)
+      .where(eq(marketplaceVendors.ownerClerkUserId, profile.clerkUserId))
+      .limit(1);
+
+    const slug = profile.businessName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 52) || "vendor";
+    const vendorId = existing?.id ?? `${slug}-${profile.clerkUserId.slice(-6).toLowerCase()}`;
+    const startingPrice = profile.startingPrice ? String(profile.startingPrice) : "0";
+    const fallbackImage = "https://ikejabird.com/wp-content/uploads/2025/10/2022-02-01-1.jpg";
+
+    await getDb().insert(marketplaceVendors).values({
+      id: vendorId,
+      ownerClerkUserId: profile.clerkUserId,
+      businessName: profile.businessName,
+      category: profile.primaryService,
+      location: profile.location,
+      state: profile.state,
+      startingPrice,
+      currencyCode: "NGN",
+      tier: "New on Smitten",
+      rating: "5.00",
+      reviewCount: 0,
+      imageUrl: fallbackImage,
+      styles: [],
+      matchReason: "A newly verified Smitten vendor ready to hear about your celebration.",
+      about: profile.about ?? "Tell this vendor about your wedding to receive a personalised response.",
+      travelDistance: profile.travelDistance,
+      gallery: [fallbackImage],
+      highlights: ["Verified Smitten vendor", profile.yearsInBusiness, profile.travelDistance],
+      instagram: profile.instagram,
+      responseTime: "Usually replies within 1 business day",
+      availability: "Contact vendor to confirm availability",
+      active: profile.onboardingComplete,
+    }).onConflictDoUpdate({
+      target: marketplaceVendors.id,
+      set: {
+        ownerClerkUserId: profile.clerkUserId,
+        businessName: profile.businessName,
+        category: profile.primaryService,
+        location: profile.location,
+        state: profile.state,
+        startingPrice,
+        about: profile.about ?? "Tell this vendor about your wedding to receive a personalised response.",
+        travelDistance: profile.travelDistance,
+        instagram: profile.instagram,
+        active: profile.onboardingComplete,
+        updatedAt: new Date(),
+      },
+    });
   }
 }
 
