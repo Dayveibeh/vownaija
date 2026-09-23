@@ -43,7 +43,7 @@ export function CommerceList({
             <div className="commerce-amount">{formatNaira(quote.total)}</div>
             <footer><span><Clock3 size={14} /> {quote.validUntil ? `Valid until ${dateLabel(quote.validUntil)}` : "No expiry date"}</span><ArrowRight size={16} /></footer>
           </Link>)
-          : bookings.map((booking) => <Link href={`/messages/${booking.conversationId}`} className="commerce-card booking" key={booking.id}>
+          : bookings.map((booking) => <Link href={`/bookings/${booking.id}`} className="commerce-card booking" key={booking.id}>
             <header><span><CalendarCheck2 /><small>Confirmed booking</small></span><b className="commerce-status accepted">{booking.status}</b></header>
             <h2>{booking.serviceSummary}</h2><p>{isVendor ? booking.customerName : booking.vendorName}</p>
             <div className="commerce-booking-meta"><span><MapPin size={14} /> {booking.weddingLocation}</span><span>{booking.weddingDate ? dateLabel(booking.weddingDate) : "Date to be confirmed"}</span></div>
