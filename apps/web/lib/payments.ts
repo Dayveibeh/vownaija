@@ -19,6 +19,14 @@ export type PaymentView = {
   createdAt: string;
 };
 
+export type AccountPaymentView = PaymentView & {
+  vendorName: string;
+  customerName: string;
+  serviceSummary: string;
+  weddingDate: string | null;
+  weddingLocation: string;
+};
+
 export type BookingPaymentSummary = {
   bookingId: string;
   total: number;
@@ -295,4 +303,41 @@ export function validatePaystackWebhook(rawBody: string, signature: string | nul
   const a = Buffer.from(digest);
   const b = Buffer.from(signature);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+
+export async function listAccountPayments(
+  userId: string,
+  role: "couple" | "vendor" | "admin",
+): Promise<AccountPaymentView[]> {
+  await ensureDatabaseSchema();
+  const rows = await getSql()`
+    SELECT
+      p.*,
+      b.service_summary,
+      b.wedding_date,
+      b.wedding_location,
+      mv.business_name AS vendor_name,
+      COALESCE(e.contact_name, customer.full_name) AS customer_name
+    FROM payment_orders p
+    JOIN bookings b ON b.id=p.booking_id
+    JOIN marketplace_vendors mv ON mv.id=b.vendor_id
+    JOIN enquiries e ON e.id=b.enquiry_id
+    JOIN smitten_users customer ON customer.clerk_user_id=b.customer_clerk_user_id
+    WHERE (
+      (${role}='couple' AND p.customer_clerk_user_id=${userId})
+      OR
+      (${role}<>'couple' AND p.vendor_owner_clerk_user_id=${userId})
+    )
+    ORDER BY p.created_at DESC
+  `;
+
+  return rows.map((row) => ({
+    ...mapPayment(row as Record<string, unknown>),
+    vendorName: String(row.vendor_name),
+    customerName: String(row.customer_name),
+    serviceSummary: String(row.service_summary),
+    weddingDate: row.wedding_date ? String(row.wedding_date).slice(0, 10) : null,
+    weddingLocation: String(row.wedding_location),
+  }));
 }
