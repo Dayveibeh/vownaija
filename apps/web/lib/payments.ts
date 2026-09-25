@@ -19,6 +19,17 @@ export type PaymentView = {
   createdAt: string;
 };
 
+export type PaystackBank = { name: string; code: string };
+export type VendorPayoutProfileView = {
+  provider: "paystack";
+  recipientCode: string | null;
+  accountName: string | null;
+  bankName: string | null;
+  accountLast4: string | null;
+  status: "unconfigured" | "pending" | "verified" | "disabled";
+  providerConfigured: boolean;
+};
+
 export type AccountPaymentView = PaymentView & {
   vendorName: string;
   customerName: string;
@@ -340,4 +351,104 @@ export async function listAccountPayments(
     weddingDate: row.wedding_date ? String(row.wedding_date).slice(0, 10) : null,
     weddingLocation: String(row.wedding_location),
   }));
+}
+
+
+export async function listPaystackBanks(): Promise<PaystackBank[]> {
+  if (!isPaystackConfigured()) throw new Error("PAYSTACK_NOT_CONFIGURED");
+  const response = await paystackRequest<{
+    status: boolean;
+    data?: Array<{ name?: string; code?: string; active?: boolean; currency?: string; country?: string }>;
+  }>("/bank?country=nigeria&currency=NGN&perPage=100", { method: "GET" });
+
+  return (response.data ?? [])
+    .filter((bank) => bank.active !== false && bank.name && bank.code)
+    .map((bank) => ({ name: String(bank.name), code: String(bank.code) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function getVendorPayoutProfile(vendorUserId: string): Promise<VendorPayoutProfileView> {
+  await ensureDatabaseSchema();
+  const rows = await getSql()`
+    SELECT provider,recipient_code,account_name,bank_name,account_last4,status
+    FROM vendor_payout_profiles
+    WHERE vendor_owner_clerk_user_id=${vendorUserId}
+    LIMIT 1
+  `;
+  const row = rows[0];
+  return {
+    provider: "paystack",
+    recipientCode: row?.recipient_code ? String(row.recipient_code) : null,
+    accountName: row?.account_name ? String(row.account_name) : null,
+    bankName: row?.bank_name ? String(row.bank_name) : null,
+    accountLast4: row?.account_last4 ? String(row.account_last4) : null,
+    status: row ? String(row.status) as VendorPayoutProfileView["status"] : "unconfigured",
+    providerConfigured: isPaystackConfigured(),
+  };
+}
+
+export async function configureVendorPayoutProfile(
+  vendorUserId: string,
+  input: { bankCode: string; bankName: string; accountNumber: string },
+) {
+  await ensureDatabaseSchema();
+  if (!isPaystackConfigured()) throw new Error("PAYSTACK_NOT_CONFIGURED");
+
+  const accountNumber = input.accountNumber.replace(/\s+/g, "");
+  if (!/^\d{10}$/.test(accountNumber)) throw new Error("INVALID_ACCOUNT_NUMBER");
+
+  const sql = getSql();
+  const vendorRows = await sql`
+    SELECT business_name,contact_name
+    FROM vendor_profiles
+    WHERE clerk_user_id=${vendorUserId}
+    LIMIT 1
+  `;
+  const vendor = vendorRows[0];
+  if (!vendor) throw new Error("VENDOR_PROFILE_NOT_FOUND");
+
+  const resolved = await paystackRequest<{
+    status: boolean;
+    data?: { account_number?: string; account_name?: string };
+  }>(`/bank/resolve?account_number=${encodeURIComponent(accountNumber)}&bank_code=${encodeURIComponent(input.bankCode)}`, { method: "GET" });
+
+  const accountName = resolved.data?.account_name?.trim();
+  if (!accountName) throw new Error("ACCOUNT_RESOLUTION_FAILED");
+
+  const recipient = await paystackRequest<{
+    status: boolean;
+    data?: { recipient_code?: string; active?: boolean };
+  }>("/transferrecipient", {
+    method: "POST",
+    body: JSON.stringify({
+      type: "nuban",
+      name: accountName,
+      account_number: accountNumber,
+      bank_code: input.bankCode,
+      currency: "NGN",
+      description: `Smitten payout account for ${String(vendor.business_name)}`,
+      metadata: { smitten_vendor_user_id: vendorUserId },
+    }),
+  });
+
+  const recipientCode = recipient.data?.recipient_code;
+  if (!recipientCode) throw new Error("RECIPIENT_CREATION_FAILED");
+
+  await sql`
+    INSERT INTO vendor_payout_profiles(
+      vendor_owner_clerk_user_id,provider,recipient_code,account_name,bank_name,account_last4,status,created_at,updated_at
+    ) VALUES(
+      ${vendorUserId},'paystack',${recipientCode},${accountName},${input.bankName},${accountNumber.slice(-4)},'verified',now(),now()
+    )
+    ON CONFLICT (vendor_owner_clerk_user_id) DO UPDATE SET
+      provider='paystack',
+      recipient_code=EXCLUDED.recipient_code,
+      account_name=EXCLUDED.account_name,
+      bank_name=EXCLUDED.bank_name,
+      account_last4=EXCLUDED.account_last4,
+      status='verified',
+      updated_at=now()
+  `;
+
+  return getVendorPayoutProfile(vendorUserId);
 }
