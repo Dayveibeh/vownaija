@@ -180,6 +180,7 @@ export default function DashboardClient({ profile }: { profile: { fullName: stri
           <Link href="/dashboard/enquiries"><Users size={18} /> Enquiries</Link>
           <Link href="/dashboard/quotes"><FileText size={18} /> Quotes {liveQuoteCount > 0 && <span>{liveQuoteCount}</span>}</Link>
           <Link href="/dashboard/bookings"><CalendarCheck2 size={18} /> Bookings {liveBookingCount > 0 && <span>{liveBookingCount}</span>}</Link>
+          <Link href="/dashboard/payments"><CircleDollarSign size={18} /> Payments</Link>
           <Link href="/dashboard/messages"><Mail size={18} /> Messages</Link>
           <small>Business</small>
           <button className={tab === "Portfolio" ? "active" : ""} onClick={() => setTab("Portfolio")}><ImagePlus size={18} /> Portfolio</button>
