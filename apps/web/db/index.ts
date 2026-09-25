@@ -256,6 +256,66 @@ export async function ensureDatabaseSchema() {
       `;
 
       await sql`
+        CREATE TABLE IF NOT EXISTS payment_orders (
+          id text PRIMARY KEY,
+          booking_id text NOT NULL REFERENCES bookings(id) ON DELETE RESTRICT,
+          customer_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE RESTRICT,
+          vendor_owner_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE RESTRICT,
+          provider text NOT NULL DEFAULT 'paystack',
+          provider_reference text NOT NULL UNIQUE,
+          provider_access_code text,
+          authorization_url text,
+          purpose text NOT NULL DEFAULT 'full' CHECK (purpose IN ('full','deposit','balance')),
+          amount numeric(14,2) NOT NULL,
+          currency_code text NOT NULL DEFAULT 'NGN',
+          status text NOT NULL DEFAULT 'created' CHECK (status IN ('created','pending','paid','failed','cancelled','refunded')),
+          funds_status text NOT NULL DEFAULT 'not_received' CHECK (funds_status IN ('not_received','held','releasable','released','refunded','disputed')),
+          provider_paid_at timestamptz,
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS payment_events (
+          id text PRIMARY KEY,
+          payment_order_id text NOT NULL REFERENCES payment_orders(id) ON DELETE CASCADE,
+          event_type text NOT NULL,
+          payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+          created_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS vendor_payout_profiles (
+          vendor_owner_clerk_user_id text PRIMARY KEY REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
+          provider text NOT NULL DEFAULT 'paystack',
+          recipient_code text,
+          account_name text,
+          bank_name text,
+          account_last4 text,
+          status text NOT NULL DEFAULT 'unconfigured' CHECK (status IN ('unconfigured','pending','verified','disabled')),
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS payout_releases (
+          id text PRIMARY KEY,
+          payment_order_id text NOT NULL UNIQUE REFERENCES payment_orders(id) ON DELETE RESTRICT,
+          vendor_owner_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE RESTRICT,
+          amount numeric(14,2) NOT NULL,
+          currency_code text NOT NULL DEFAULT 'NGN',
+          status text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','processing','paid','failed','cancelled')),
+          provider_transfer_reference text,
+          released_at timestamptz,
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
         CREATE TABLE IF NOT EXISTS favourites (
           clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
           vendor_id text NOT NULL REFERENCES marketplace_vendors(id) ON DELETE CASCADE,
@@ -290,6 +350,13 @@ export async function ensureDatabaseSchema() {
       await sql`CREATE INDEX IF NOT EXISTS bookings_vendor_owner_idx ON bookings(vendor_owner_clerk_user_id)`;
       await sql`CREATE INDEX IF NOT EXISTS bookings_customer_idx ON bookings(customer_clerk_user_id)`;
       await sql`CREATE INDEX IF NOT EXISTS bookings_status_idx ON bookings(status)`;
+      await sql`CREATE INDEX IF NOT EXISTS payment_orders_booking_idx ON payment_orders(booking_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS payment_orders_customer_idx ON payment_orders(customer_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS payment_orders_vendor_idx ON payment_orders(vendor_owner_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS payment_orders_status_idx ON payment_orders(status)`;
+      await sql`CREATE INDEX IF NOT EXISTS payment_events_order_idx ON payment_events(payment_order_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS payout_releases_vendor_idx ON payout_releases(vendor_owner_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS payout_releases_status_idx ON payout_releases(status)`;
       await sql`CREATE INDEX IF NOT EXISTS favourites_user_idx ON favourites(clerk_user_id)`;
     })().catch((error) => {
       schemaPromise = null;
