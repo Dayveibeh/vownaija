@@ -65,8 +65,8 @@ export function SessionAccountNav({
   const role = account?.role ?? metadataRole;
   const fullName = account?.fullName ?? user?.fullName ?? user?.primaryEmailAddress?.emailAddress?.split("@")[0] ?? "Smitten member";
   const initials = useMemo(() => initialsFor(fullName), [fullName]);
-  const dashboardHref = role === "vendor" || role === "admin" ? "/dashboard" : "/couples/dashboard";
-  const dashboardLabel = role === "vendor" || role === "admin" ? "Vendor workspace" : "My planning";
+  const dashboardHref = role === "admin" ? "/admin/payments" : role === "vendor" ? "/dashboard" : "/couples/dashboard";
+  const dashboardLabel = role === "admin" ? "Admin finance" : role === "vendor" ? "Vendor workspace" : "My planning";
 
   if (!isLoaded) {
     return <span className={`session-account-loading session-account-${variant}`} aria-hidden="true" />;
