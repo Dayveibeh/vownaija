@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   reconcilePaystackPayment,
+  reconcilePaystackRefundEvent,
   reconcilePaystackTransferEvent,
   validatePaystackWebhook,
 } from "@/lib/payments";
@@ -15,6 +16,10 @@ type PaystackWebhookEvent = {
     currency?: string;
     transfer_code?: string | null;
     transferred_at?: string | null;
+    transaction_reference?: string;
+    refund_reference?: string | null;
+    id?: number;
+    status?: string;
   };
 };
 
@@ -48,6 +53,22 @@ export async function POST(request: Request) {
       await reconcilePaystackTransferEvent(event.event, event.data);
     } catch (error) {
       console.error("Paystack webhook payout reconciliation failed", error);
+      return NextResponse.json({ received: true, reconciled: false });
+    }
+  }
+
+  if (
+    (event.event === "refund.pending" ||
+      event.event === "refund.processing" ||
+      event.event === "refund.needs-attention" ||
+      event.event === "refund.failed" ||
+      event.event === "refund.processed") &&
+    event.data?.transaction_reference
+  ) {
+    try {
+      await reconcilePaystackRefundEvent(event.event, event.data);
+    } catch (error) {
+      console.error("Paystack webhook refund reconciliation failed", error);
       return NextResponse.json({ received: true, reconciled: false });
     }
   }
