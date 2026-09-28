@@ -462,7 +462,11 @@ export async function releaseBookingPayment(bookingId: string, customerUserId: s
     }
 
     const releaseId = existing ? String(existing.id) : crypto.randomUUID();
-    const transferReference = "smitten_rel_" + crypto.randomUUID().replace(/-/g, "");
+    const existingReference = existing?.provider_transfer_reference
+      ? String(existing.provider_transfer_reference)
+      : "";
+    const transferReference =
+      existingReference || ("smitten_rel_" + crypto.randomUUID().replace(/-/g, ""));
     const amount = money(paymentRow.amount);
 
     if (existing) {
