@@ -44,6 +44,7 @@ export async function POST(request: Request) {
       DISPUTE_NOT_FOUND: "There is no open dispute for this payment.",
       PAYMENT_NOT_FOUND: "Payment not found.",
       PAYOUT_ALREADY_RELEASED: "This payout has already been released and cannot be refunded through this control.",
+      PAYOUT_ALREADY_STARTED: "This payout is already queued or processing and cannot be refunded from this control.",
       PAYMENT_ALREADY_REFUNDED: "This payment has already been refunded.",
       PAYMENT_NOT_REFUNDABLE: "Only a successfully paid transaction can be refunded.",
       REFUND_ALREADY_IN_PROGRESS: "A refund is already being processed for this payment.",
