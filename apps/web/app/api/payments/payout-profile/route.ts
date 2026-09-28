@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getUserProfile } from "@/lib/accounts";
-import { configureVendorPayoutProfile, getVendorPayoutProfile } from "@/lib/payments";
+import { configureVendorPayoutProfile, getVendorPayoutProfile, removeVendorPayoutProfile } from "@/lib/payments";
 
 const schema = z.object({
   bankCode: z.string().trim().min(2).max(16),
@@ -46,5 +46,28 @@ export async function POST(request: Request) {
     if (code === "ACCOUNT_RESOLUTION_FAILED") return NextResponse.json({ message: "Paystack could not verify that account number with the selected bank." }, { status: 400 });
     console.error("Failed to configure vendor payout profile", error);
     return NextResponse.json({ message: "We couldn’t save this payout account just now." }, { status: 500 });
+  }
+}
+
+
+export async function DELETE() {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
+
+  const profile = await getUserProfile(userId);
+  if (!profile || (profile.role !== "vendor" && profile.role !== "admin")) {
+    return NextResponse.json({ message: "Vendor account required." }, { status: 403 });
+  }
+
+  try {
+    const payoutProfile = await removeVendorPayoutProfile(userId);
+    return NextResponse.json({ ok: true, payoutProfile });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "";
+    if (code === "PAYSTACK_NOT_CONFIGURED") {
+      return NextResponse.json({ message: "Paystack is not configured on this deployment." }, { status: 503 });
+    }
+    console.error("Failed to remove vendor payout profile", error);
+    return NextResponse.json({ message: "We couldn’t remove this payout account just now." }, { status: 500 });
   }
 }
