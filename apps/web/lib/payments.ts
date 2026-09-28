@@ -52,6 +52,7 @@ export type BookingPaymentSummary = {
   vendorPayoutReady: boolean;
   payoutMode: "test" | "live" | "unconfigured";
   releaseEnabled: boolean;
+  simulationEnabled: boolean;
   payments: PaymentView[];
 };
 
@@ -114,6 +115,10 @@ export function paystackMode(): "test" | "live" | "unconfigured" {
   if (secret.startsWith("sk_test_")) return "test";
   if (secret.startsWith("sk_live_")) return "live";
   return secret ? "live" : "unconfigured";
+}
+
+export function isPayoutSimulationEnabled() {
+  return paystackMode() === "test" && process.env.SMITTEN_SIMULATE_PAYOUTS === "true";
 }
 
 export function isPayoutReleaseEnabled() {
@@ -236,6 +241,7 @@ export async function getBookingPaymentSummary(
     vendorPayoutReady,
     payoutMode: paystackMode(),
     releaseEnabled: isPayoutReleaseEnabled(),
+    simulationEnabled: isPayoutSimulationEnabled(),
     payments,
   };
 }
@@ -462,11 +468,13 @@ export async function releaseBookingPayment(bookingId: string, customerUserId: s
     }
 
     const releaseId = existing ? String(existing.id) : crypto.randomUUID();
+    const simulatePayout = isPayoutSimulationEnabled();
     const existingReference = existing?.provider_transfer_reference
       ? String(existing.provider_transfer_reference)
       : "";
-    const transferReference =
-      existingReference || ("smitten_rel_" + crypto.randomUUID().replace(/-/g, ""));
+    const transferReference = simulatePayout
+      ? "smitten_sim_" + crypto.randomUUID().replace(/-/g, "")
+      : existingReference || ("smitten_rel_" + crypto.randomUUID().replace(/-/g, ""));
     const amount = money(paymentRow.amount);
 
     if (existing) {
@@ -495,6 +503,40 @@ export async function releaseBookingPayment(bookingId: string, customerUserId: s
       SET funds_status='releasable',updated_at=now()
       WHERE id=${paymentOrderId} AND status='paid' AND funds_status='held'
     `;
+
+    if (simulatePayout) {
+      const releasedAt = new Date();
+
+      await sql`
+        UPDATE payout_releases
+        SET status='paid',
+            provider_transfer_reference=${transferReference},
+            provider_transfer_code=NULL,
+            released_at=${releasedAt},
+            updated_at=now()
+        WHERE id=${releaseId}
+      `;
+
+      await sql`
+        INSERT INTO payment_events(id,payment_order_id,event_type,payload)
+        VALUES(
+          ${crypto.randomUUID()},
+          ${paymentOrderId},
+          'payout.simulated',
+          ${JSON.stringify({
+            reference: transferReference,
+            mode: "test",
+            simulated: true,
+            amount,
+            currency: "NGN",
+          })}::jsonb
+        )
+      `;
+
+      await markPaymentReleased(paymentOrderId, releasedAt);
+      results.push({ paymentOrderId, status: "simulated", reference: transferReference });
+      continue;
+    }
 
     let response: PaystackTransferResponse;
     try {
