@@ -3531,3 +3531,333 @@ button.user-avatar {
     width: 100%;
   }
 }
+
+
+/* Phase 3 finance cleanup: disputes, refunds and admin controls */
+.payment-protection-card.warning {
+  color: #755927;
+  border-color: #ead9ad;
+  background: #fbf5e5;
+}
+
+.payment-dispute-action {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px 15px;
+  border: 1px solid #e5ddd7;
+  border-radius: 16px;
+  background: #fbf8f5;
+}
+
+.payment-dispute-action > div:not(.payment-dispute-form) {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.payment-dispute-action > div > svg {
+  flex: 0 0 auto;
+  color: #8b6840;
+}
+
+.payment-dispute-action > div > span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.payment-dispute-action strong {
+  font-size: 10px;
+}
+
+.payment-dispute-action small {
+  color: #877d78;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.payment-dispute-action > button,
+.payment-dispute-form button {
+  width: fit-content;
+  min-height: 36px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 999px;
+  background: #2c2727;
+  color: #fff;
+  font: inherit;
+  font-size: 8px;
+  font-weight: 740;
+  cursor: pointer;
+}
+
+.payment-dispute-form {
+  display: grid;
+  gap: 10px;
+}
+
+.payment-dispute-form label {
+  display: grid;
+  gap: 7px;
+  color: #554d49;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.payment-dispute-form textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 92px;
+  padding: 11px 12px;
+  border: 1px solid #ddd5cf;
+  border-radius: 13px;
+  outline: none;
+  background: #fff;
+  font: inherit;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.payment-dispute-form > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.payment-dispute-form button.secondary {
+  color: #685f5b;
+  border: 1px solid #ddd5cf;
+  background: #fff;
+}
+
+.payment-dispute-form button:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+.payment-case-reason {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-left: 3px solid #b88a46;
+  border-radius: 0 12px 12px 0;
+  background: #fcf7ea;
+}
+
+.payment-case-reason small {
+  color: #9a7947;
+  font-size: 7px;
+  font-weight: 760;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.payment-case-reason p {
+  margin: 5px 0 0;
+  color: #675c53;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.phase3-admin-finance {
+  min-height: 100dvh;
+  color: #171413;
+  background: #f7f4f1;
+}
+
+.admin-finance-banner {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  color: #50603f;
+  border: 1px solid #d7e2cd;
+  border-radius: 14px;
+  background: #f0f6eb;
+  font-size: 9px;
+}
+
+.admin-finance-banner.error {
+  color: #8a4d49;
+  border-color: #ead2cf;
+  background: #fbefee;
+}
+
+.admin-finance-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-finance-card {
+  display: grid;
+  grid-template-columns: 44px minmax(0,1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #e5ddd8;
+  border-radius: 19px;
+  background: #fff;
+}
+
+.admin-finance-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: #5d684b;
+  border-radius: 14px;
+  background: #eef2e8;
+}
+
+.admin-finance-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.admin-finance-copy > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-finance-copy > div:first-child > b {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #f1eee9;
+  color: #746b66;
+  font-size: 7px;
+  text-transform: capitalize;
+}
+
+.admin-finance-copy > div:first-child > b.disputed {
+  color: #7b5b27;
+  background: #f7eed4;
+}
+
+.admin-finance-copy p,
+.admin-finance-copy small,
+.admin-finance-copy blockquote {
+  margin: 0;
+  color: #827872;
+  font-size: 8px;
+}
+
+.admin-finance-copy blockquote {
+  margin-top: 5px;
+  padding-left: 9px;
+  border-left: 2px solid #d7c09a;
+  line-height: 1.5;
+}
+
+.admin-case-chip {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: #f7edd8;
+  color: #72572c;
+}
+
+.admin-case-chip > span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.admin-case-chip strong {
+  font-size: 8px;
+}
+
+.admin-case-chip small {
+  font-size: 7px;
+}
+
+.admin-finance-amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.admin-finance-amount strong {
+  font-size: 15px;
+}
+
+.admin-finance-amount small {
+  color: #8b817b;
+  font-size: 8px;
+  text-transform: capitalize;
+}
+
+.admin-finance-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-finance-actions button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 11px;
+  border: 1px solid #d9e2d0;
+  border-radius: 999px;
+  background: #f2f6ed;
+  color: #536143;
+  font: inherit;
+  font-size: 8px;
+  font-weight: 730;
+  cursor: pointer;
+}
+
+.admin-finance-actions button.refund {
+  color: #80504d;
+  border-color: #ead3d0;
+  background: #fff5f4;
+}
+
+.admin-finance-actions button:disabled {
+  opacity: .4;
+  cursor: default;
+}
+
+.admin-finance-footnote {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 18px 0 0;
+  color: #8a817b;
+  font-size: 8px;
+}
+
+@media (max-width: 760px) {
+  .admin-finance-card {
+    grid-template-columns: 42px minmax(0,1fr);
+  }
+
+  .admin-finance-amount,
+  .admin-finance-actions {
+    grid-column: 2;
+    align-items: flex-start;
+  }
+
+  .admin-finance-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .payment-dispute-form > div {
+    justify-content: stretch;
+  }
+
+  .payment-dispute-form button {
+    flex: 1;
+  }
+}
