@@ -3331,3 +3331,120 @@ button.user-avatar {
 .dashboard-sidebar::-webkit-scrollbar-track {
   background: transparent;
 }
+
+
+/* Phase 3 payout account management separation */
+.phase3-payout-stack {
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+  align-self: start;
+}
+
+.phase3-payout-current-card .phase3-current-payout {
+  margin-bottom: 0;
+}
+
+.phase3-payout-remove-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 16px 22px 22px;
+  padding-top: 16px;
+  border-top: 1px solid #eee8e4;
+}
+
+.phase3-payout-remove-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.phase3-payout-remove-row strong {
+  font-size: 9px;
+}
+
+.phase3-payout-remove-row small {
+  max-width: 420px;
+  color: #8c817c;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.phase3-payout-remove-row > button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 13px;
+  color: #8e4947;
+  border: 1px solid #ecd5d2;
+  border-radius: 999px;
+  background: #fff7f6;
+  font: inherit;
+  font-size: 8px;
+  font-weight: 740;
+  cursor: pointer;
+}
+
+.phase3-payout-remove-row > button:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+.phase3-payout-empty {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 22px 22px;
+  padding: 17px;
+  color: #746b66;
+  border: 1px dashed #dcd3cd;
+  border-radius: 17px;
+  background: #faf8f5;
+}
+
+.phase3-payout-empty > svg {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  padding: 10px;
+  color: #7a816b;
+  border-radius: 13px;
+  background: #eef2e8;
+}
+
+.phase3-payout-empty > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.phase3-payout-empty strong {
+  color: #423b38;
+  font-size: 10px;
+}
+
+.phase3-payout-empty p,
+.phase3-payout-form-intro {
+  margin: 0;
+  color: #887e79;
+  font-size: 8px;
+  line-height: 1.55;
+}
+
+.phase3-payout-form-intro {
+  padding-bottom: 2px;
+}
+
+@media (max-width: 620px) {
+  .phase3-payout-remove-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .phase3-payout-remove-row > button {
+    justify-content: center;
+  }
+}
