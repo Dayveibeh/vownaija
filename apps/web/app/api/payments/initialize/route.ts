@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getUserProfile } from "@/lib/accounts";
 import { initializeBookingPayment } from "@/lib/payments";
+import { getPublicRequestOrigin } from "@/lib/request-origin";
 
 const schema = z.object({ bookingId: z.string().trim().min(1) });
 
@@ -23,7 +24,11 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ message: "Booking is required." }, { status: 400 });
 
   try {
-    const result = await initializeBookingPayment(parsed.data.bookingId, userId, new URL(request.url).origin);
+    const result = await initializeBookingPayment(
+      parsed.data.bookingId,
+      userId,
+      getPublicRequestOrigin(request),
+    );
     return NextResponse.json({ ok: true, ...result }, { status: 201 });
   } catch (error) {
     const code = error instanceof Error ? error.message : "";
