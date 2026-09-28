@@ -181,11 +181,11 @@ export default function DashboardClient({ profile }: { profile: { fullName: stri
           <Link href="/dashboard/quotes"><FileText size={18} /> Quotes {liveQuoteCount > 0 && <span>{liveQuoteCount}</span>}</Link>
           <Link href="/dashboard/bookings"><CalendarCheck2 size={18} /> Bookings {liveBookingCount > 0 && <span>{liveBookingCount}</span>}</Link>
           <Link href="/dashboard/payments"><CircleDollarSign size={18} /> Payments</Link>
+          <Link href="/dashboard/payouts"><CircleDollarSign size={18} /> Payout account</Link>
           <Link href="/dashboard/messages"><Mail size={18} /> Messages</Link>
           <small>Business</small>
           <button className={tab === "Portfolio" ? "active" : ""} onClick={() => setTab("Portfolio")}><ImagePlus size={18} /> Portfolio</button>
           <button className={tab === "Reviews" ? "active" : ""} onClick={() => setTab("Reviews")}><Star size={18} /> Reviews</button>
-          <Link href="/dashboard/payouts"><CircleDollarSign size={18} /> Payout account</Link>
           <button onClick={() => showToast("Insights report opened")}><BarChart3 size={18} /> Insights</button>
         </nav>
         <div className="sidebar-bottom"><button onClick={() => showToast("Business settings opened")}><Settings size={18} /> Settings</button>{publicVendorId ? <Link href={`/vendor/${publicVendorId}`}><ArrowRight size={17} /> View public profile</Link> : <Link href="/"><ArrowRight size={17} /> Browse marketplace</Link>}<button onClick={() => signOut({ redirectUrl: "/" })}><LogOut size={17} /> Sign out</button></div>
