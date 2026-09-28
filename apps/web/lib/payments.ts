@@ -786,6 +786,14 @@ export async function openPaymentDispute(bookingId: string, customerUserId: stri
   if (String(payment.funds_status) === "released") throw new Error("PAYOUT_ALREADY_RELEASED");
   if (String(payment.funds_status) === "refunded") throw new Error("PAYMENT_ALREADY_REFUNDED");
 
+  const releaseRows = await sql`
+    SELECT status FROM payout_releases
+    WHERE payment_order_id=${String(payment.id)}
+      AND status IN ('queued','processing','paid')
+    LIMIT 1
+  `;
+  if (releaseRows[0]) throw new Error("PAYOUT_ALREADY_STARTED");
+
   const existing = await sql`
     SELECT id FROM payment_cases
     WHERE payment_order_id=${String(payment.id)}
@@ -926,6 +934,14 @@ export async function initiatePaymentRefund(paymentOrderId: string, adminUserId:
   if (String(payment.status) !== "paid") throw new Error("PAYMENT_NOT_REFUNDABLE");
   if (String(payment.funds_status) === "released") throw new Error("PAYOUT_ALREADY_RELEASED");
   if (String(payment.funds_status) === "refunded") throw new Error("PAYMENT_ALREADY_REFUNDED");
+
+  const releaseRows = await sql`
+    SELECT status FROM payout_releases
+    WHERE payment_order_id=${paymentOrderId}
+      AND status IN ('queued','processing','paid')
+    LIMIT 1
+  `;
+  if (releaseRows[0]) throw new Error("PAYOUT_ALREADY_STARTED");
 
   const activeRefund = await sql`
     SELECT id,status FROM payment_cases
