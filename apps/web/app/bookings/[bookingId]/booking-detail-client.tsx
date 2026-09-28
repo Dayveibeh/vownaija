@@ -55,9 +55,11 @@ export default function BookingDetailClient({
 
   async function releasePayout() {
     const confirmed = window.confirm(
-      paymentSummary.payoutMode === "test"
-        ? "Release this test payout to the vendor's connected Paystack recipient? This is a test-mode transfer."
-        : "Release this payout to the vendor? This action starts the provider transfer and cannot be undone from Smitten.",
+      paymentSummary.simulationEnabled
+        ? "Simulate releasing this test payout? No real transfer will be sent to the vendor."
+        : paymentSummary.payoutMode === "test"
+          ? "Release this test payout to the vendor's connected Paystack recipient? This is a test-mode transfer."
+          : "Release this payout to the vendor? This action starts the provider transfer and cannot be undone from Smitten.",
     );
     if (!confirmed) return;
 
@@ -77,9 +79,11 @@ export default function BookingDetailClient({
       if (result.paymentSummary) setPaymentSummary(result.paymentSummary);
       const release = Array.isArray(result.releases) ? result.releases[0] : null;
       setReleaseNotice(
-        release?.status === "success"
-          ? "Vendor payout released."
-          : "Release started. Paystack is processing the transfer.",
+        release?.status === "simulated"
+          ? "Test payout release simulated successfully."
+          : release?.status === "success"
+            ? "Vendor payout released."
+            : "Release started. Paystack is processing the transfer.",
       );
     } catch (error) {
       setReleaseError(error instanceof Error ? error.message : "We couldn’t release this payout.");
@@ -165,10 +169,12 @@ export default function BookingDetailClient({
             {paymentSummary.paymentStatus === "paid" ? <div className="payment-protection-card success">
               {paymentSummary.releaseStatus === "released" ? <CheckCircle2 size={21} /> : paymentSummary.releaseStatus === "processing" || paymentSummary.releaseStatus === "queued" ? <HandCoins size={21} /> : <ShieldCheck size={21} />}
               <span>
-                <strong>{paymentSummary.releaseStatus === "released" ? "Vendor payout released" : paymentSummary.releaseStatus === "processing" || paymentSummary.releaseStatus === "queued" ? "Payout release in progress" : "Payment received"}</strong>
+                <strong>{paymentSummary.releaseStatus === "released" ? (paymentSummary.simulationEnabled ? "Test payout release simulated" : "Vendor payout released") : paymentSummary.releaseStatus === "processing" || paymentSummary.releaseStatus === "queued" ? "Payout release in progress" : "Payment received"}</strong>
                 <small>
                   {paymentSummary.releaseStatus === "released"
-                    ? (isCustomer ? "The vendor payout has been completed for this payment." : "Smitten has completed the payout for this payment.")
+                    ? paymentSummary.simulationEnabled
+                      ? "Staging simulation complete. No real bank transfer was sent."
+                      : (isCustomer ? "The vendor payout has been completed for this payment." : "Smitten has completed the payout for this payment.")
                     : paymentSummary.releaseStatus === "processing" || paymentSummary.releaseStatus === "queued"
                       ? "Paystack is processing the vendor transfer. Smitten will update this booking when the transfer webhook confirms the final status."
                       : (isCustomer ? "Your payment is recorded against this booking. Vendor payout has not been released yet." : "The customer has paid. Smitten has recorded the funds for this booking and payout release is still pending.")}
@@ -195,9 +201,11 @@ export default function BookingDetailClient({
                   <small>
                     {!paymentSummary.vendorPayoutReady
                       ? "The vendor needs to connect and verify a payout account first."
-                      : paymentSummary.payoutMode === "test"
-                        ? "Test mode: this starts a Paystack test transfer to the vendor's verified recipient."
-                        : "Release starts the vendor transfer through Paystack."}
+                      : paymentSummary.simulationEnabled
+                        ? "Staging simulation: this tests Smitten's release flow without sending a real Paystack transfer."
+                        : paymentSummary.payoutMode === "test"
+                          ? "Test mode: this starts a Paystack test transfer to the vendor's verified recipient."
+                          : "Release starts the vendor transfer through Paystack."}
                   </small>
                 </span>
               </div>
@@ -206,7 +214,7 @@ export default function BookingDetailClient({
                 onClick={() => void releasePayout()}
                 disabled={releaseStarting || !paymentSummary.vendorPayoutReady || !paymentSummary.releaseEnabled}
               >
-                <HandCoins size={16} /> {releaseStarting ? "Starting release…" : "Release payout"}
+                <HandCoins size={16} /> {releaseStarting ? "Starting release…" : paymentSummary.simulationEnabled ? "Simulate release" : "Release payout"}
               </button>
               {!paymentSummary.releaseEnabled && paymentSummary.payoutMode === "live" && <small className="payment-error">Live payout releases are disabled until production payout controls are explicitly enabled.</small>}
               {releaseNotice && <small className="payment-success">{releaseNotice}</small>}
