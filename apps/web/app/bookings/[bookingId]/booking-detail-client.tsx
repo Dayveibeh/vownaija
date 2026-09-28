@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, CalendarCheck2, CheckCircle2, CreditCard, Download, FileText, LockKeyhole, MapPin, MessageSquare, ShieldCheck, WalletCards } from "lucide-react";
+import { ArrowLeft, CalendarCheck2, CheckCircle2, CreditCard, Download, FileText, HandCoins, LockKeyhole, MapPin, MessageSquare, ShieldCheck, WalletCards } from "lucide-react";
 import { formatNaira } from "@smitten/shared";
 import type { BookingView, QuoteView } from "@/lib/quotes";
 import type { BookingPaymentSummary } from "@/lib/payments";
@@ -25,9 +25,12 @@ export default function BookingDetailClient({
   role: "couple" | "vendor" | "admin";
   paymentSummary: BookingPaymentSummary;
 }) {
-  const [paymentSummary] = useState(initialPaymentSummary);
+  const [paymentSummary, setPaymentSummary] = useState(initialPaymentSummary);
   const [paymentStarting, setPaymentStarting] = useState(false);
   const [paymentError, setPaymentError] = useState("");
+  const [releaseStarting, setReleaseStarting] = useState(false);
+  const [releaseError, setReleaseError] = useState("");
+  const [releaseNotice, setReleaseNotice] = useState("");
   const isCustomer = role === "couple";
   const backHref = isCustomer ? "/couples/bookings" : "/dashboard/bookings";
   const counterparty = isCustomer ? booking.vendorName : booking.customerName;
@@ -47,6 +50,41 @@ export default function BookingDetailClient({
     } catch (error) {
       setPaymentError(error instanceof Error ? error.message : "We couldn’t start payment.");
       setPaymentStarting(false);
+    }
+  }
+
+  async function releasePayout() {
+    const confirmed = window.confirm(
+      paymentSummary.payoutMode === "test"
+        ? "Release this test payout to the vendor's connected Paystack recipient? This is a test-mode transfer."
+        : "Release this payout to the vendor? This action starts the provider transfer and cannot be undone from Smitten.",
+    );
+    if (!confirmed) return;
+
+    setReleaseError("");
+    setReleaseNotice("");
+    setReleaseStarting(true);
+
+    try {
+      const response = await fetch("/api/payments/release", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId: booking.id }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result?.message || "We couldn’t release this payout.");
+
+      if (result.paymentSummary) setPaymentSummary(result.paymentSummary);
+      const release = Array.isArray(result.releases) ? result.releases[0] : null;
+      setReleaseNotice(
+        release?.status === "success"
+          ? "Vendor payout released."
+          : "Release started. Paystack is processing the transfer.",
+      );
+    } catch (error) {
+      setReleaseError(error instanceof Error ? error.message : "We couldn’t release this payout.");
+    } finally {
+      setReleaseStarting(false);
     }
   }
 
@@ -125,8 +163,17 @@ export default function BookingDetailClient({
             </div>
 
             {paymentSummary.paymentStatus === "paid" ? <div className="payment-protection-card success">
-              <ShieldCheck size={21} />
-              <span><strong>Payment received</strong><small>{isCustomer ? "Your payment is recorded against this booking. Vendor payout has not been released yet." : "The customer has paid. Smitten has recorded the funds for this booking and payout release is still pending."}</small></span>
+              {paymentSummary.releaseStatus === "released" ? <CheckCircle2 size={21} /> : paymentSummary.releaseStatus === "processing" || paymentSummary.releaseStatus === "queued" ? <HandCoins size={21} /> : <ShieldCheck size={21} />}
+              <span>
+                <strong>{paymentSummary.releaseStatus === "released" ? "Vendor payout released" : paymentSummary.releaseStatus === "processing" || paymentSummary.releaseStatus === "queued" ? "Payout release in progress" : "Payment received"}</strong>
+                <small>
+                  {paymentSummary.releaseStatus === "released"
+                    ? (isCustomer ? "The vendor payout has been completed for this payment." : "Smitten has completed the payout for this payment.")
+                    : paymentSummary.releaseStatus === "processing" || paymentSummary.releaseStatus === "queued"
+                      ? "Paystack is processing the vendor transfer. Smitten will update this booking when the transfer webhook confirms the final status."
+                      : (isCustomer ? "Your payment is recorded against this booking. Vendor payout has not been released yet." : "The customer has paid. Smitten has recorded the funds for this booking and payout release is still pending.")}
+                </small>
+              </span>
             </div> : <div className="payment-protection-card">
               <LockKeyhole size={21} />
               <span><strong>Secure Smitten checkout</strong><small>{isCustomer ? "Pay through Paystack. Smitten verifies the transaction server-side before marking this booking as paid." : "The customer will pay through Smitten checkout. The booking updates only after provider verification."}</small></span>
@@ -138,6 +185,32 @@ export default function BookingDetailClient({
               </button>
               {!paymentSummary.providerConfigured && <small>Paystack test keys still need to be added to this preview before checkout can open.</small>}
               {paymentError && <small className="payment-error">{paymentError}</small>}
+            </div>}
+
+            {isCustomer && paymentSummary.paymentStatus === "paid" && paymentSummary.releaseStatus !== "released" && paymentSummary.releaseStatus !== "processing" && paymentSummary.releaseStatus !== "queued" && <div className="payout-release-action">
+              <div>
+                <HandCoins size={20} />
+                <span>
+                  <strong>Release vendor payout</strong>
+                  <small>
+                    {!paymentSummary.vendorPayoutReady
+                      ? "The vendor needs to connect and verify a payout account first."
+                      : paymentSummary.payoutMode === "test"
+                        ? "Test mode: this starts a Paystack test transfer to the vendor's verified recipient."
+                        : "Release starts the vendor transfer through Paystack."}
+                  </small>
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => void releasePayout()}
+                disabled={releaseStarting || !paymentSummary.vendorPayoutReady || !paymentSummary.releaseEnabled}
+              >
+                <HandCoins size={16} /> {releaseStarting ? "Starting release…" : "Release payout"}
+              </button>
+              {!paymentSummary.releaseEnabled && paymentSummary.payoutMode === "live" && <small className="payment-error">Live payout releases are disabled until production payout controls are explicitly enabled.</small>}
+              {releaseNotice && <small className="payment-success">{releaseNotice}</small>}
+              {releaseError && <small className="payment-error">{releaseError}</small>}
             </div>}
 
             {paymentSummary.payments.length > 0 && <div className="payment-history">
