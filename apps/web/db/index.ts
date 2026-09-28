@@ -317,6 +317,24 @@ export async function ensureDatabaseSchema() {
       await sql`ALTER TABLE payout_releases ADD COLUMN IF NOT EXISTS provider_transfer_code text`;
 
       await sql`
+        CREATE TABLE IF NOT EXISTS payment_cases (
+          id text PRIMARY KEY,
+          payment_order_id text NOT NULL REFERENCES payment_orders(id) ON DELETE RESTRICT,
+          booking_id text NOT NULL REFERENCES bookings(id) ON DELETE RESTRICT,
+          case_type text NOT NULL CHECK (case_type IN ('dispute','refund')),
+          status text NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved','processing','processed','failed','needs_attention')),
+          opened_by_clerk_user_id text REFERENCES smitten_users(clerk_user_id) ON DELETE SET NULL,
+          reason text,
+          amount numeric(14,2),
+          provider_reference text,
+          resolved_by_clerk_user_id text REFERENCES smitten_users(clerk_user_id) ON DELETE SET NULL,
+          resolved_at timestamptz,
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
         CREATE TABLE IF NOT EXISTS favourites (
           clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
           vendor_id text NOT NULL REFERENCES marketplace_vendors(id) ON DELETE CASCADE,
@@ -358,6 +376,9 @@ export async function ensureDatabaseSchema() {
       await sql`CREATE INDEX IF NOT EXISTS payment_events_order_idx ON payment_events(payment_order_id)`;
       await sql`CREATE INDEX IF NOT EXISTS payout_releases_vendor_idx ON payout_releases(vendor_owner_clerk_user_id)`;
       await sql`CREATE INDEX IF NOT EXISTS payout_releases_status_idx ON payout_releases(status)`;
+      await sql`CREATE INDEX IF NOT EXISTS payment_cases_payment_idx ON payment_cases(payment_order_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS payment_cases_booking_idx ON payment_cases(booking_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS payment_cases_status_idx ON payment_cases(status)`;
       await sql`CREATE INDEX IF NOT EXISTS favourites_user_idx ON favourites(clerk_user_id)`;
     })().catch((error) => {
       schemaPromise = null;
