@@ -3,6 +3,7 @@ import { ensureDatabaseSchema, getSql } from "@/db";
 
 export type PaymentStatus = "created" | "pending" | "paid" | "failed" | "cancelled" | "refunded";
 export type FundsStatus = "not_received" | "held" | "releasable" | "released" | "refunded" | "disputed";
+export type PayoutReleaseStatus = "not_ready" | "ready" | "queued" | "processing" | "released" | "failed";
 
 export type PaymentView = {
   id: string;
@@ -47,6 +48,10 @@ export type BookingPaymentSummary = {
   providerConfigured: boolean;
   paymentStatus: "unpaid" | "partially_paid" | "paid" | "refunded";
   fundsStatus: FundsStatus | "not_started";
+  releaseStatus: PayoutReleaseStatus;
+  vendorPayoutReady: boolean;
+  payoutMode: "test" | "live" | "unconfigured";
+  releaseEnabled: boolean;
   payments: PaymentView[];
 };
 
@@ -73,6 +78,19 @@ type PaystackVerifyResponse = {
   };
 };
 
+type PaystackTransferResponse = {
+  status: boolean;
+  message: string;
+  data?: {
+    status: string;
+    reference: string;
+    amount: number;
+    currency: string;
+    transfer_code?: string | null;
+    transferred_at?: string | null;
+  };
+};
+
 function money(value: unknown) {
   const number = Number(value ?? 0);
   return Number.isFinite(number) ? number : 0;
@@ -89,6 +107,18 @@ function paystackSecret() {
 
 export function isPaystackConfigured() {
   return Boolean(paystackSecret());
+}
+
+export function paystackMode(): "test" | "live" | "unconfigured" {
+  const secret = paystackSecret();
+  if (secret.startsWith("sk_test_")) return "test";
+  if (secret.startsWith("sk_live_")) return "live";
+  return secret ? "live" : "unconfigured";
+}
+
+export function isPayoutReleaseEnabled() {
+  const mode = paystackMode();
+  return mode === "test" || (mode === "live" && process.env.SMITTEN_ENABLE_LIVE_PAYOUTS === "true");
 }
 
 function mapPayment(row: Record<string, unknown>): PaymentView {
@@ -163,6 +193,36 @@ export async function getBookingPaymentSummary(
   else if (payments.some((payment) => payment.status === "refunded")) paymentStatus = "refunded";
 
   const latestPaid = payments.find((payment) => payment.status === "paid");
+  const vendorPayoutRows = await sql`
+    SELECT status,recipient_code
+    FROM vendor_payout_profiles
+    WHERE vendor_owner_clerk_user_id=${String(booking.vendor_owner_clerk_user_id)}
+    LIMIT 1
+  `;
+  const vendorPayoutReady =
+    String(vendorPayoutRows[0]?.status ?? "") === "verified" &&
+    Boolean(vendorPayoutRows[0]?.recipient_code);
+
+  const releaseRows = await sql`
+    SELECT pr.status,pr.provider_transfer_reference
+    FROM payout_releases pr
+    JOIN payment_orders p ON p.id=pr.payment_order_id
+    WHERE p.booking_id=${bookingId}
+    ORDER BY pr.created_at DESC
+    LIMIT 1
+  `;
+  const latestReleaseStatus = releaseRows[0]?.status ? String(releaseRows[0].status) : "";
+  let releaseStatus: PayoutReleaseStatus = "not_ready";
+  if (latestPaid?.fundsStatus === "released" || latestReleaseStatus === "paid") releaseStatus = "released";
+  else if (latestReleaseStatus === "processing") releaseStatus = "processing";
+  else if (latestReleaseStatus === "queued") releaseStatus = "queued";
+  else if (latestReleaseStatus === "failed" || latestReleaseStatus === "cancelled") releaseStatus = "failed";
+  else if (
+    latestPaid &&
+    ["held", "releasable"].includes(latestPaid.fundsStatus) &&
+    vendorPayoutReady
+  ) releaseStatus = "ready";
+
   return {
     bookingId,
     total,
@@ -172,6 +232,10 @@ export async function getBookingPaymentSummary(
     providerConfigured: isPaystackConfigured(),
     paymentStatus,
     fundsStatus: latestPaid?.fundsStatus ?? "not_started",
+    releaseStatus,
+    vendorPayoutReady,
+    payoutMode: paystackMode(),
+    releaseEnabled: isPayoutReleaseEnabled(),
     payments,
   };
 }
@@ -314,6 +378,273 @@ export function validatePaystackWebhook(rawBody: string, signature: string | nul
   const a = Buffer.from(digest);
   const b = Buffer.from(signature);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+
+
+async function markPaymentReleased(paymentOrderId: string, releasedAt = new Date()) {
+  const sql = getSql();
+  await sql`
+    UPDATE payment_orders
+    SET funds_status='released',updated_at=now()
+    WHERE id=${paymentOrderId} AND status='paid'
+  `;
+  await sql`
+    UPDATE payout_releases
+    SET status='paid',released_at=${releasedAt},updated_at=now()
+    WHERE payment_order_id=${paymentOrderId}
+  `;
+}
+
+export async function releaseBookingPayment(bookingId: string, customerUserId: string) {
+  await ensureDatabaseSchema();
+  if (!isPaystackConfigured()) throw new Error("PAYSTACK_NOT_CONFIGURED");
+  if (!isPayoutReleaseEnabled()) throw new Error("LIVE_PAYOUTS_DISABLED");
+
+  const sql = getSql();
+  const bookingRows = await sql`
+    SELECT id,vendor_owner_clerk_user_id,customer_clerk_user_id,service_summary
+    FROM bookings
+    WHERE id=${bookingId}
+      AND customer_clerk_user_id=${customerUserId}
+    LIMIT 1
+  `;
+  const booking = bookingRows[0];
+  if (!booking) throw new Error("BOOKING_NOT_FOUND");
+
+  const payoutRows = await sql`
+    SELECT recipient_code,status
+    FROM vendor_payout_profiles
+    WHERE vendor_owner_clerk_user_id=${String(booking.vendor_owner_clerk_user_id)}
+    LIMIT 1
+  `;
+  const payoutProfile = payoutRows[0];
+  if (!payoutProfile || String(payoutProfile.status) !== "verified" || !payoutProfile.recipient_code) {
+    throw new Error("PAYOUT_ACCOUNT_REQUIRED");
+  }
+
+  const paymentRows = await sql`
+    SELECT *
+    FROM payment_orders
+    WHERE booking_id=${bookingId}
+      AND status='paid'
+      AND funds_status IN ('held','releasable')
+    ORDER BY provider_paid_at ASC NULLS LAST, created_at ASC
+  `;
+  if (paymentRows.length === 0) {
+    const releasedRows = await sql`
+      SELECT id FROM payment_orders
+      WHERE booking_id=${bookingId} AND status='paid' AND funds_status='released'
+      LIMIT 1
+    `;
+    if (releasedRows[0]) throw new Error("PAYOUT_ALREADY_RELEASED");
+    throw new Error("PAYMENT_NOT_READY_FOR_RELEASE");
+  }
+
+  const results: Array<{ paymentOrderId: string; status: string; reference: string }> = [];
+
+  for (const paymentRow of paymentRows) {
+    const paymentOrderId = String(paymentRow.id);
+    const existingRows = await sql`
+      SELECT * FROM payout_releases
+      WHERE payment_order_id=${paymentOrderId}
+      LIMIT 1
+    `;
+    const existing = existingRows[0];
+
+    if (existing && ["paid","processing","queued"].includes(String(existing.status))) {
+      results.push({
+        paymentOrderId,
+        status: String(existing.status),
+        reference: String(existing.provider_transfer_reference ?? ""),
+      });
+      continue;
+    }
+
+    const releaseId = existing ? String(existing.id) : crypto.randomUUID();
+    const transferReference = "smitten_rel_" + crypto.randomUUID().replace(/-/g, "");
+    const amount = money(paymentRow.amount);
+
+    if (existing) {
+      await sql`
+        UPDATE payout_releases
+        SET status='queued',
+            amount=${amount},
+            provider_transfer_reference=${transferReference},
+            provider_transfer_code=NULL,
+            released_at=NULL,
+            updated_at=now()
+        WHERE id=${releaseId}
+      `;
+    } else {
+      await sql`
+        INSERT INTO payout_releases(
+          id,payment_order_id,vendor_owner_clerk_user_id,amount,currency_code,status,provider_transfer_reference,created_at,updated_at
+        ) VALUES(
+          ${releaseId},${paymentOrderId},${String(booking.vendor_owner_clerk_user_id)},${amount},'NGN','queued',${transferReference},now(),now()
+        )
+      `;
+    }
+
+    await sql`
+      UPDATE payment_orders
+      SET funds_status='releasable',updated_at=now()
+      WHERE id=${paymentOrderId} AND status='paid' AND funds_status='held'
+    `;
+
+    let response: PaystackTransferResponse;
+    try {
+      response = await paystackRequest<PaystackTransferResponse>("/transfer", {
+        method: "POST",
+        body: JSON.stringify({
+          source: "balance",
+          amount: Math.round(amount * 100),
+          recipient: String(payoutProfile.recipient_code),
+          reference: transferReference,
+          reason: `Smitten payout for ${String(booking.service_summary)}`,
+          currency: "NGN",
+        }),
+      });
+    } catch (error) {
+      await sql`
+        UPDATE payout_releases
+        SET status='failed',updated_at=now()
+        WHERE id=${releaseId}
+      `;
+      throw error;
+    }
+
+    const data = response.data;
+    if (
+      !response.status ||
+      !data ||
+      data.reference !== transferReference ||
+      Number(data.amount) !== Math.round(amount * 100) ||
+      String(data.currency).toUpperCase() !== "NGN"
+    ) {
+      await sql`
+        UPDATE payout_releases
+        SET status='failed',updated_at=now()
+        WHERE id=${releaseId}
+      `;
+      throw new Error("PAYOUT_TRANSFER_MISMATCH");
+    }
+
+    const transferStatus = String(data.status || "").toLowerCase();
+    const transferCode = data.transfer_code ? String(data.transfer_code) : null;
+
+    await sql`
+      UPDATE payout_releases
+      SET status=${transferStatus === "success" ? "paid" : "processing"},
+          provider_transfer_code=${transferCode},
+          released_at=${transferStatus === "success" ? new Date(data.transferred_at || Date.now()) : null},
+          updated_at=now()
+      WHERE id=${releaseId}
+    `;
+
+    await sql`
+      INSERT INTO payment_events(id,payment_order_id,event_type,payload)
+      VALUES(
+        ${crypto.randomUUID()},
+        ${paymentOrderId},
+        'payout.initiated',
+        ${JSON.stringify({
+          reference: transferReference,
+          transferCode,
+          status: transferStatus,
+          amount: data.amount,
+          currency: data.currency,
+        })}::jsonb
+      )
+    `;
+
+    if (transferStatus === "success") {
+      await markPaymentReleased(paymentOrderId, new Date(data.transferred_at || Date.now()));
+    }
+
+    results.push({ paymentOrderId, status: transferStatus, reference: transferReference });
+
+    if (transferStatus === "otp") {
+      throw new Error("PAYOUT_OTP_REQUIRED");
+    }
+  }
+
+  return { bookingId, releases: results };
+}
+
+export async function reconcilePaystackTransferEvent(
+  eventType: "transfer.success" | "transfer.failed" | "transfer.reversed",
+  data: {
+    reference?: string;
+    amount?: number;
+    currency?: string;
+    transfer_code?: string | null;
+    transferred_at?: string | null;
+  },
+) {
+  await ensureDatabaseSchema();
+  const reference = data.reference?.trim();
+  if (!reference) throw new Error("TRANSFER_REFERENCE_MISSING");
+
+  const sql = getSql();
+  const releaseRows = await sql`
+    SELECT pr.*,p.amount AS payment_amount,p.status AS payment_status
+    FROM payout_releases pr
+    JOIN payment_orders p ON p.id=pr.payment_order_id
+    WHERE pr.provider_transfer_reference=${reference}
+    LIMIT 1
+  `;
+  const release = releaseRows[0];
+  if (!release) throw new Error("PAYOUT_RELEASE_NOT_FOUND");
+
+  if (data.currency && String(data.currency).toUpperCase() !== "NGN") {
+    throw new Error("PAYOUT_TRANSFER_MISMATCH");
+  }
+  if (typeof data.amount === "number" && Number(data.amount) !== Math.round(money(release.amount) * 100)) {
+    throw new Error("PAYOUT_TRANSFER_MISMATCH");
+  }
+
+  const paymentOrderId = String(release.payment_order_id);
+  const previousStatus = String(release.status);
+
+  if (eventType === "transfer.success") {
+    if (previousStatus !== "paid") {
+      await markPaymentReleased(
+        paymentOrderId,
+        data.transferred_at ? new Date(data.transferred_at) : new Date(),
+      );
+    }
+  } else {
+    await sql`
+      UPDATE payout_releases
+      SET status='failed',
+          provider_transfer_code=COALESCE(${data.transfer_code ?? null},provider_transfer_code),
+          updated_at=now()
+      WHERE id=${String(release.id)}
+    `;
+    await sql`
+      UPDATE payment_orders
+      SET funds_status='releasable',updated_at=now()
+      WHERE id=${paymentOrderId} AND status='paid'
+    `;
+  }
+
+  if (
+    previousStatus !== (eventType === "transfer.success" ? "paid" : "failed") ||
+    eventType === "transfer.reversed"
+  ) {
+    await sql`
+      INSERT INTO payment_events(id,payment_order_id,event_type,payload)
+      VALUES(
+        ${crypto.randomUUID()},
+        ${paymentOrderId},
+        ${eventType === "transfer.success" ? "payout.released" : eventType === "transfer.reversed" ? "payout.reversed" : "payout.failed"},
+        ${JSON.stringify(data)}::jsonb
+      )
+    `;
+  }
+
+  return { paymentOrderId, reference, eventType };
 }
 
 
