@@ -3448,3 +3448,86 @@ button.user-avatar {
     justify-content: center;
   }
 }
+
+
+/* Phase 3 payout release controls */
+.payout-release-action {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+  gap: 12px 18px;
+  margin-top: 14px;
+  padding: 15px;
+  border: 1px solid #dce5d2;
+  border-radius: 16px;
+  background: #f4f7ef;
+}
+
+.payout-release-action > div {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.payout-release-action > div > svg {
+  flex: 0 0 auto;
+  color: #5b6948;
+}
+
+.payout-release-action > div > span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.payout-release-action strong {
+  font-size: 10px;
+}
+
+.payout-release-action small {
+  color: #7b756d;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.payout-release-action > button {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 15px;
+  color: #fff;
+  border: 0;
+  border-radius: 999px;
+  background: #596848;
+  font: inherit;
+  font-size: 8px;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.payout-release-action > button:disabled {
+  opacity: .42;
+  cursor: default;
+}
+
+.payout-release-action > .payment-error,
+.payout-release-action > .payment-success {
+  grid-column: 1 / -1;
+}
+
+.payment-success {
+  color: #52613f !important;
+}
+
+@media (max-width: 620px) {
+  .payout-release-action {
+    grid-template-columns: 1fr;
+  }
+
+  .payout-release-action > button {
+    width: 100%;
+  }
+}
