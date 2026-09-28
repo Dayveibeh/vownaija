@@ -4,6 +4,7 @@ import { ensureDatabaseSchema, getSql } from "@/db";
 export type PaymentStatus = "created" | "pending" | "paid" | "failed" | "cancelled" | "refunded";
 export type FundsStatus = "not_received" | "held" | "releasable" | "released" | "refunded" | "disputed";
 export type PayoutReleaseStatus = "not_ready" | "ready" | "queued" | "processing" | "released" | "failed";
+export type PaymentCaseStatus = "none" | "dispute_open" | "refund_processing" | "refund_needs_attention" | "refund_processed" | "refund_failed";
 
 export type PaymentView = {
   id: string;
@@ -53,6 +54,8 @@ export type BookingPaymentSummary = {
   payoutMode: "test" | "live" | "unconfigured";
   releaseEnabled: boolean;
   simulationEnabled: boolean;
+  caseStatus: PaymentCaseStatus;
+  caseReason: string | null;
   payments: PaymentView[];
 };
 
@@ -92,6 +95,19 @@ type PaystackTransferResponse = {
   };
 };
 
+type PaystackRefundResponse = {
+  status: boolean;
+  message: string;
+  data?: {
+    id?: number;
+    status?: string;
+    amount?: number;
+    currency?: string;
+    transaction_reference?: string;
+    refund_reference?: string | null;
+  };
+};
+
 function money(value: unknown) {
   const number = Number(value ?? 0);
   return Number.isFinite(number) ? number : 0;
@@ -124,6 +140,34 @@ export function isPayoutSimulationEnabled() {
 export function isPayoutReleaseEnabled() {
   const mode = paystackMode();
   return mode === "test" || (mode === "live" && process.env.SMITTEN_ENABLE_LIVE_PAYOUTS === "true");
+}
+
+export function isRefundEnabled() {
+  const mode = paystackMode();
+  return mode === "test" || (mode === "live" && process.env.SMITTEN_ENABLE_LIVE_REFUNDS === "true");
+}
+
+async function expireStalePaymentAttempts() {
+  const sql = getSql();
+  const rows = await sql`
+    UPDATE payment_orders
+    SET status='cancelled',updated_at=now()
+    WHERE status IN ('created','pending')
+      AND created_at < now() - interval '24 hours'
+    RETURNING id
+  `;
+
+  for (const row of rows) {
+    await sql`
+      INSERT INTO payment_events(id,payment_order_id,event_type,payload)
+      VALUES(
+        ${crypto.randomUUID()},
+        ${String(row.id)},
+        'payment.expired',
+        '{"reason":"checkout_not_completed_within_24_hours"}'::jsonb
+      )
+    `;
+  }
 }
 
 function mapPayment(row: Record<string, unknown>): PaymentView {
@@ -167,6 +211,7 @@ export async function getBookingPaymentSummary(
 ): Promise<BookingPaymentSummary | null> {
   await ensureDatabaseSchema();
   const sql = getSql();
+  await expireStalePaymentAttempts();
 
   const bookingRows = await sql`
     SELECT id,total,currency_code,customer_clerk_user_id,vendor_owner_clerk_user_id
@@ -217,6 +262,22 @@ export async function getBookingPaymentSummary(
     LIMIT 1
   `;
   const latestReleaseStatus = releaseRows[0]?.status ? String(releaseRows[0].status) : "";
+
+  const caseRows = await sql`
+    SELECT case_type,status,reason
+    FROM payment_cases
+    WHERE booking_id=${bookingId}
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+  const latestCase = caseRows[0];
+  let caseStatus: PaymentCaseStatus = "none";
+  if (latestCase?.case_type === "dispute" && latestCase.status === "open") caseStatus = "dispute_open";
+  else if (latestCase?.case_type === "refund" && ["open","processing"].includes(String(latestCase.status))) caseStatus = "refund_processing";
+  else if (latestCase?.case_type === "refund" && latestCase.status === "needs_attention") caseStatus = "refund_needs_attention";
+  else if (latestCase?.case_type === "refund" && latestCase.status === "processed") caseStatus = "refund_processed";
+  else if (latestCase?.case_type === "refund" && latestCase.status === "failed") caseStatus = "refund_failed";
+
   let releaseStatus: PayoutReleaseStatus = "not_ready";
   if (latestPaid?.fundsStatus === "released" || latestReleaseStatus === "paid") releaseStatus = "released";
   else if (latestReleaseStatus === "processing") releaseStatus = "processing";
@@ -242,6 +303,8 @@ export async function getBookingPaymentSummary(
     payoutMode: paystackMode(),
     releaseEnabled: isPayoutReleaseEnabled(),
     simulationEnabled: isPayoutSimulationEnabled(),
+    caseStatus,
+    caseReason: latestCase?.reason ? String(latestCase.reason) : null,
     payments,
   };
 }
@@ -428,6 +491,13 @@ export async function releaseBookingPayment(bookingId: string, customerUserId: s
   if (!payoutProfile || String(payoutProfile.status) !== "verified" || !payoutProfile.recipient_code) {
     throw new Error("PAYOUT_ACCOUNT_REQUIRED");
   }
+
+  const disputedRows = await sql`
+    SELECT id FROM payment_orders
+    WHERE booking_id=${bookingId} AND status='paid' AND funds_status='disputed'
+    LIMIT 1
+  `;
+  if (disputedRows[0]) throw new Error("PAYOUT_DISPUTED");
 
   const paymentRows = await sql`
     SELECT *
@@ -694,11 +764,332 @@ export async function reconcilePaystackTransferEvent(
 }
 
 
+
+export async function openPaymentDispute(bookingId: string, customerUserId: string, reason: string) {
+  await ensureDatabaseSchema();
+  const sql = getSql();
+  const normalizedReason = reason.trim();
+  if (normalizedReason.length < 10) throw new Error("DISPUTE_REASON_REQUIRED");
+
+  const rows = await sql`
+    SELECT p.*
+    FROM payment_orders p
+    JOIN bookings b ON b.id=p.booking_id
+    WHERE p.booking_id=${bookingId}
+      AND b.customer_clerk_user_id=${customerUserId}
+      AND p.status='paid'
+    ORDER BY p.provider_paid_at DESC NULLS LAST,p.created_at DESC
+    LIMIT 1
+  `;
+  const payment = rows[0];
+  if (!payment) throw new Error("PAYMENT_NOT_FOUND");
+  if (String(payment.funds_status) === "released") throw new Error("PAYOUT_ALREADY_RELEASED");
+  if (String(payment.funds_status) === "refunded") throw new Error("PAYMENT_ALREADY_REFUNDED");
+
+  const existing = await sql`
+    SELECT id FROM payment_cases
+    WHERE payment_order_id=${String(payment.id)}
+      AND case_type='dispute'
+      AND status='open'
+    LIMIT 1
+  `;
+  if (existing[0]) throw new Error("DISPUTE_ALREADY_OPEN");
+
+  const caseId = crypto.randomUUID();
+  await sql`
+    INSERT INTO payment_cases(
+      id,payment_order_id,booking_id,case_type,status,opened_by_clerk_user_id,reason,created_at,updated_at
+    ) VALUES(
+      ${caseId},${String(payment.id)},${bookingId},'dispute','open',${customerUserId},${normalizedReason},now(),now()
+    )
+  `;
+  await sql`
+    UPDATE payment_orders
+    SET funds_status='disputed',updated_at=now()
+    WHERE id=${String(payment.id)} AND status='paid'
+  `;
+  await sql`
+    INSERT INTO payment_events(id,payment_order_id,event_type,payload)
+    VALUES(
+      ${crypto.randomUUID()},
+      ${String(payment.id)},
+      'dispute.opened',
+      ${JSON.stringify({ caseId, reason: normalizedReason })}::jsonb
+    )
+  `;
+
+  return { caseId, bookingId };
+}
+
+export type AdminFinancePaymentView = AccountPaymentView & {
+  caseId: string | null;
+  caseType: "dispute" | "refund" | null;
+  caseStatus: string | null;
+  caseReason: string | null;
+};
+
+export async function listAdminFinancePayments(): Promise<AdminFinancePaymentView[]> {
+  await ensureDatabaseSchema();
+  await expireStalePaymentAttempts();
+  const rows = await getSql()`
+    SELECT
+      p.*,
+      b.service_summary,
+      b.wedding_date,
+      b.wedding_location,
+      mv.business_name AS vendor_name,
+      COALESCE(e.contact_name,customer.full_name) AS customer_name,
+      pc.id AS case_id,
+      pc.case_type,
+      pc.status AS case_status,
+      pc.reason AS case_reason
+    FROM payment_orders p
+    JOIN bookings b ON b.id=p.booking_id
+    JOIN marketplace_vendors mv ON mv.id=b.vendor_id
+    JOIN enquiries e ON e.id=b.enquiry_id
+    JOIN smitten_users customer ON customer.clerk_user_id=b.customer_clerk_user_id
+    LEFT JOIN LATERAL (
+      SELECT id,case_type,status,reason
+      FROM payment_cases
+      WHERE payment_order_id=p.id
+      ORDER BY created_at DESC
+      LIMIT 1
+    ) pc ON true
+    WHERE p.status<>'cancelled'
+    ORDER BY
+      CASE WHEN pc.status IN ('open','processing','needs_attention') THEN 0 ELSE 1 END,
+      p.created_at DESC
+    LIMIT 200
+  `;
+
+  return rows.map((row) => ({
+    ...mapPayment(row as Record<string, unknown>),
+    vendorName: String(row.vendor_name),
+    customerName: String(row.customer_name),
+    serviceSummary: String(row.service_summary),
+    weddingDate: row.wedding_date ? String(row.wedding_date).slice(0,10) : null,
+    weddingLocation: String(row.wedding_location),
+    caseId: row.case_id ? String(row.case_id) : null,
+    caseType: row.case_type ? String(row.case_type) as "dispute" | "refund" : null,
+    caseStatus: row.case_status ? String(row.case_status) : null,
+    caseReason: row.case_reason ? String(row.case_reason) : null,
+  }));
+}
+
+export async function resolvePaymentDispute(paymentOrderId: string, adminUserId: string) {
+  await ensureDatabaseSchema();
+  const sql = getSql();
+
+  const caseRows = await sql`
+    SELECT * FROM payment_cases
+    WHERE payment_order_id=${paymentOrderId}
+      AND case_type='dispute'
+      AND status='open'
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+  const activeCase = caseRows[0];
+  if (!activeCase) throw new Error("DISPUTE_NOT_FOUND");
+
+  const paymentRows = await sql`SELECT * FROM payment_orders WHERE id=${paymentOrderId} LIMIT 1`;
+  const payment = paymentRows[0];
+  if (!payment) throw new Error("PAYMENT_NOT_FOUND");
+  if (String(payment.funds_status) === "released") throw new Error("PAYOUT_ALREADY_RELEASED");
+
+  await sql`
+    UPDATE payment_cases
+    SET status='resolved',resolved_by_clerk_user_id=${adminUserId},resolved_at=now(),updated_at=now()
+    WHERE id=${String(activeCase.id)}
+  `;
+  await sql`
+    UPDATE payment_orders
+    SET funds_status='held',updated_at=now()
+    WHERE id=${paymentOrderId} AND status='paid' AND funds_status='disputed'
+  `;
+  await sql`
+    INSERT INTO payment_events(id,payment_order_id,event_type,payload)
+    VALUES(${crypto.randomUUID()},${paymentOrderId},'dispute.resolved',${JSON.stringify({ caseId: String(activeCase.id), adminUserId })}::jsonb)
+  `;
+
+  return { paymentOrderId, caseId: String(activeCase.id) };
+}
+
+export async function initiatePaymentRefund(paymentOrderId: string, adminUserId: string, reason: string) {
+  await ensureDatabaseSchema();
+  if (!isPaystackConfigured()) throw new Error("PAYSTACK_NOT_CONFIGURED");
+  if (!isRefundEnabled()) throw new Error("LIVE_REFUNDS_DISABLED");
+
+  const sql = getSql();
+  const paymentRows = await sql`SELECT * FROM payment_orders WHERE id=${paymentOrderId} LIMIT 1`;
+  const payment = paymentRows[0];
+  if (!payment) throw new Error("PAYMENT_NOT_FOUND");
+  if (String(payment.status) !== "paid") throw new Error("PAYMENT_NOT_REFUNDABLE");
+  if (String(payment.funds_status) === "released") throw new Error("PAYOUT_ALREADY_RELEASED");
+  if (String(payment.funds_status) === "refunded") throw new Error("PAYMENT_ALREADY_REFUNDED");
+
+  const activeRefund = await sql`
+    SELECT id,status FROM payment_cases
+    WHERE payment_order_id=${paymentOrderId}
+      AND case_type='refund'
+      AND status IN ('open','processing','needs_attention')
+    LIMIT 1
+  `;
+  if (activeRefund[0]) throw new Error("REFUND_ALREADY_IN_PROGRESS");
+
+  const caseId = crypto.randomUUID();
+  const normalizedReason = reason.trim() || "Refund approved by Smitten support";
+  await sql`
+    INSERT INTO payment_cases(
+      id,payment_order_id,booking_id,case_type,status,opened_by_clerk_user_id,reason,amount,created_at,updated_at
+    ) VALUES(
+      ${caseId},${paymentOrderId},${String(payment.booking_id)},'refund','processing',${adminUserId},${normalizedReason},${money(payment.amount)},now(),now()
+    )
+  `;
+  await sql`UPDATE payment_orders SET funds_status='disputed',updated_at=now() WHERE id=${paymentOrderId}`;
+
+  let response: PaystackRefundResponse;
+  try {
+    response = await paystackRequest<PaystackRefundResponse>("/refund", {
+      method: "POST",
+      body: JSON.stringify({
+        transaction: String(payment.provider_reference),
+        amount: Math.round(money(payment.amount) * 100),
+        currency: "NGN",
+        customer_note: "Refund from Smitten",
+        merchant_note: normalizedReason,
+      }),
+    });
+  } catch (error) {
+    await sql`UPDATE payment_cases SET status='failed',updated_at=now() WHERE id=${caseId}`;
+    await sql`UPDATE payment_orders SET funds_status='held',updated_at=now() WHERE id=${paymentOrderId} AND status='paid'`;
+    throw error;
+  }
+
+  const refundStatus = String(response.data?.status ?? "processing").toLowerCase();
+  const refundRef = response.data?.refund_reference
+    ? String(response.data.refund_reference)
+    : response.data?.id
+      ? String(response.data.id)
+      : null;
+
+  await sql`
+    UPDATE payment_cases
+    SET status=${refundStatus === "processed" ? "processed" : refundStatus === "failed" ? "failed" : refundStatus === "needs-attention" ? "needs_attention" : "processing"},
+        provider_reference=${refundRef},
+        updated_at=now()
+    WHERE id=${caseId}
+  `;
+
+  if (refundStatus === "processed") {
+    await sql`
+      UPDATE payment_orders
+      SET status='refunded',funds_status='refunded',updated_at=now()
+      WHERE id=${paymentOrderId}
+    `;
+  }
+
+  await sql`
+    INSERT INTO payment_events(id,payment_order_id,event_type,payload)
+    VALUES(
+      ${crypto.randomUUID()},
+      ${paymentOrderId},
+      'refund.initiated',
+      ${JSON.stringify({ caseId, status: refundStatus, refundReference: refundRef, reason: normalizedReason })}::jsonb
+    )
+  `;
+
+  return { paymentOrderId, caseId, status: refundStatus };
+}
+
+export async function reconcilePaystackRefundEvent(
+  eventType: "refund.pending" | "refund.processing" | "refund.needs-attention" | "refund.failed" | "refund.processed",
+  data: {
+    transaction_reference?: string;
+    refund_reference?: string | null;
+    id?: number;
+    amount?: string | number;
+    currency?: string;
+    status?: string;
+  },
+) {
+  await ensureDatabaseSchema();
+  const transactionReference = data.transaction_reference?.trim();
+  if (!transactionReference) throw new Error("REFUND_TRANSACTION_REFERENCE_MISSING");
+
+  const sql = getSql();
+  const paymentRows = await sql`
+    SELECT * FROM payment_orders
+    WHERE provider_reference=${transactionReference}
+    LIMIT 1
+  `;
+  const payment = paymentRows[0];
+  if (!payment) throw new Error("PAYMENT_NOT_FOUND");
+
+  const caseRows = await sql`
+    SELECT * FROM payment_cases
+    WHERE payment_order_id=${String(payment.id)}
+      AND case_type='refund'
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+  const refundCase = caseRows[0];
+  if (!refundCase) throw new Error("REFUND_CASE_NOT_FOUND");
+
+  const nextStatus =
+    eventType === "refund.processed" ? "processed" :
+    eventType === "refund.failed" ? "failed" :
+    eventType === "refund.needs-attention" ? "needs_attention" :
+    "processing";
+
+  await sql`
+    UPDATE payment_cases
+    SET status=${nextStatus},
+        provider_reference=COALESCE(${data.refund_reference ?? (data.id ? String(data.id) : null)},provider_reference),
+        updated_at=now(),
+        resolved_at=${nextStatus === "processed" || nextStatus === "failed" ? new Date() : null}
+    WHERE id=${String(refundCase.id)}
+  `;
+
+  if (nextStatus === "processed") {
+    await sql`
+      UPDATE payment_orders
+      SET status='refunded',funds_status='refunded',updated_at=now()
+      WHERE id=${String(payment.id)}
+    `;
+  } else if (nextStatus === "failed") {
+    await sql`
+      UPDATE payment_orders
+      SET funds_status='held',updated_at=now()
+      WHERE id=${String(payment.id)} AND status='paid'
+    `;
+  } else {
+    await sql`
+      UPDATE payment_orders
+      SET funds_status='disputed',updated_at=now()
+      WHERE id=${String(payment.id)} AND status='paid'
+    `;
+  }
+
+  await sql`
+    INSERT INTO payment_events(id,payment_order_id,event_type,payload)
+    VALUES(
+      ${crypto.randomUUID()},
+      ${String(payment.id)},
+      ${eventType},
+      ${JSON.stringify(data)}::jsonb
+    )
+  `;
+
+  return { paymentOrderId: String(payment.id), status: nextStatus };
+}
+
+
 export async function listAccountPayments(
   userId: string,
   role: "couple" | "vendor" | "admin",
 ): Promise<AccountPaymentView[]> {
   await ensureDatabaseSchema();
+  await expireStalePaymentAttempts();
   const rows = await getSql()`
     SELECT
       p.*,
@@ -712,11 +1103,12 @@ export async function listAccountPayments(
     JOIN marketplace_vendors mv ON mv.id=b.vendor_id
     JOIN enquiries e ON e.id=b.enquiry_id
     JOIN smitten_users customer ON customer.clerk_user_id=b.customer_clerk_user_id
-    WHERE (
-      (${role}='couple' AND p.customer_clerk_user_id=${userId})
-      OR
-      (${role}<>'couple' AND p.vendor_owner_clerk_user_id=${userId})
-    )
+    WHERE p.status<>'cancelled'
+      AND (
+        (${role}='couple' AND p.customer_clerk_user_id=${userId})
+        OR
+        (${role}<>'couple' AND p.vendor_owner_clerk_user_id=${userId})
+      )
     ORDER BY p.created_at DESC
   `;
 
