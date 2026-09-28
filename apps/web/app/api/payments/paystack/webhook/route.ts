@@ -1,7 +1,22 @@
 import { NextResponse } from "next/server";
-import { reconcilePaystackPayment, validatePaystackWebhook } from "@/lib/payments";
+import {
+  reconcilePaystackPayment,
+  reconcilePaystackTransferEvent,
+  validatePaystackWebhook,
+} from "@/lib/payments";
 
 export const runtime = "nodejs";
+
+type PaystackWebhookEvent = {
+  event?: string;
+  data?: {
+    reference?: string;
+    amount?: number;
+    currency?: string;
+    transfer_code?: string | null;
+    transferred_at?: string | null;
+  };
+};
 
 export async function POST(request: Request) {
   const rawBody = await request.text();
@@ -10,15 +25,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Invalid signature." }, { status: 401 });
   }
 
-  let event: { event?: string; data?: { reference?: string } };
-  try { event = JSON.parse(rawBody) as typeof event; }
+  let event: PaystackWebhookEvent;
+  try { event = JSON.parse(rawBody) as PaystackWebhookEvent; }
   catch { return NextResponse.json({ message: "Invalid payload." }, { status: 400 }); }
 
   if (event.event === "charge.success" && event.data?.reference) {
     try {
       await reconcilePaystackPayment(event.data.reference);
     } catch (error) {
-      console.error("Paystack webhook reconciliation failed", error);
+      console.error("Paystack webhook payment reconciliation failed", error);
+      return NextResponse.json({ received: true, reconciled: false });
+    }
+  }
+
+  if (
+    (event.event === "transfer.success" ||
+      event.event === "transfer.failed" ||
+      event.event === "transfer.reversed") &&
+    event.data?.reference
+  ) {
+    try {
+      await reconcilePaystackTransferEvent(event.event, event.data);
+    } catch (error) {
+      console.error("Paystack webhook payout reconciliation failed", error);
       return NextResponse.json({ received: true, reconciled: false });
     }
   }
