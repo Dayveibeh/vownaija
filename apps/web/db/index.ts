@@ -314,6 +314,7 @@ export async function ensureDatabaseSchema() {
           updated_at timestamptz NOT NULL DEFAULT now()
         )
       `;
+      await sql`ALTER TABLE payout_releases ADD COLUMN IF NOT EXISTS provider_transfer_code text`;
 
       await sql`
         CREATE TABLE IF NOT EXISTS favourites (
