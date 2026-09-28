@@ -398,6 +398,16 @@ export async function configureVendorPayoutProfile(
   if (!/^\d{10}$/.test(accountNumber)) throw new Error("INVALID_ACCOUNT_NUMBER");
 
   const sql = getSql();
+  const currentProfileRows = await sql`
+    SELECT recipient_code
+    FROM vendor_payout_profiles
+    WHERE vendor_owner_clerk_user_id=${vendorUserId}
+    LIMIT 1
+  `;
+  const previousRecipientCode = currentProfileRows[0]?.recipient_code
+    ? String(currentProfileRows[0].recipient_code)
+    : null;
+
   const vendorRows = await sql`
     SELECT business_name,contact_name
     FROM vendor_profiles
@@ -448,6 +458,45 @@ export async function configureVendorPayoutProfile(
       account_last4=EXCLUDED.account_last4,
       status='verified',
       updated_at=now()
+  `;
+
+  if (previousRecipientCode && previousRecipientCode !== recipientCode) {
+    try {
+      await paystackRequest<{ status: boolean; message?: string }>(
+        `/transferrecipient/${encodeURIComponent(previousRecipientCode)}`,
+        { method: "DELETE" },
+      );
+    } catch (error) {
+      console.warn("Unable to deactivate previous Paystack payout recipient", error);
+    }
+  }
+
+  return getVendorPayoutProfile(vendorUserId);
+}
+
+export async function removeVendorPayoutProfile(vendorUserId: string) {
+  await ensureDatabaseSchema();
+  const sql = getSql();
+  const rows = await sql`
+    SELECT recipient_code
+    FROM vendor_payout_profiles
+    WHERE vendor_owner_clerk_user_id=${vendorUserId}
+    LIMIT 1
+  `;
+  const recipientCode = rows[0]?.recipient_code ? String(rows[0].recipient_code) : null;
+
+  if (!rows[0]) return getVendorPayoutProfile(vendorUserId);
+  if (recipientCode) {
+    if (!isPaystackConfigured()) throw new Error("PAYSTACK_NOT_CONFIGURED");
+    await paystackRequest<{ status: boolean; message?: string }>(
+      `/transferrecipient/${encodeURIComponent(recipientCode)}`,
+      { method: "DELETE" },
+    );
+  }
+
+  await sql`
+    DELETE FROM vendor_payout_profiles
+    WHERE vendor_owner_clerk_user_id=${vendorUserId}
   `;
 
   return getVendorPayoutProfile(vendorUserId);
