@@ -35,6 +35,7 @@ export async function POST(request: Request) {
     const code = error instanceof Error ? error.message : "";
     if (code === "PAYMENT_NOT_FOUND") return NextResponse.json({ message: "No paid transaction was found for this booking." }, { status: 404 });
     if (code === "PAYOUT_ALREADY_RELEASED") return NextResponse.json({ message: "This payout has already been released. Please contact Smitten support for further help." }, { status: 409 });
+    if (code === "PAYOUT_ALREADY_STARTED") return NextResponse.json({ message: "This payout is already being processed and can no longer be paused from the booking page." }, { status: 409 });
     if (code === "PAYMENT_ALREADY_REFUNDED") return NextResponse.json({ message: "This payment has already been refunded." }, { status: 409 });
     if (code === "DISPUTE_ALREADY_OPEN") return NextResponse.json({ message: "A payment dispute is already open for this booking." }, { status: 409 });
     if (code === "DISPUTE_REASON_REQUIRED") return NextResponse.json({ message: "Please provide a little more detail about the problem." }, { status: 400 });
