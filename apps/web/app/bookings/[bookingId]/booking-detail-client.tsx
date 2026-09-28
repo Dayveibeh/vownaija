@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, CalendarCheck2, CheckCircle2, CreditCard, Download, FileText, HandCoins, LockKeyhole, MapPin, MessageSquare, ShieldCheck, WalletCards } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CalendarCheck2, CheckCircle2, CreditCard, Download, FileText, HandCoins, LockKeyhole, MapPin, MessageSquare, ShieldCheck, WalletCards } from "lucide-react";
 import { formatNaira } from "@smitten/shared";
 import type { BookingView, QuoteView } from "@/lib/quotes";
 import type { BookingPaymentSummary } from "@/lib/payments";
@@ -31,6 +31,10 @@ export default function BookingDetailClient({
   const [releaseStarting, setReleaseStarting] = useState(false);
   const [releaseError, setReleaseError] = useState("");
   const [releaseNotice, setReleaseNotice] = useState("");
+  const [showDisputeForm, setShowDisputeForm] = useState(false);
+  const [disputeReason, setDisputeReason] = useState("");
+  const [disputeStarting, setDisputeStarting] = useState(false);
+  const [disputeError, setDisputeError] = useState("");
   const isCustomer = role === "couple";
   const backHref = isCustomer ? "/couples/bookings" : "/dashboard/bookings";
   const counterparty = isCustomer ? booking.vendorName : booking.customerName;
@@ -89,6 +93,27 @@ export default function BookingDetailClient({
       setReleaseError(error instanceof Error ? error.message : "We couldn’t release this payout.");
     } finally {
       setReleaseStarting(false);
+    }
+  }
+
+  async function openDispute() {
+    setDisputeError("");
+    setDisputeStarting(true);
+    try {
+      const response = await fetch("/api/payments/dispute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId: booking.id, reason: disputeReason }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result?.message || "We couldn’t open this dispute.");
+      if (result.paymentSummary) setPaymentSummary(result.paymentSummary);
+      setShowDisputeForm(false);
+      setDisputeReason("");
+    } catch (error) {
+      setDisputeError(error instanceof Error ? error.message : "We couldn’t open this dispute.");
+    } finally {
+      setDisputeStarting(false);
     }
   }
 
@@ -166,18 +191,50 @@ export default function BookingDetailClient({
               <article><small>Outstanding</small><strong>{formatNaira(paymentSummary.outstanding)}</strong></article>
             </div>
 
-            {paymentSummary.paymentStatus === "paid" ? <div className="payment-protection-card success">
-              {paymentSummary.releaseStatus === "released" ? <CheckCircle2 size={21} /> : paymentSummary.releaseStatus === "processing" || paymentSummary.releaseStatus === "queued" ? <HandCoins size={21} /> : <ShieldCheck size={21} />}
+            {paymentSummary.paymentStatus === "paid" || paymentSummary.paymentStatus === "refunded" ? <div className={`payment-protection-card ${paymentSummary.caseStatus === "dispute_open" || paymentSummary.caseStatus === "refund_needs_attention" ? "warning" : "success"}`}>
+              {paymentSummary.caseStatus === "dispute_open" || paymentSummary.caseStatus === "refund_needs_attention"
+                ? <AlertTriangle size={21} />
+                : paymentSummary.releaseStatus === "released" || paymentSummary.caseStatus === "refund_processed"
+                  ? <CheckCircle2 size={21} />
+                  : paymentSummary.releaseStatus === "processing" || paymentSummary.releaseStatus === "queued" || paymentSummary.caseStatus === "refund_processing"
+                    ? <HandCoins size={21} />
+                    : <ShieldCheck size={21} />}
               <span>
-                <strong>{paymentSummary.releaseStatus === "released" ? (paymentSummary.simulationEnabled ? "Test payout release simulated" : "Vendor payout released") : paymentSummary.releaseStatus === "processing" || paymentSummary.releaseStatus === "queued" ? "Payout release in progress" : "Payment received"}</strong>
+                <strong>
+                  {paymentSummary.caseStatus === "dispute_open"
+                    ? (isCustomer ? "Payment dispute open" : "Payout paused — dispute open")
+                    : paymentSummary.caseStatus === "refund_processing"
+                      ? "Refund processing"
+                      : paymentSummary.caseStatus === "refund_needs_attention"
+                        ? "Refund needs attention"
+                        : paymentSummary.caseStatus === "refund_processed"
+                          ? "Payment refunded"
+                          : paymentSummary.releaseStatus === "released"
+                            ? (paymentSummary.simulationEnabled ? "Test payout release simulated" : "Vendor payout released")
+                            : paymentSummary.releaseStatus === "processing" || paymentSummary.releaseStatus === "queued"
+                              ? "Payout release in progress"
+                              : !isCustomer && paymentSummary.paymentStatus === "paid"
+                                ? "Awaiting customer release"
+                                : "Payment received"}
+                </strong>
                 <small>
-                  {paymentSummary.releaseStatus === "released"
-                    ? paymentSummary.simulationEnabled
-                      ? "Staging simulation complete. No real bank transfer was sent."
-                      : (isCustomer ? "The vendor payout has been completed for this payment." : "Smitten has completed the payout for this payment.")
-                    : paymentSummary.releaseStatus === "processing" || paymentSummary.releaseStatus === "queued"
-                      ? "Paystack is processing the vendor transfer. Smitten will update this booking when the transfer webhook confirms the final status."
-                      : (isCustomer ? "Your payment is recorded against this booking. Vendor payout has not been released yet." : "The customer has paid. Smitten has recorded the funds for this booking and payout release is still pending.")}
+                  {paymentSummary.caseStatus === "dispute_open"
+                    ? (isCustomer ? "Smitten has paused the vendor payout while this issue is reviewed." : "The customer reported a payment issue. Smitten has paused release until the dispute is resolved.")
+                    : paymentSummary.caseStatus === "refund_processing"
+                      ? "A refund has been submitted to Paystack. The webhook will update this booking when processing completes."
+                      : paymentSummary.caseStatus === "refund_needs_attention"
+                        ? "Paystack needs additional information before the refund can complete."
+                        : paymentSummary.caseStatus === "refund_processed"
+                          ? "The payment has been marked refunded after provider confirmation."
+                          : paymentSummary.releaseStatus === "released"
+                            ? paymentSummary.simulationEnabled
+                              ? "Staging simulation complete. No real bank transfer was sent."
+                              : (isCustomer ? "The vendor payout has been completed for this payment." : "Smitten has completed the payout for this payment.")
+                            : paymentSummary.releaseStatus === "processing" || paymentSummary.releaseStatus === "queued"
+                              ? "Paystack is processing the vendor transfer. Smitten will update this booking when the transfer webhook confirms the final status."
+                              : isCustomer
+                                ? "Your payment is recorded against this booking. Vendor payout has not been released yet."
+                                : "The customer has paid. No action is required from you; the payout remains held until the customer releases it."}
                 </small>
               </span>
             </div> : <div className="payment-protection-card">
@@ -193,7 +250,7 @@ export default function BookingDetailClient({
               {paymentError && <small className="payment-error">{paymentError}</small>}
             </div>}
 
-            {isCustomer && paymentSummary.paymentStatus === "paid" && paymentSummary.releaseStatus !== "released" && paymentSummary.releaseStatus !== "processing" && paymentSummary.releaseStatus !== "queued" && <div className="payout-release-action">
+            {isCustomer && paymentSummary.paymentStatus === "paid" && paymentSummary.caseStatus === "none" && paymentSummary.releaseStatus !== "released" && paymentSummary.releaseStatus !== "processing" && paymentSummary.releaseStatus !== "queued" && <div className="payout-release-action">
               <div>
                 <HandCoins size={20} />
                 <span>
@@ -219,6 +276,39 @@ export default function BookingDetailClient({
               {!paymentSummary.releaseEnabled && paymentSummary.payoutMode === "live" && <small className="payment-error">Live payout releases are disabled until production payout controls are explicitly enabled.</small>}
               {releaseNotice && <small className="payment-success">{releaseNotice}</small>}
               {releaseError && <small className="payment-error">{releaseError}</small>}
+            </div>}
+
+            {isCustomer && paymentSummary.paymentStatus === "paid" && paymentSummary.releaseStatus !== "released" && paymentSummary.caseStatus === "none" && <div className="payment-dispute-action">
+              {!showDisputeForm ? <>
+                <div>
+                  <AlertTriangle size={18} />
+                  <span><strong>Something wrong with this booking?</strong><small>Report a problem before payout is released. Smitten will immediately pause the vendor payout.</small></span>
+                </div>
+                <button type="button" onClick={() => setShowDisputeForm(true)}>Report a problem</button>
+              </> : <>
+                <div className="payment-dispute-form">
+                  <label>Tell Smitten what happened
+                    <textarea
+                      value={disputeReason}
+                      onChange={(event) => setDisputeReason(event.target.value.slice(0,1200))}
+                      placeholder="Describe the issue with the service, booking or payment…"
+                      rows={4}
+                    />
+                  </label>
+                  <div>
+                    <button type="button" className="secondary" onClick={() => { setShowDisputeForm(false); setDisputeError(""); }}>Cancel</button>
+                    <button type="button" onClick={() => void openDispute()} disabled={disputeStarting || disputeReason.trim().length < 10}>
+                      {disputeStarting ? "Opening dispute…" : "Pause payout & report"}
+                    </button>
+                  </div>
+                  {disputeError && <small className="payment-error">{disputeError}</small>}
+                </div>
+              </>}
+            </div>}
+
+            {paymentSummary.caseStatus === "dispute_open" && paymentSummary.caseReason && <div className="payment-case-reason">
+              <small>Dispute details</small>
+              <p>{paymentSummary.caseReason}</p>
             </div>}
 
             {paymentSummary.payments.length > 0 && <div className="payment-history">
