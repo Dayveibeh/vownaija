@@ -3304,3 +3304,30 @@ button.user-avatar {
 }
 
 /* Phase 3 preview refresh after environment setup */
+
+
+/* Phase 3 vendor sidebar overflow repair */
+.dashboard-sidebar {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.dashboard-sidebar nav,
+.sidebar-bottom {
+  flex: 0 0 auto;
+}
+
+.dashboard-sidebar::-webkit-scrollbar {
+  width: 7px;
+}
+
+.dashboard-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(102, 91, 94, .22);
+  border-radius: 999px;
+}
+
+.dashboard-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
