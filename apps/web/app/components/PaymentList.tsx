@@ -58,7 +58,19 @@ export function PaymentList({
             </div>
             <div className="phase3-payment-amount">
               <strong>{formatNaira(payment.amount)}</strong>
-              <small>{payment.fundsStatus === "held" ? <><ShieldCheck size={12} /> Payout pending release</> : <><Clock3 size={12} /> {payment.fundsStatus.replace("_", " ")}</>}</small>
+              <small>
+                {payment.fundsStatus === "held"
+                  ? <><ShieldCheck size={12} /> {isVendor ? "Awaiting customer release" : "Protected until release"}</>
+                  : payment.fundsStatus === "releasable"
+                    ? <><Clock3 size={12} /> Release ready</>
+                    : payment.fundsStatus === "disputed"
+                      ? <><ShieldCheck size={12} /> Payout paused</>
+                      : payment.fundsStatus === "released"
+                        ? <><CheckCircle2 size={12} /> Released</>
+                        : payment.fundsStatus === "refunded"
+                          ? <><CheckCircle2 size={12} /> Refunded</>
+                          : <><Clock3 size={12} /> {payment.fundsStatus.replace("_", " ")}</>}
+              </small>
             </div>
             <ArrowRight size={17} />
           </Link>)}
