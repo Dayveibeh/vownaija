@@ -61,6 +61,7 @@ export async function POST(request: Request) {
     if (code === "PAYOUT_ACCOUNT_REQUIRED") return NextResponse.json({ message: "The vendor needs to connect and verify a payout account before funds can be released." }, { status: 409 });
     if (code === "PAYOUT_ALREADY_RELEASED") return NextResponse.json({ message: "This payout has already been released." }, { status: 409 });
     if (code === "PAYMENT_NOT_READY_FOR_RELEASE") return NextResponse.json({ message: "There is no paid Smitten payment ready for release." }, { status: 409 });
+    if (code === "PAYOUT_DISPUTED") return NextResponse.json({ message: "This payout is paused because a payment dispute is open." }, { status: 409 });
     if (code === "PAYSTACK_NOT_CONFIGURED") return NextResponse.json({ message: "Paystack is not configured on this deployment." }, { status: 503 });
     if (code === "LIVE_PAYOUTS_DISABLED") return NextResponse.json({ message: "Live payout releases are disabled. Smitten is currently allowing test-mode releases only." }, { status: 403 });
     if (code === "PAYOUT_OTP_REQUIRED") return NextResponse.json({ message: "Paystack requires transfer approval by OTP. The code is sent to the Paystack business owner’s configured phone/email." }, { status: 409 });
