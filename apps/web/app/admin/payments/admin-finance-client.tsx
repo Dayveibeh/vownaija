@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, CheckCircle2, CreditCard, RefreshCcw, RotateCcw, ShieldAlert } from "lucide-react";
+import { useClerk } from "@clerk/nextjs";
+import { AlertTriangle, ArrowLeft, CheckCircle2, CreditCard, LogOut, RefreshCcw, RotateCcw, ShieldAlert } from "lucide-react";
 import { formatNaira } from "@smitten/shared";
 import type { AdminFinancePaymentView } from "@/lib/payments";
 import { Brand } from "../../components/Brand";
@@ -9,6 +10,7 @@ import { SessionAccountNav } from "../../components/SessionAccountNav";
 import { useState } from "react";
 
 export default function AdminFinanceClient({ initialPayments }: { initialPayments: AdminFinancePaymentView[] }) {
+  const { signOut } = useClerk();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -53,7 +55,12 @@ export default function AdminFinanceClient({ initialPayments }: { initialPayment
       <header className="phase2-list-topbar">
         <Brand />
         <Link href="/"><ArrowLeft size={16} /> Smitten</Link>
-        <SessionAccountNav variant="compact" />
+        <div className="admin-finance-session-actions">
+          <SessionAccountNav variant="compact" />
+          <button type="button" onClick={() => signOut({ redirectUrl: "/" })}>
+            <LogOut size={15} /> Log out
+          </button>
+        </div>
       </header>
 
       <section className="phase2-list-wrap">
