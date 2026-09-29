@@ -120,7 +120,7 @@ export default function BookingDetailClient({
   const paymentLabel = paymentSummary.paymentStatus === "paid"
     ? "Paid"
     : paymentSummary.paymentStatus === "partially_paid"
-      ? "Partially paid"
+      ? paymentSummary.paymentPlan === "deposit" && paymentSummary.depositDue <= 0 ? "Deposit paid" : "Partially paid"
       : paymentSummary.paymentStatus === "refunded"
         ? "Refunded"
         : "Payment due";
@@ -191,7 +191,12 @@ export default function BookingDetailClient({
               <article><small>Outstanding</small><strong>{formatNaira(paymentSummary.outstanding)}</strong></article>
             </div>
 
-            {paymentSummary.paymentStatus === "paid" || paymentSummary.paymentStatus === "refunded" ? <div className={`payment-protection-card ${paymentSummary.caseStatus === "dispute_open" || paymentSummary.caseStatus === "refund_needs_attention" ? "warning" : "success"}`}>
+            {paymentSummary.paymentPlan === "deposit" && <div className="booking-payment-schedule">
+              <div><small>Deposit</small><strong>{formatNaira(paymentSummary.depositAmount)}</strong><span>{paymentSummary.depositDue > 0 ? `${formatNaira(paymentSummary.depositDue)} still due` : "Paid"}</span></div>
+              <div><small>Balance</small><strong>{formatNaira(Math.max(0, paymentSummary.total - paymentSummary.depositAmount))}</strong><span>{paymentSummary.depositDue > 0 ? "Due after deposit" : `${formatNaira(paymentSummary.balanceDue)} remaining`}</span></div>
+            </div>}
+
+            {paymentSummary.paymentStatus === "paid" || paymentSummary.paymentStatus === "partially_paid" || paymentSummary.paymentStatus === "refunded" ? <div className={`payment-protection-card ${paymentSummary.caseStatus === "dispute_open" || paymentSummary.caseStatus === "refund_needs_attention" ? "warning" : "success"}`}>
               {paymentSummary.caseStatus === "dispute_open" || paymentSummary.caseStatus === "refund_needs_attention"
                 ? <AlertTriangle size={21} />
                 : paymentSummary.releaseStatus === "released" || paymentSummary.caseStatus === "refund_processed"
@@ -209,6 +214,8 @@ export default function BookingDetailClient({
                         ? "Refund needs attention"
                         : paymentSummary.caseStatus === "refund_processed"
                           ? "Payment refunded"
+                          : paymentSummary.paymentStatus === "partially_paid" && paymentSummary.paymentPlan === "deposit" && paymentSummary.depositDue <= 0
+                          ? "Deposit paid"
                           : paymentSummary.releaseStatus === "released"
                             ? (paymentSummary.simulationEnabled ? "Test payout release simulated" : "Vendor payout released")
                             : paymentSummary.releaseStatus === "processing" || paymentSummary.releaseStatus === "queued"
@@ -226,6 +233,8 @@ export default function BookingDetailClient({
                         ? "Paystack needs additional information before the refund can complete."
                         : paymentSummary.caseStatus === "refund_processed"
                           ? "The payment has been marked refunded after provider confirmation."
+                          : paymentSummary.paymentStatus === "partially_paid" && paymentSummary.paymentPlan === "deposit" && paymentSummary.depositDue <= 0
+                          ? `${formatNaira(paymentSummary.balanceDue)} balance remains. The vendor payout stays protected until the booking is fully paid.`
                           : paymentSummary.releaseStatus === "released"
                             ? paymentSummary.simulationEnabled
                               ? "Staging simulation complete. No real bank transfer was sent."
@@ -244,7 +253,13 @@ export default function BookingDetailClient({
 
             {isCustomer && paymentSummary.outstanding > 0 && <div className="payment-action-row">
               <button className="booking-pay-button" onClick={() => void startPayment()} disabled={paymentStarting || !paymentSummary.providerConfigured}>
-                <CreditCard size={17} /> {paymentStarting ? "Opening secure checkout…" : `Pay ${formatNaira(paymentSummary.outstanding)}`}
+                <CreditCard size={17} /> {paymentStarting
+                  ? "Opening secure checkout…"
+                  : paymentSummary.nextPaymentPurpose === "deposit"
+                    ? `Pay deposit ${formatNaira(paymentSummary.nextPaymentAmount)}`
+                    : paymentSummary.nextPaymentPurpose === "balance"
+                      ? `Pay balance ${formatNaira(paymentSummary.nextPaymentAmount)}`
+                      : `Pay ${formatNaira(paymentSummary.nextPaymentAmount || paymentSummary.outstanding)}`}
               </button>
               {!paymentSummary.providerConfigured && <small>Paystack test keys still need to be added to this preview before checkout can open.</small>}
               {paymentError && <small className="payment-error">{paymentError}</small>}
@@ -314,7 +329,7 @@ export default function BookingDetailClient({
             {paymentSummary.payments.length > 0 && <div className="payment-history">
               <h4>Payment activity</h4>
               {paymentSummary.payments.map((payment) => <div key={payment.id}>
-                <span>{payment.status === "paid" ? <CheckCircle2 size={15} /> : <CreditCard size={15} />}<span><strong>{formatNaira(payment.amount)}</strong><small>{payment.providerReference}</small></span></span>
+                <span>{payment.status === "paid" ? <CheckCircle2 size={15} /> : <CreditCard size={15} />}<span><strong>{formatNaira(payment.amount)}</strong><small>{payment.purpose === "deposit" ? "Deposit" : payment.purpose === "balance" ? "Balance" : "Full payment"} · {payment.providerReference}</small></span></span>
                 <b className={payment.status}>{payment.status}</b>
               </div>)}
             </div>}
