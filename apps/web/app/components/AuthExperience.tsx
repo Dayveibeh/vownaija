@@ -145,6 +145,7 @@ function ClerkAuthExperience({
     try {
       return await request();
     } catch {
+      setTransitioning(false);
       setError("We couldn’t reach the secure account service. Check your connection and try again.");
       return null;
     }
