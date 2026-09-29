@@ -25,6 +25,15 @@ function activityDate(value: string | null) {
   }).format(new Date(value));
 }
 
+type PaymentTimelineItem = {
+  key: string;
+  title: string;
+  body: string;
+  date: string | null;
+  state: "complete" | "pending" | "attention" | "muted";
+  icon: "booking" | "payment" | "protected" | "case" | "payout";
+};
+
 export default function BookingDetailClient({
   booking,
   quote,
@@ -141,14 +150,14 @@ export default function BookingDetailClient({
     .slice()
     .sort((a, b) => new Date(a.paidAt || 0).getTime() - new Date(b.paidAt || 0).getTime());
 
-  const paymentTimeline = [
+  const paymentTimeline: PaymentTimelineItem[] = [
     {
       key: "booking-confirmed",
       title: "Booking confirmed",
       body: `Accepted quote for ${formatNaira(booking.total)}.`,
       date: booking.confirmedAt,
-      state: "complete" as const,
-      icon: "booking" as const,
+      state: "complete",
+      icon: "booking",
     },
     ...successfulPayments.map((payment) => ({
       key: payment.id,
@@ -160,7 +169,7 @@ export default function BookingDetailClient({
       body: `${formatNaira(payment.amount)} verified through Paystack.`,
       date: payment.paidAt,
       state: payment.status === "refunded" ? "muted" as const : "complete" as const,
-      icon: "payment" as const,
+      icon: "payment",
     })),
   ];
 
