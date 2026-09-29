@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth, useUser } from "@clerk/nextjs";
-import { ArrowRight, LayoutDashboard, UserRound } from "lucide-react";
+import { ArrowRight, Bell, LayoutDashboard, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -12,7 +12,7 @@ function roleFromMetadata(metadata: Record<string, unknown> | undefined): Accoun
   const smitten = metadata?.smitten;
   if (smitten && typeof smitten === "object" && "role" in smitten) {
     const role = (smitten as { role?: unknown }).role;
-    if (role === "vendor" || role === "admin") return role;
+    if (role === "vendor") return role;
   }
   return "couple";
 }
@@ -40,33 +40,51 @@ export function SessionAccountNav({
   const { user } = useUser();
   const metadataRole = roleFromMetadata(user?.unsafeMetadata as Record<string, unknown> | undefined);
   const [account, setAccount] = useState<{ role: AccountRole; fullName: string } | null>(null);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) {
       setAccount(null);
+      setUnreadNotifications(0);
       return;
     }
 
     let cancelled = false;
-    void fetch("/api/account/session", { cache: "no-store" })
-      .then(async (response) => response.ok ? response.json() : null)
-      .then((result) => {
-        if (cancelled || !result?.profile) return;
-        setAccount({
-          role: result.profile.role,
-          fullName: result.profile.fullName,
-        });
-      })
-      .catch(() => undefined);
 
-    return () => { cancelled = true; };
+    const refreshSession = async () => {
+      const [accountResult, notificationResult] = await Promise.all([
+        fetch("/api/account/session", { cache: "no-store" })
+          .then(async (response) => response.ok ? response.json() : null)
+          .catch(() => null),
+        fetch("/api/notifications?summary=1", { cache: "no-store" })
+          .then(async (response) => response.ok ? response.json() : null)
+          .catch(() => null),
+      ]);
+
+      if (cancelled) return;
+      if (accountResult?.profile) {
+        setAccount({
+          role: accountResult.profile.role,
+          fullName: accountResult.profile.fullName,
+        });
+      }
+      setUnreadNotifications(Number(notificationResult?.unreadCount ?? 0));
+    };
+
+    void refreshSession();
+    const timer = window.setInterval(() => void refreshSession(), 30000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, [isLoaded, isSignedIn]);
 
   const role = account?.role ?? metadataRole;
   const fullName = account?.fullName ?? user?.fullName ?? user?.primaryEmailAddress?.emailAddress?.split("@")[0] ?? "Smitten member";
   const initials = useMemo(() => initialsFor(fullName), [fullName]);
-  const dashboardHref = role === "vendor" || role === "admin" ? "/dashboard" : "/couples/dashboard";
-  const dashboardLabel = role === "vendor" || role === "admin" ? "Vendor workspace" : "My planning";
+  const dashboardHref = role === "admin" ? "/admin/payments" : role === "vendor" ? "/dashboard" : "/couples/dashboard";
+  const dashboardLabel = role === "admin" ? "Admin finance" : role === "vendor" ? "Vendor workspace" : "My planning";
 
   if (!isLoaded) {
     return <span className={`session-account-loading session-account-${variant}`} aria-hidden="true" />;
@@ -74,19 +92,30 @@ export function SessionAccountNav({
 
   if (isSignedIn) {
     return (
-      <Link
-        href={dashboardHref}
-        className={`session-account session-account-${variant}`}
-        onClick={onNavigate}
-        aria-label={`Open ${dashboardLabel}`}
-      >
-        <span className="session-avatar">{initials}</span>
-        <span className="session-account-copy">
-          <strong>{dashboardLabel}</strong>
-          {variant !== "compact" && <small>Signed in as {fullName}</small>}
-        </span>
-        {variant !== "compact" && <LayoutDashboard size={16} />}
-      </Link>
+      <div className={`session-account-cluster session-account-cluster-${variant}`}>
+        <Link
+          href="/notifications"
+          className="session-notification-link"
+          onClick={onNavigate}
+          aria-label={unreadNotifications > 0 ? `${unreadNotifications} unread notifications` : "Open notifications"}
+        >
+          <Bell size={16} />
+          {unreadNotifications > 0 && <span>{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>}
+        </Link>
+        <Link
+          href={dashboardHref}
+          className={`session-account session-account-${variant}`}
+          onClick={onNavigate}
+          aria-label={`Open ${dashboardLabel}`}
+        >
+          <span className="session-avatar">{initials}</span>
+          <span className="session-account-copy">
+            <strong>{dashboardLabel}</strong>
+            {variant !== "compact" && <small>Signed in as {fullName}</small>}
+          </span>
+          {variant !== "compact" && <LayoutDashboard size={16} />}
+        </Link>
+      </div>
     );
   }
 

@@ -8,13 +8,24 @@ export function isClerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY);
 }
 
-function roleFromMetadata(metadata: Record<string, unknown> | undefined, fallback: UserRole): UserRole {
-  const smitten = metadata?.smitten;
-  if (smitten && typeof smitten === "object" && "role" in smitten) {
-    const role = (smitten as { role?: unknown }).role;
-    if (role === "couple" || role === "vendor" || role === "admin") return role;
+function roleFromMetadata(
+  unsafeMetadata: Record<string, unknown> | undefined,
+  privateMetadata: Record<string, unknown> | undefined,
+  fallback: UserRole,
+): UserRole {
+  const privateSmitten = privateMetadata?.smitten;
+  if (privateSmitten && typeof privateSmitten === "object" && "role" in privateSmitten) {
+    const trustedRole = (privateSmitten as { role?: unknown }).role;
+    if (trustedRole === "admin") return "admin";
   }
-  return fallback;
+
+  const unsafeSmitten = unsafeMetadata?.smitten;
+  if (unsafeSmitten && typeof unsafeSmitten === "object" && "role" in unsafeSmitten) {
+    const role = (unsafeSmitten as { role?: unknown }).role;
+    if (role === "couple" || role === "vendor") return role;
+  }
+
+  return fallback === "admin" ? "couple" : fallback;
 }
 
 function nameFromMetadata(metadata: Record<string, unknown> | undefined) {
@@ -63,13 +74,17 @@ export async function syncCurrentUserProfile(fallbackRole: UserRole = "couple"):
   const email = clerkUser.primaryEmailAddress?.emailAddress?.trim().toLowerCase();
   if (!email) throw new Error("Your Clerk account does not have a verified email address.");
 
-  const metadata = clerkUser.unsafeMetadata as Record<string, unknown> | undefined;
-  const role = roleFromMetadata(metadata, fallbackRole);
-  const metadataName = nameFromMetadata(metadata);
+  const unsafeMetadata = clerkUser.unsafeMetadata as Record<string, unknown> | undefined;
+  const privateMetadata = clerkUser.privateMetadata as Record<string, unknown> | undefined;
+
+  await ensureDatabaseSchema();
+  const [existingProfile] = await getDb().select().from(users).where(eq(users.clerkUserId, userId)).limit(1);
+  const fallback = existingProfile?.role === "admin" ? "couple" : (existingProfile?.role ?? fallbackRole);
+  const role = roleFromMetadata(unsafeMetadata, privateMetadata, fallback);
+  const metadataName = nameFromMetadata(unsafeMetadata);
   const clerkName = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ").trim();
   const fullName = metadataName === "Smitten member" ? (clerkName || email.split("@")[0]) : metadataName;
 
-  await ensureDatabaseSchema();
   const [profile] = await getDb().insert(users).values({
     clerkUserId: userId,
     email,
@@ -79,7 +94,7 @@ export async function syncCurrentUserProfile(fallbackRole: UserRole = "couple"):
     currencyCode: "NGN",
   }).onConflictDoUpdate({
     target: users.clerkUserId,
-    set: { email, fullName, updatedAt: new Date() },
+    set: { email, fullName, role, updatedAt: new Date() },
   }).returning();
 
   await ensureRoleProfile(userId, profile.role);
@@ -95,7 +110,9 @@ export async function requireUserRole(expectedRole: UserRole) {
     redirect(`${route}?mode=signin`);
   }
 
-  const profile = (await getUserProfile(userId)) ?? await syncCurrentUserProfile(expectedRole);
+  const profile = expectedRole === "admin"
+    ? await syncCurrentUserProfile("couple")
+    : (await getUserProfile(userId)) ?? await syncCurrentUserProfile(expectedRole);
   if (profile.role !== expectedRole) {
     redirect(profile.role === "vendor" ? "/dashboard" : "/couples/dashboard");
   }

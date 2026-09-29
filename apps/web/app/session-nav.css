@@ -219,3 +219,85 @@
     gap: 6px;
   }
 }
+
+
+/* Phase 3 notification access */
+.session-account-cluster {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.session-notification-link {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: #675e59;
+  border: 1px solid #e5dfda;
+  border-radius: 50%;
+  background: rgba(255,255,255,.94);
+  box-shadow: 0 7px 24px rgba(42,35,31,.05);
+  transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+
+.session-notification-link:hover {
+  color: #211e1d;
+  border-color: #cfc5bf;
+  transform: translateY(-1px);
+  box-shadow: 0 9px 28px rgba(42,35,31,.09);
+}
+
+.session-notification-link > span {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0 4px;
+  color: #fff;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #8c4f55;
+  font-size: 7px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.match-header > .session-account-cluster,
+.profile-header-actions > .session-account-cluster {
+  justify-self: end;
+}
+
+@media (max-width: 1000px) {
+  .session-account-cluster-mobile {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .session-account-cluster-mobile .session-account-mobile {
+    flex: 1;
+  }
+
+  .session-account-cluster-mobile .session-notification-link {
+    width: 52px;
+    height: 52px;
+    align-self: center;
+  }
+}
+
+@media (max-width: 700px) {
+  .match-header > .session-account-cluster-compact .session-account-compact {
+    grid-template-columns: 32px;
+    padding: 4px;
+  }
+
+  .match-header > .session-account-cluster-compact .session-account-copy {
+    display: none;
+  }
+}

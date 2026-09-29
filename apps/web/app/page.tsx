@@ -32,7 +32,7 @@ import {
   type MarketplaceVendorListResponse,
 } from "@smitten/shared";
 
-type HomeVendor = CoupleVendor & { tag: string };
+type HomeVendor = CoupleVendor & { tag: string; acceptingEnquiries: boolean };
 
 const categories = [
   { name: "Venues", icon: Gem, count: "680+" },
@@ -78,6 +78,7 @@ export default function Home() {
   const [location, setLocation] = useState("Lagos");
   const [category, setCategory] = useState("All vendors");
   const [budget, setBudget] = useState("Any budget");
+  const [vendorQuery, setVendorQuery] = useState("");
   const [vendors, setVendors] = useState<HomeVendor[]>([]);
   const [saved, setSaved] = useState<string[]>([]);
   const [activeVendor, setActiveVendor] = useState<HomeVendor | null>(null);
@@ -85,6 +86,17 @@ export default function Home() {
   const [marketplaceError, setMarketplaceError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
   const categoryTrackRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const queryFromUrl = new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
+    if (queryFromUrl) {
+      setVendorQuery(queryFromUrl);
+      setLocation("Nigeria");
+      setCategory("All vendors");
+      setBudget("Any budget");
+      window.requestAnimationFrame(() => document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" }));
+    }
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -95,6 +107,7 @@ export default function Home() {
     const range = budgetParams(budget);
     if (typeof range.minPrice === "number") params.set("minPrice", String(range.minPrice));
     if (typeof range.maxPrice === "number") params.set("maxPrice", String(range.maxPrice));
+    if (vendorQuery) params.set("q", vendorQuery);
 
     setLoadingVendors(true);
     setMarketplaceError("");
@@ -110,7 +123,7 @@ export default function Home() {
         if (controller.signal.aborted) return;
         setVendors(result.vendors.map((record) => {
           const vendor = coupleVendorFromMarketplaceRecord(record);
-          return { ...vendor, tag: tagForVendor(vendor) };
+          return { ...vendor, tag: tagForVendor(vendor), acceptingEnquiries: Boolean(record.acceptingEnquiries) };
         }));
       })
       .catch((error) => {
@@ -123,7 +136,7 @@ export default function Home() {
       });
 
     return () => controller.abort();
-  }, [budget, category, location, reloadKey]);
+  }, [budget, category, location, reloadKey, vendorQuery]);
 
   useEffect(() => {
     void fetch("/api/favourites", { cache: "no-store" })
@@ -140,6 +153,7 @@ export default function Home() {
 
   function runSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setVendorQuery("");
     document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" });
   }
 
@@ -286,8 +300,8 @@ export default function Home() {
 
       <section className="section featured-section" id="featured">
         <div className="section-heading row-heading">
-          <div><p className="eyebrow light"><span /> Curated for you</p><h2>Popular around <em>{location}</em></h2></div>
-          <button className="underlined-button" onClick={() => { setLocation("Nigeria"); setCategory("All vendors"); setBudget("Any budget"); }}>View all vendors <ArrowRight size={17} /></button>
+          <div><p className="eyebrow light"><span /> {vendorQuery ? "Marketplace search" : "Curated for you"}</p><h2>{vendorQuery ? <>Results for <em>“{vendorQuery}”</em></> : <>Popular around <em>{location}</em></>}</h2></div>
+          <button className="underlined-button" onClick={() => { setVendorQuery(""); setLocation("Nigeria"); setCategory("All vendors"); setBudget("Any budget"); window.history.replaceState(null, "", "/#featured"); }}>View all vendors <ArrowRight size={17} /></button>
         </div>
         {loadingVendors && vendors.length === 0 ? <div className="vendor-empty" role="status"><Sparkles /><h3>Loading trusted vendors…</h3><p>We’re bringing the latest Smitten marketplace results from across Nigeria.</p></div>
           : marketplaceError ? <div className="vendor-empty" role="alert"><Sparkles /><h3>Marketplace temporarily unavailable</h3><p>{marketplaceError}</p><button className="button button-primary" onClick={() => setReloadKey((value) => value + 1)}>Try again</button></div>
@@ -301,7 +315,7 @@ export default function Home() {
                   <div className="vendor-info"><div className="vendor-category-line"><p className="vendor-category">{vendor.category}</p><span>{vendor.tier}</span></div><div className="vendor-title-row"><h3>{vendor.name}</h3><BadgeCheck size={18} /></div><p className="vendor-location"><MapPin size={14} /> {displayLocation(vendor)}</p><div className="vendor-meta"><span><Star size={14} fill="currentColor" /> <strong>{vendor.rating}</strong> ({vendor.reviews})</span><strong>{vendor.price}</strong></div><button className="vendor-profile-button" onClick={() => setActiveVendor(vendor)}>View profile <ArrowRight size={15} /></button></div>
                 </article>
               ))}
-            </div> : <div className="vendor-empty" role="status"><Sparkles /><h3>We’re still growing in {location}.</h3><p>No exact match for {category.toLowerCase()} at {budget.toLowerCase()} yet. Try all vendors across Nigeria.</p><button className="button button-primary" onClick={() => { setLocation("Nigeria"); setCategory("All vendors"); setBudget("Any budget"); }}>Show all vendors</button></div>}
+            </div> : <div className="vendor-empty" role="status"><Sparkles /><h3>{vendorQuery ? `No vendor matched “${vendorQuery}”.` : `We’re still growing in ${location}.`}</h3><p>{vendorQuery ? "Try a shorter business name or browse all vendors." : `No exact match for ${category.toLowerCase()} at ${budget.toLowerCase()} yet. Try all vendors across Nigeria.`}</p><button className="button button-primary" onClick={() => { setVendorQuery(""); setLocation("Nigeria"); setCategory("All vendors"); setBudget("Any budget"); }}>Show all vendors</button></div>}
       </section>
 
       <section className="story-section" id="how-it-works">
@@ -349,7 +363,7 @@ export default function Home() {
         <section className="vendor-preview-modal" role="dialog" aria-modal="true" aria-label={`${activeVendor.name} profile`} onMouseDown={(event) => event.stopPropagation()}>
           <button className="vendor-modal-close" onClick={() => setActiveVendor(null)} aria-label="Close vendor profile"><X /></button>
           <img src={activeVendor.image} alt={`${activeVendor.name} wedding portfolio`} />
-          <div><p className="vendor-category">{activeVendor.category}</p><h2>{activeVendor.name}</h2><p className="vendor-location"><MapPin size={14} /> {displayLocation(activeVendor)}</p><p>Verified on Smitten with {activeVendor.reviews} couple reviews and packages starting at {activeVendor.price.replace("From ", "")}.</p><div className="vendor-modal-actions"><Link className="button button-dark" href={`/vendor/${activeVendor.id}`}>Open full profile</Link><Link className="button button-primary" href="/couples/sign-up">Request a quote</Link></div></div>
+          <div><p className="vendor-category">{activeVendor.category}</p><h2>{activeVendor.name}</h2><p className="vendor-location"><MapPin size={14} /> {displayLocation(activeVendor)}</p><p>Verified on Smitten with {activeVendor.reviews} couple reviews and packages starting at {activeVendor.price.replace("From ", "")}.</p><div className="vendor-modal-actions"><Link className="button button-dark" href={`/vendor/${activeVendor.id}`}>Open full profile</Link>{activeVendor.acceptingEnquiries ? <Link className="button button-primary" href={`/vendor/${activeVendor.id}?enquire=1`}>Request a quote</Link> : <Link className="button button-primary" href={`/vendor/${activeVendor.id}`}>View services</Link>}</div></div>
         </section>
       </div>}
     </main>

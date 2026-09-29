@@ -57,6 +57,7 @@ export const vendorProfiles = pgTable("vendor_profiles", {
 
 export const marketplaceVendors = pgTable("marketplace_vendors", {
   id: text("id").primaryKey(),
+  ownerClerkUserId: text("owner_clerk_user_id").references(() => users.clerkUserId, { onDelete: "set null" }),
   businessName: text("business_name").notNull(),
   category: text("category").notNull(),
   location: text("location").notNull(),
@@ -83,6 +84,7 @@ export const marketplaceVendors = pgTable("marketplace_vendors", {
   index("marketplace_vendors_category_idx").on(table.category),
   index("marketplace_vendors_location_idx").on(table.location),
   index("marketplace_vendors_state_idx").on(table.state),
+  index("marketplace_vendors_owner_idx").on(table.ownerClerkUserId),
 ]);
 
 export const vendorPackages = pgTable("vendor_packages", {
@@ -98,6 +100,238 @@ export const vendorPackages = pgTable("vendor_packages", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("vendor_packages_vendor_idx").on(table.vendorId),
+]);
+
+export const enquiries = pgTable("enquiries", {
+  id: text("id").primaryKey(),
+  customerClerkUserId: text("customer_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "cascade" }),
+  vendorId: text("vendor_id").notNull().references(() => marketplaceVendors.id, { onDelete: "cascade" }),
+  packageId: text("package_id").references(() => vendorPackages.id, { onDelete: "set null" }),
+  requestedService: text("requested_service"),
+  weddingDate: date("wedding_date"),
+  weddingLocation: text("wedding_location").notNull(),
+  guestCount: text("guest_count"),
+  budgetBand: text("budget_band"),
+  contactName: text("contact_name"),
+  contactEmail: text("contact_email"),
+  message: text("message").notNull(),
+  status: text("status", { enum: ["new", "active", "closed"] }).default("new").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("enquiries_customer_idx").on(table.customerClerkUserId),
+  index("enquiries_vendor_idx").on(table.vendorId),
+  index("enquiries_status_idx").on(table.status),
+]);
+
+export const conversations = pgTable("conversations", {
+  id: text("id").primaryKey(),
+  enquiryId: text("enquiry_id").notNull().unique().references(() => enquiries.id, { onDelete: "cascade" }),
+  customerClerkUserId: text("customer_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "cascade" }),
+  vendorId: text("vendor_id").notNull().references(() => marketplaceVendors.id, { onDelete: "cascade" }),
+  vendorOwnerClerkUserId: text("vendor_owner_clerk_user_id").references(() => users.clerkUserId, { onDelete: "set null" }),
+  lastMessageAt: timestamp("last_message_at", { withTimezone: true }).defaultNow().notNull(),
+  customerLastReadAt: timestamp("customer_last_read_at", { withTimezone: true }),
+  vendorLastReadAt: timestamp("vendor_last_read_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("conversations_customer_idx").on(table.customerClerkUserId),
+  index("conversations_vendor_owner_idx").on(table.vendorOwnerClerkUserId),
+  index("conversations_vendor_idx").on(table.vendorId),
+]);
+
+export const messages = pgTable("messages", {
+  id: text("id").primaryKey(),
+  conversationId: text("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  senderClerkUserId: text("sender_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("messages_conversation_idx").on(table.conversationId),
+  index("messages_sender_idx").on(table.senderClerkUserId),
+]);
+
+export const quotes = pgTable("quotes", {
+  id: text("id").primaryKey(),
+  conversationId: text("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  enquiryId: text("enquiry_id").notNull().references(() => enquiries.id, { onDelete: "cascade" }),
+  vendorId: text("vendor_id").notNull().references(() => marketplaceVendors.id, { onDelete: "cascade" }),
+  vendorOwnerClerkUserId: text("vendor_owner_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "cascade" }),
+  customerClerkUserId: text("customer_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  notes: text("notes"),
+  subtotal: numeric("subtotal", { precision: 14, scale: 2 }).notNull(),
+  discountAmount: numeric("discount_amount", { precision: 14, scale: 2 }).default("0").notNull(),
+  additionalFees: numeric("additional_fees", { precision: 14, scale: 2 }).default("0").notNull(),
+  total: numeric("total", { precision: 14, scale: 2 }).notNull(),
+  currencyCode: text("currency_code").default("NGN").notNull(),
+  paymentPlan: text("payment_plan", { enum: ["full", "deposit"] }).default("full").notNull(),
+  depositType: text("deposit_type", { enum: ["percentage", "fixed"] }),
+  depositValue: numeric("deposit_value", { precision: 14, scale: 2 }).default("0").notNull(),
+  depositAmount: numeric("deposit_amount", { precision: 14, scale: 2 }),
+  validUntil: date("valid_until"),
+  revision: integer("revision").default(1).notNull(),
+  status: text("status", { enum: ["sent", "viewed", "accepted", "declined", "expired"] }).default("sent").notNull(),
+  sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow().notNull(),
+  viewedAt: timestamp("viewed_at", { withTimezone: true }),
+  respondedAt: timestamp("responded_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("quotes_conversation_idx").on(table.conversationId),
+  index("quotes_vendor_owner_idx").on(table.vendorOwnerClerkUserId),
+  index("quotes_customer_idx").on(table.customerClerkUserId),
+  index("quotes_status_idx").on(table.status),
+]);
+
+export const quoteItems = pgTable("quote_items", {
+  id: text("id").primaryKey(),
+  quoteId: text("quote_id").notNull().references(() => quotes.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  quantity: integer("quantity").default(1).notNull(),
+  unitPrice: numeric("unit_price", { precision: 14, scale: 2 }).notNull(),
+  lineTotal: numeric("line_total", { precision: 14, scale: 2 }).notNull(),
+  displayOrder: integer("display_order").default(0).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("quote_items_quote_idx").on(table.quoteId),
+]);
+
+export const bookings = pgTable("bookings", {
+  id: text("id").primaryKey(),
+  quoteId: text("quote_id").notNull().unique().references(() => quotes.id, { onDelete: "restrict" }),
+  conversationId: text("conversation_id").notNull().unique().references(() => conversations.id, { onDelete: "restrict" }),
+  enquiryId: text("enquiry_id").notNull().references(() => enquiries.id, { onDelete: "restrict" }),
+  vendorId: text("vendor_id").notNull().references(() => marketplaceVendors.id, { onDelete: "restrict" }),
+  vendorOwnerClerkUserId: text("vendor_owner_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "restrict" }),
+  customerClerkUserId: text("customer_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "restrict" }),
+  weddingDate: date("wedding_date"),
+  weddingLocation: text("wedding_location").notNull(),
+  serviceSummary: text("service_summary").notNull(),
+  total: numeric("total", { precision: 14, scale: 2 }).notNull(),
+  currencyCode: text("currency_code").default("NGN").notNull(),
+  paymentPlan: text("payment_plan", { enum: ["full", "deposit"] }).default("full").notNull(),
+  depositAmount: numeric("deposit_amount", { precision: 14, scale: 2 }),
+  status: text("status", { enum: ["confirmed", "completed", "cancelled"] }).default("confirmed").notNull(),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("bookings_vendor_owner_idx").on(table.vendorOwnerClerkUserId),
+  index("bookings_customer_idx").on(table.customerClerkUserId),
+  index("bookings_status_idx").on(table.status),
+]);
+
+export const paymentOrders = pgTable("payment_orders", {
+  id: text("id").primaryKey(),
+  bookingId: text("booking_id").notNull().references(() => bookings.id, { onDelete: "restrict" }),
+  customerClerkUserId: text("customer_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "restrict" }),
+  vendorOwnerClerkUserId: text("vendor_owner_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "restrict" }),
+  provider: text("provider").default("paystack").notNull(),
+  providerReference: text("provider_reference").notNull().unique(),
+  providerAccessCode: text("provider_access_code"),
+  authorizationUrl: text("authorization_url"),
+  purpose: text("purpose", { enum: ["full", "deposit", "balance"] }).default("full").notNull(),
+  amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+  currencyCode: text("currency_code").default("NGN").notNull(),
+  status: text("status", { enum: ["created", "pending", "paid", "failed", "cancelled", "refunded"] }).default("created").notNull(),
+  fundsStatus: text("funds_status", { enum: ["not_received", "held", "releasable", "released", "refunded", "disputed"] }).default("not_received").notNull(),
+  providerPaidAt: timestamp("provider_paid_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("payment_orders_booking_idx").on(table.bookingId),
+  index("payment_orders_customer_idx").on(table.customerClerkUserId),
+  index("payment_orders_vendor_idx").on(table.vendorOwnerClerkUserId),
+  index("payment_orders_status_idx").on(table.status),
+]);
+
+export const paymentEvents = pgTable("payment_events", {
+  id: text("id").primaryKey(),
+  paymentOrderId: text("payment_order_id").notNull().references(() => paymentOrders.id, { onDelete: "cascade" }),
+  eventType: text("event_type").notNull(),
+  eventKey: text("event_key"),
+  payload: jsonb("payload").$type<Record<string, unknown>>().default({}).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("payment_events_order_idx").on(table.paymentOrderId),
+]);
+
+export const providerWebhookEvents = pgTable("provider_webhook_events", {
+  eventKey: text("event_key").primaryKey(),
+  provider: text("provider").default("paystack").notNull(),
+  eventType: text("event_type").notNull(),
+  providerReference: text("provider_reference"),
+  payload: jsonb("payload").$type<Record<string, unknown>>().default({}).notNull(),
+  status: text("status", { enum: ["processing", "processed", "failed"] }).default("processing").notNull(),
+  errorMessage: text("error_message"),
+  receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow().notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const paymentReconciliations = pgTable("payment_reconciliations", {
+  id: text("id").primaryKey(),
+  paymentOrderId: text("payment_order_id").notNull().references(() => paymentOrders.id, { onDelete: "cascade" }),
+  checkedByClerkUserId: text("checked_by_clerk_user_id").references(() => users.clerkUserId, { onDelete: "set null" }),
+  result: text("result", { enum: ["matched", "repaired", "needs_attention"] }).notNull(),
+  localStatusBefore: text("local_status_before").notNull(),
+  localFundsStatusBefore: text("local_funds_status_before").notNull(),
+  providerStatus: text("provider_status").notNull(),
+  providerAmount: numeric("provider_amount", { precision: 14, scale: 2 }),
+  providerCurrency: text("provider_currency"),
+  note: text("note"),
+  providerPayload: jsonb("provider_payload").$type<Record<string, unknown>>().default({}).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("payment_reconciliations_order_idx").on(table.paymentOrderId, table.createdAt),
+]);
+
+export const vendorPayoutProfiles = pgTable("vendor_payout_profiles", {
+  vendorOwnerClerkUserId: text("vendor_owner_clerk_user_id").primaryKey().references(() => users.clerkUserId, { onDelete: "cascade" }),
+  provider: text("provider").default("paystack").notNull(),
+  recipientCode: text("recipient_code"),
+  accountName: text("account_name"),
+  bankName: text("bank_name"),
+  accountLast4: text("account_last4"),
+  status: text("status", { enum: ["unconfigured", "pending", "verified", "disabled"] }).default("unconfigured").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const payoutReleases = pgTable("payout_releases", {
+  id: text("id").primaryKey(),
+  paymentOrderId: text("payment_order_id").notNull().unique().references(() => paymentOrders.id, { onDelete: "restrict" }),
+  vendorOwnerClerkUserId: text("vendor_owner_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "restrict" }),
+  amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+  currencyCode: text("currency_code").default("NGN").notNull(),
+  status: text("status", { enum: ["queued", "processing", "paid", "failed", "cancelled"] }).default("queued").notNull(),
+  providerTransferReference: text("provider_transfer_reference"),
+  releasedAt: timestamp("released_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("payout_releases_vendor_idx").on(table.vendorOwnerClerkUserId),
+  index("payout_releases_status_idx").on(table.status),
+]);
+
+export const notifications = pgTable("notifications", {
+  id: text("id").primaryKey(),
+  clerkUserId: text("clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  href: text("href"),
+  uniqueKey: text("unique_key").notNull().unique(),
+  readAt: timestamp("read_at", { withTimezone: true }),
+  emailStatus: text("email_status", { enum: ["skipped", "pending", "sent", "failed"] }).default("skipped").notNull(),
+  emailSentAt: timestamp("email_sent_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("notifications_user_created_idx").on(table.clerkUserId, table.createdAt),
+  index("notifications_user_unread_idx").on(table.clerkUserId, table.readAt),
 ]);
 
 export const favourites = pgTable("favourites", {
@@ -116,3 +350,22 @@ export type VendorProfile = typeof vendorProfiles.$inferSelect;
 export type MarketplaceVendor = typeof marketplaceVendors.$inferSelect;
 
 export type VendorPackageRecord = typeof vendorPackages.$inferSelect;
+
+export type Enquiry = typeof enquiries.$inferSelect;
+export type Conversation = typeof conversations.$inferSelect;
+export type ConversationMessage = typeof messages.$inferSelect;
+
+export type QuoteRecord = typeof quotes.$inferSelect;
+export type QuoteItemRecord = typeof quoteItems.$inferSelect;
+export type BookingRecord = typeof bookings.$inferSelect;
+
+export type PaymentOrderRecord = typeof paymentOrders.$inferSelect;
+export type PaymentEventRecord = typeof paymentEvents.$inferSelect;
+export type VendorPayoutProfileRecord = typeof vendorPayoutProfiles.$inferSelect;
+export type PayoutReleaseRecord = typeof payoutReleases.$inferSelect;
+
+
+export type NotificationRecord = typeof notifications.$inferSelect;
+
+export type ProviderWebhookEventRecord = typeof providerWebhookEvents.$inferSelect;
+export type PaymentReconciliationRecord = typeof paymentReconciliations.$inferSelect;

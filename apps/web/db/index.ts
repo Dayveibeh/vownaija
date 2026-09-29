@@ -122,6 +122,7 @@ export async function ensureDatabaseSchema() {
         )
       `;
 
+      await sql`ALTER TABLE marketplace_vendors ADD COLUMN IF NOT EXISTS owner_clerk_user_id text REFERENCES smitten_users(clerk_user_id) ON DELETE SET NULL`;
       await sql`ALTER TABLE marketplace_vendors ADD COLUMN IF NOT EXISTS about text NOT NULL DEFAULT ''`;
       await sql`ALTER TABLE marketplace_vendors ADD COLUMN IF NOT EXISTS travel_distance text NOT NULL DEFAULT 'Nigeria'`;
       await sql`ALTER TABLE marketplace_vendors ADD COLUMN IF NOT EXISTS gallery jsonb NOT NULL DEFAULT '[]'::jsonb`;
@@ -146,6 +147,254 @@ export async function ensureDatabaseSchema() {
       `;
 
       await sql`
+        CREATE TABLE IF NOT EXISTS enquiries (
+          id text PRIMARY KEY,
+          customer_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
+          vendor_id text NOT NULL REFERENCES marketplace_vendors(id) ON DELETE CASCADE,
+          package_id text REFERENCES vendor_packages(id) ON DELETE SET NULL,
+          requested_service text,
+          wedding_date date,
+          wedding_location text NOT NULL,
+          guest_count text,
+          budget_band text,
+          contact_name text,
+          contact_email text,
+          message text NOT NULL,
+          status text NOT NULL DEFAULT 'new' CHECK (status IN ('new','active','closed')),
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`ALTER TABLE enquiries ADD COLUMN IF NOT EXISTS contact_name text`;
+      await sql`ALTER TABLE enquiries ADD COLUMN IF NOT EXISTS contact_email text`;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS conversations (
+          id text PRIMARY KEY,
+          enquiry_id text NOT NULL UNIQUE REFERENCES enquiries(id) ON DELETE CASCADE,
+          customer_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
+          vendor_id text NOT NULL REFERENCES marketplace_vendors(id) ON DELETE CASCADE,
+          vendor_owner_clerk_user_id text REFERENCES smitten_users(clerk_user_id) ON DELETE SET NULL,
+          last_message_at timestamptz NOT NULL DEFAULT now(),
+          customer_last_read_at timestamptz,
+          vendor_last_read_at timestamptz,
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS messages (
+          id text PRIMARY KEY,
+          conversation_id text NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+          sender_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
+          body text NOT NULL,
+          created_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS quotes (
+          id text PRIMARY KEY,
+          conversation_id text NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+          enquiry_id text NOT NULL REFERENCES enquiries(id) ON DELETE CASCADE,
+          vendor_id text NOT NULL REFERENCES marketplace_vendors(id) ON DELETE CASCADE,
+          vendor_owner_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
+          customer_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
+          title text NOT NULL,
+          notes text,
+          subtotal numeric(14,2) NOT NULL,
+          discount_amount numeric(14,2) NOT NULL DEFAULT 0,
+          additional_fees numeric(14,2) NOT NULL DEFAULT 0,
+          total numeric(14,2) NOT NULL,
+          currency_code text NOT NULL DEFAULT 'NGN',
+          valid_until date,
+          revision integer NOT NULL DEFAULT 1,
+          status text NOT NULL DEFAULT 'sent' CHECK (status IN ('sent','viewed','accepted','declined','expired')),
+          sent_at timestamptz NOT NULL DEFAULT now(),
+          viewed_at timestamptz,
+          responded_at timestamptz,
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS payment_plan text NOT NULL DEFAULT 'full'`;
+      await sql`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS deposit_type text`;
+      await sql`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS deposit_value numeric(14,2) NOT NULL DEFAULT 0`;
+      await sql`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS deposit_amount numeric(14,2)`;
+      await sql`UPDATE quotes SET deposit_amount=total WHERE deposit_amount IS NULL`;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS quote_items (
+          id text PRIMARY KEY,
+          quote_id text NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,
+          title text NOT NULL,
+          description text,
+          quantity integer NOT NULL DEFAULT 1,
+          unit_price numeric(14,2) NOT NULL,
+          line_total numeric(14,2) NOT NULL,
+          display_order integer NOT NULL DEFAULT 0,
+          created_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS bookings (
+          id text PRIMARY KEY,
+          quote_id text NOT NULL UNIQUE REFERENCES quotes(id) ON DELETE RESTRICT,
+          conversation_id text NOT NULL UNIQUE REFERENCES conversations(id) ON DELETE RESTRICT,
+          enquiry_id text NOT NULL REFERENCES enquiries(id) ON DELETE RESTRICT,
+          vendor_id text NOT NULL REFERENCES marketplace_vendors(id) ON DELETE RESTRICT,
+          vendor_owner_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE RESTRICT,
+          customer_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE RESTRICT,
+          wedding_date date,
+          wedding_location text NOT NULL,
+          service_summary text NOT NULL,
+          total numeric(14,2) NOT NULL,
+          currency_code text NOT NULL DEFAULT 'NGN',
+          status text NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed','completed','cancelled')),
+          confirmed_at timestamptz NOT NULL DEFAULT now(),
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_plan text NOT NULL DEFAULT 'full'`;
+      await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS deposit_amount numeric(14,2)`;
+      await sql`UPDATE bookings SET deposit_amount=total WHERE deposit_amount IS NULL`;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS payment_orders (
+          id text PRIMARY KEY,
+          booking_id text NOT NULL REFERENCES bookings(id) ON DELETE RESTRICT,
+          customer_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE RESTRICT,
+          vendor_owner_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE RESTRICT,
+          provider text NOT NULL DEFAULT 'paystack',
+          provider_reference text NOT NULL UNIQUE,
+          provider_access_code text,
+          authorization_url text,
+          purpose text NOT NULL DEFAULT 'full' CHECK (purpose IN ('full','deposit','balance')),
+          amount numeric(14,2) NOT NULL,
+          currency_code text NOT NULL DEFAULT 'NGN',
+          status text NOT NULL DEFAULT 'created' CHECK (status IN ('created','pending','paid','failed','cancelled','refunded')),
+          funds_status text NOT NULL DEFAULT 'not_received' CHECK (funds_status IN ('not_received','held','releasable','released','refunded','disputed')),
+          provider_paid_at timestamptz,
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS payment_events (
+          id text PRIMARY KEY,
+          payment_order_id text NOT NULL REFERENCES payment_orders(id) ON DELETE CASCADE,
+          event_type text NOT NULL,
+          payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+          created_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`ALTER TABLE payment_events ADD COLUMN IF NOT EXISTS event_key text`;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS provider_webhook_events (
+          event_key text PRIMARY KEY,
+          provider text NOT NULL DEFAULT 'paystack',
+          event_type text NOT NULL,
+          provider_reference text,
+          payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+          status text NOT NULL DEFAULT 'processing' CHECK (status IN ('processing','processed','failed')),
+          error_message text,
+          received_at timestamptz NOT NULL DEFAULT now(),
+          processed_at timestamptz,
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS payment_reconciliations (
+          id text PRIMARY KEY,
+          payment_order_id text NOT NULL REFERENCES payment_orders(id) ON DELETE CASCADE,
+          checked_by_clerk_user_id text REFERENCES smitten_users(clerk_user_id) ON DELETE SET NULL,
+          result text NOT NULL CHECK (result IN ('matched','repaired','needs_attention')),
+          local_status_before text NOT NULL,
+          local_funds_status_before text NOT NULL,
+          provider_status text NOT NULL,
+          provider_amount numeric(14,2),
+          provider_currency text,
+          note text,
+          provider_payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+          created_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS vendor_payout_profiles (
+          vendor_owner_clerk_user_id text PRIMARY KEY REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
+          provider text NOT NULL DEFAULT 'paystack',
+          recipient_code text,
+          account_name text,
+          bank_name text,
+          account_last4 text,
+          status text NOT NULL DEFAULT 'unconfigured' CHECK (status IN ('unconfigured','pending','verified','disabled')),
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS payout_releases (
+          id text PRIMARY KEY,
+          payment_order_id text NOT NULL UNIQUE REFERENCES payment_orders(id) ON DELETE RESTRICT,
+          vendor_owner_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE RESTRICT,
+          amount numeric(14,2) NOT NULL,
+          currency_code text NOT NULL DEFAULT 'NGN',
+          status text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','processing','paid','failed','cancelled')),
+          provider_transfer_reference text,
+          released_at timestamptz,
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`ALTER TABLE payout_releases ADD COLUMN IF NOT EXISTS provider_transfer_code text`;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS payment_cases (
+          id text PRIMARY KEY,
+          payment_order_id text NOT NULL REFERENCES payment_orders(id) ON DELETE RESTRICT,
+          booking_id text NOT NULL REFERENCES bookings(id) ON DELETE RESTRICT,
+          case_type text NOT NULL CHECK (case_type IN ('dispute','refund')),
+          status text NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved','processing','processed','failed','needs_attention')),
+          opened_by_clerk_user_id text REFERENCES smitten_users(clerk_user_id) ON DELETE SET NULL,
+          reason text,
+          amount numeric(14,2),
+          provider_reference text,
+          resolved_by_clerk_user_id text REFERENCES smitten_users(clerk_user_id) ON DELETE SET NULL,
+          resolved_at timestamptz,
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS notifications (
+          id text PRIMARY KEY,
+          clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
+          type text NOT NULL,
+          title text NOT NULL,
+          body text NOT NULL,
+          href text,
+          unique_key text NOT NULL UNIQUE,
+          read_at timestamptz,
+          email_status text NOT NULL DEFAULT 'skipped' CHECK (email_status IN ('skipped','pending','sent','failed')),
+          email_sent_at timestamptz,
+          created_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
         CREATE TABLE IF NOT EXISTS favourites (
           clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
           vendor_id text NOT NULL REFERENCES marketplace_vendors(id) ON DELETE CASCADE,
@@ -162,6 +411,41 @@ export async function ensureDatabaseSchema() {
       await sql`CREATE INDEX IF NOT EXISTS marketplace_vendors_location_idx ON marketplace_vendors(location)`;
       await sql`CREATE INDEX IF NOT EXISTS marketplace_vendors_state_idx ON marketplace_vendors(state)`;
       await sql`CREATE INDEX IF NOT EXISTS vendor_packages_vendor_idx ON vendor_packages(vendor_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS marketplace_vendors_owner_idx ON marketplace_vendors(owner_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS enquiries_customer_idx ON enquiries(customer_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS enquiries_vendor_idx ON enquiries(vendor_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS enquiries_status_idx ON enquiries(status)`;
+      await sql`CREATE INDEX IF NOT EXISTS conversations_customer_idx ON conversations(customer_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS conversations_vendor_owner_idx ON conversations(vendor_owner_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS conversations_vendor_idx ON conversations(vendor_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS messages_conversation_idx ON messages(conversation_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS messages_sender_idx ON messages(sender_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS quotes_conversation_idx ON quotes(conversation_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS quotes_vendor_owner_idx ON quotes(vendor_owner_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS quotes_customer_idx ON quotes(customer_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS quotes_status_idx ON quotes(status)`;
+      await sql`CREATE INDEX IF NOT EXISTS quote_items_quote_idx ON quote_items(quote_id)`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS bookings_conversation_unique ON bookings(conversation_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS bookings_vendor_owner_idx ON bookings(vendor_owner_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS bookings_customer_idx ON bookings(customer_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS bookings_status_idx ON bookings(status)`;
+      await sql`CREATE INDEX IF NOT EXISTS payment_orders_booking_idx ON payment_orders(booking_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS payment_orders_customer_idx ON payment_orders(customer_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS payment_orders_vendor_idx ON payment_orders(vendor_owner_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS payment_orders_status_idx ON payment_orders(status)`;
+      await sql`CREATE INDEX IF NOT EXISTS payment_events_order_idx ON payment_events(payment_order_id)`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS payment_events_event_key_unique ON payment_events(event_key) WHERE event_key IS NOT NULL`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS payment_events_event_key_unique_full ON payment_events(event_key)`;
+      await sql`CREATE INDEX IF NOT EXISTS provider_webhook_events_reference_idx ON provider_webhook_events(provider_reference)`;
+      await sql`CREATE INDEX IF NOT EXISTS provider_webhook_events_status_idx ON provider_webhook_events(status)`;
+      await sql`CREATE INDEX IF NOT EXISTS payment_reconciliations_order_idx ON payment_reconciliations(payment_order_id,created_at DESC)`;
+      await sql`CREATE INDEX IF NOT EXISTS payout_releases_vendor_idx ON payout_releases(vendor_owner_clerk_user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS payout_releases_status_idx ON payout_releases(status)`;
+      await sql`CREATE INDEX IF NOT EXISTS notifications_user_created_idx ON notifications(clerk_user_id,created_at DESC)`;
+      await sql`CREATE INDEX IF NOT EXISTS notifications_user_unread_idx ON notifications(clerk_user_id,read_at)`;
+      await sql`CREATE INDEX IF NOT EXISTS payment_cases_payment_idx ON payment_cases(payment_order_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS payment_cases_booking_idx ON payment_cases(booking_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS payment_cases_status_idx ON payment_cases(status)`;
       await sql`CREATE INDEX IF NOT EXISTS favourites_user_idx ON favourites(clerk_user_id)`;
     })().catch((error) => {
       schemaPromise = null;
