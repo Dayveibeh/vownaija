@@ -14,6 +14,17 @@ function dateLabel(value: string | null) {
   return new Intl.DateTimeFormat("en-NG", { day: "numeric", month: "long", year: "numeric" }).format(new Date(value + "T12:00:00"));
 }
 
+function activityDate(value: string | null) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("en-NG", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
 export default function BookingDetailClient({
   booking,
   quote,
@@ -124,6 +135,113 @@ export default function BookingDetailClient({
       : paymentSummary.paymentStatus === "refunded"
         ? "Refunded"
         : "Payment due";
+
+  const successfulPayments = paymentSummary.payments
+    .filter((payment) => (payment.status === "paid" || payment.status === "refunded") && payment.paidAt)
+    .slice()
+    .sort((a, b) => new Date(a.paidAt || 0).getTime() - new Date(b.paidAt || 0).getTime());
+
+  const paymentTimeline = [
+    {
+      key: "booking-confirmed",
+      title: "Booking confirmed",
+      body: `Accepted quote for ${formatNaira(booking.total)}.`,
+      date: booking.confirmedAt,
+      state: "complete" as const,
+      icon: "booking" as const,
+    },
+    ...successfulPayments.map((payment) => ({
+      key: payment.id,
+      title: payment.purpose === "deposit"
+        ? "Deposit paid"
+        : payment.purpose === "balance"
+          ? "Balance paid"
+          : "Payment received",
+      body: `${formatNaira(payment.amount)} verified through Paystack.`,
+      date: payment.paidAt,
+      state: payment.status === "refunded" ? "muted" as const : "complete" as const,
+      icon: "payment" as const,
+    })),
+  ];
+
+  const latestPaidDate = successfulPayments
+    .map((payment) => payment.paidAt)
+    .filter(Boolean)
+    .at(-1) || null;
+
+  if (paymentSummary.paymentStatus === "paid" && latestPaidDate) {
+    paymentTimeline.push({
+      key: "fully-paid",
+      title: "Booking fully paid",
+      body: `The full ${formatNaira(paymentSummary.total)} booking total has been received.`,
+      date: latestPaidDate,
+      state: "complete",
+      icon: "protected",
+    });
+  }
+
+  if (paymentSummary.caseStatus !== "none") {
+    paymentTimeline.push({
+      key: "payment-case",
+      title: paymentSummary.caseStatus === "dispute_open"
+        ? "Payment dispute opened"
+        : paymentSummary.caseStatus === "refund_processed"
+          ? "Refund completed"
+          : paymentSummary.caseStatus === "refund_failed"
+            ? "Refund did not complete"
+            : paymentSummary.caseStatus === "refund_needs_attention"
+              ? "Refund needs attention"
+              : "Refund processing",
+      body: paymentSummary.caseStatus === "dispute_open"
+        ? "Vendor payout is paused while Smitten reviews the issue."
+        : paymentSummary.caseStatus === "refund_processed"
+          ? "Smitten records the payment as refunded."
+          : paymentSummary.caseStatus === "refund_failed"
+            ? "The payment returned to a protected state for review."
+            : "The refund is being handled through the provider.",
+      date: paymentSummary.caseOpenedAt,
+      state: paymentSummary.caseStatus === "refund_processed" ? "complete" : "attention",
+      icon: "case",
+    });
+  }
+
+  if (paymentSummary.releaseStatus === "released") {
+    paymentTimeline.push({
+      key: "payout-released",
+      title: paymentSummary.simulationEnabled ? "Test payout release completed" : "Vendor payout released",
+      body: paymentSummary.simulationEnabled
+        ? "Staging release completed without sending a real bank transfer."
+        : "Smitten completed the vendor payout.",
+      date: paymentSummary.releaseAt,
+      state: "complete",
+      icon: "payout",
+    });
+  } else if (paymentSummary.paymentStatus === "partially_paid" && paymentSummary.outstanding > 0) {
+    paymentTimeline.push({
+      key: "balance-remaining",
+      title: "Balance remaining",
+      body: `${formatNaira(paymentSummary.outstanding)} is still due on this booking.`,
+      date: null,
+      state: "pending",
+      icon: "payment",
+    });
+  } else if (
+    paymentSummary.paymentStatus === "paid" &&
+    paymentSummary.caseStatus === "none" &&
+    paymentSummary.releaseStatus !== "processing" &&
+    paymentSummary.releaseStatus !== "queued"
+  ) {
+    paymentTimeline.push({
+      key: "awaiting-release",
+      title: "Awaiting customer release",
+      body: isCustomer
+        ? "Release the vendor payout when the service is complete and you're satisfied."
+        : "The payment remains protected until the customer releases the payout.",
+      date: null,
+      state: "pending",
+      icon: "payout",
+    });
+  }
 
   return (
     <main className="booking-detail-page">
@@ -326,13 +444,76 @@ export default function BookingDetailClient({
               <p>{paymentSummary.caseReason}</p>
             </div>}
 
-            {paymentSummary.payments.length > 0 && <div className="payment-history">
-              <h4>Payment activity</h4>
-              {paymentSummary.payments.map((payment) => <div key={payment.id}>
-                <span>{payment.status === "paid" ? <CheckCircle2 size={15} /> : <CreditCard size={15} />}<span><strong>{formatNaira(payment.amount)}</strong><small>{payment.purpose === "deposit" ? "Deposit" : payment.purpose === "balance" ? "Balance" : "Full payment"} · {payment.providerReference}</small></span></span>
-                <b className={payment.status}>{payment.status}</b>
-              </div>)}
-            </div>}
+            <section className="booking-payment-timeline">
+              <div className="booking-payment-subheading">
+                <div><small>Booking journey</small><h4>Payment timeline</h4></div>
+                <span>{paymentTimeline.filter((item) => item.state === "complete").length} completed</span>
+              </div>
+              <div className="payment-timeline-list">
+                {paymentTimeline.map((item, index) => <article className={`payment-timeline-item ${item.state}`} key={item.key}>
+                  <div className="payment-timeline-rail">
+                    <span>
+                      {item.icon === "booking"
+                        ? <CalendarCheck2 size={15} />
+                        : item.icon === "payout"
+                          ? <HandCoins size={15} />
+                          : item.icon === "case"
+                            ? <AlertTriangle size={15} />
+                            : item.icon === "protected"
+                              ? <ShieldCheck size={15} />
+                              : <CreditCard size={15} />}
+                    </span>
+                    {index < paymentTimeline.length - 1 && <i />}
+                  </div>
+                  <div className="payment-timeline-copy">
+                    <div><strong>{item.title}</strong>{item.date && <time>{activityDate(item.date)}</time>}</div>
+                    <p>{item.body}</p>
+                  </div>
+                </article>)}
+              </div>
+            </section>
+
+            {successfulPayments.length > 0 && <section className="payment-receipts">
+              <div className="booking-payment-subheading">
+                <div><small>Documents</small><h4>Payment receipts</h4></div>
+                <span>{successfulPayments.length} {successfulPayments.length === 1 ? "receipt" : "receipts"}</span>
+              </div>
+
+              <div className="payment-receipt-list">
+                {successfulPayments.map((payment) => <article className="payment-receipt-row" key={payment.id}>
+                  <div className="payment-receipt-main">
+                    <span className="payment-receipt-icon"><FileText size={16} /></span>
+                    <span>
+                      <strong>{payment.purpose === "deposit" ? "Deposit receipt" : payment.purpose === "balance" ? "Balance receipt" : "Payment receipt"}</strong>
+                      <small>{activityDate(payment.paidAt)} · {formatNaira(payment.amount)}</small>
+                    </span>
+                  </div>
+                  <a href={`/api/payments/${payment.id}/receipt`} download>
+                    <Download size={15} /> Download PDF
+                  </a>
+                  <details className="payment-transaction-details">
+                    <summary>View transaction details</summary>
+                    <div>
+                      <span><small>Status</small><strong>{payment.status}</strong></span>
+                      <span><small>Smitten payment ID</small><code>{payment.id}</code></span>
+                      <span><small>Paystack reference</small><code>{payment.providerReference}</code></span>
+                      <span><small>Funds status</small><strong>{payment.fundsStatus.replace("_", " ")}</strong></span>
+                    </div>
+                  </details>
+                </article>)}
+              </div>
+
+              {paymentSummary.payments.some((payment) => !["paid","refunded"].includes(payment.status)) && <details className="payment-other-attempts">
+                <summary>Show incomplete payment attempts</summary>
+                <div>
+                  {paymentSummary.payments.filter((payment) => !["paid","refunded"].includes(payment.status)).map((payment) => <span key={payment.id}>
+                    <strong>{payment.purpose === "deposit" ? "Deposit" : payment.purpose === "balance" ? "Balance" : "Payment"}</strong>
+                    <small>{formatNaira(payment.amount)} · {payment.status}</small>
+                    <code>{payment.providerReference}</code>
+                  </span>)}
+                </div>
+              </details>}
+            </section>}
           </section>
 
           <section className="booking-accepted-quote">
