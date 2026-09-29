@@ -220,6 +220,12 @@ export async function ensureDatabaseSchema() {
         )
       `;
 
+      await sql`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS payment_plan text NOT NULL DEFAULT 'full'`;
+      await sql`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS deposit_type text`;
+      await sql`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS deposit_value numeric(14,2) NOT NULL DEFAULT 0`;
+      await sql`ALTER TABLE quotes ADD COLUMN IF NOT EXISTS deposit_amount numeric(14,2)`;
+      await sql`UPDATE quotes SET deposit_amount=total WHERE deposit_amount IS NULL`;
+
       await sql`
         CREATE TABLE IF NOT EXISTS quote_items (
           id text PRIMARY KEY,
@@ -254,6 +260,10 @@ export async function ensureDatabaseSchema() {
           updated_at timestamptz NOT NULL DEFAULT now()
         )
       `;
+
+      await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_plan text NOT NULL DEFAULT 'full'`;
+      await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS deposit_amount numeric(14,2)`;
+      await sql`UPDATE bookings SET deposit_amount=total WHERE deposit_amount IS NULL`;
 
       await sql`
         CREATE TABLE IF NOT EXISTS payment_orders (
