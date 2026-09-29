@@ -435,6 +435,7 @@ export async function ensureDatabaseSchema() {
       await sql`CREATE INDEX IF NOT EXISTS payment_orders_status_idx ON payment_orders(status)`;
       await sql`CREATE INDEX IF NOT EXISTS payment_events_order_idx ON payment_events(payment_order_id)`;
       await sql`CREATE UNIQUE INDEX IF NOT EXISTS payment_events_event_key_unique ON payment_events(event_key) WHERE event_key IS NOT NULL`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS payment_events_event_key_unique_full ON payment_events(event_key)`;
       await sql`CREATE INDEX IF NOT EXISTS provider_webhook_events_reference_idx ON provider_webhook_events(provider_reference)`;
       await sql`CREATE INDEX IF NOT EXISTS provider_webhook_events_status_idx ON provider_webhook_events(status)`;
       await sql`CREATE INDEX IF NOT EXISTS payment_reconciliations_order_idx ON payment_reconciliations(payment_order_id,created_at DESC)`;
