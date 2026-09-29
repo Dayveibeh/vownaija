@@ -45,6 +45,13 @@ export type BookingPaymentSummary = {
   total: number;
   paid: number;
   outstanding: number;
+  paymentPlan: "full" | "deposit";
+  depositAmount: number;
+  depositPaid: number;
+  depositDue: number;
+  balanceDue: number;
+  nextPaymentAmount: number;
+  nextPaymentPurpose: "full" | "deposit" | "balance" | null;
   currencyCode: "NGN";
   providerConfigured: boolean;
   paymentStatus: "unpaid" | "partially_paid" | "paid" | "refunded";
@@ -214,7 +221,7 @@ export async function getBookingPaymentSummary(
   await expireStalePaymentAttempts();
 
   const bookingRows = await sql`
-    SELECT id,total,currency_code,customer_clerk_user_id,vendor_owner_clerk_user_id
+    SELECT id,total,currency_code,payment_plan,deposit_amount,customer_clerk_user_id,vendor_owner_clerk_user_id
     FROM bookings
     WHERE id=${bookingId}
       AND (
@@ -236,6 +243,22 @@ export async function getBookingPaymentSummary(
   const total = money(booking.total);
   const paid = payments.filter((payment) => payment.status === "paid").reduce((sum, payment) => sum + payment.amount, 0);
   const outstanding = Math.max(0, total - paid);
+  const paymentPlan = String(booking.payment_plan ?? "full") === "deposit" ? "deposit" : "full";
+  const configuredDeposit = paymentPlan === "deposit" ? money(booking.deposit_amount) : total;
+  const depositAmount = Math.min(total, Math.max(0, configuredDeposit || total));
+  const depositPaid = Math.min(paid, depositAmount);
+  const depositDue = Math.max(0, depositAmount - paid);
+  const balanceDue = paymentPlan === "deposit" && paid >= depositAmount ? outstanding : Math.max(0, total - depositAmount);
+  const nextPaymentPurpose: BookingPaymentSummary["nextPaymentPurpose"] =
+    outstanding <= 0
+      ? null
+      : paymentPlan === "deposit" && paid < depositAmount
+        ? "deposit"
+        : paymentPlan === "deposit"
+          ? "balance"
+          : "full";
+  const nextPaymentAmount =
+    nextPaymentPurpose === "deposit" ? depositDue : nextPaymentPurpose ? outstanding : 0;
 
   let paymentStatus: BookingPaymentSummary["paymentStatus"] = "unpaid";
   if (paid >= total && total > 0) paymentStatus = "paid";
@@ -294,6 +317,13 @@ export async function getBookingPaymentSummary(
     total,
     paid,
     outstanding,
+    paymentPlan,
+    depositAmount,
+    depositPaid,
+    depositDue,
+    balanceDue,
+    nextPaymentAmount,
+    nextPaymentPurpose,
     currencyCode: "NGN",
     providerConfigured: isPaystackConfigured(),
     paymentStatus,
@@ -329,14 +359,30 @@ export async function initializeBookingPayment(
   const booking = rows[0];
   if (!booking) throw new Error("BOOKING_NOT_FOUND");
 
+  await expireStalePaymentAttempts();
   const paidRows = await sql`
     SELECT COALESCE(SUM(amount),0) AS paid
     FROM payment_orders
     WHERE booking_id=${bookingId} AND status='paid'
   `;
-  const outstanding = Math.max(0, money(booking.total) - money(paidRows[0]?.paid));
+  const total = money(booking.total);
+  const paid = money(paidRows[0]?.paid);
+  const outstanding = Math.max(0, total - paid);
   if (outstanding <= 0) throw new Error("BOOKING_ALREADY_PAID");
   if (!isPaystackConfigured()) throw new Error("PAYSTACK_NOT_CONFIGURED");
+
+  const paymentPlan = String(booking.payment_plan ?? "full") === "deposit" ? "deposit" : "full";
+  const depositAmount = paymentPlan === "deposit"
+    ? Math.min(total, Math.max(0, money(booking.deposit_amount)))
+    : total;
+  const purpose: PaymentView["purpose"] =
+    paymentPlan === "deposit" && paid < depositAmount
+      ? "deposit"
+      : paymentPlan === "deposit"
+        ? "balance"
+        : "full";
+  const amount = purpose === "deposit" ? Math.max(0, depositAmount - paid) : outstanding;
+  if (amount <= 0) throw new Error("BOOKING_ALREADY_PAID");
 
   const id = crypto.randomUUID();
   const reference = "smitten_" + crypto.randomUUID().replace(/-/g, "");
@@ -348,7 +394,7 @@ export async function initializeBookingPayment(
       provider_reference,purpose,amount,currency_code,status,funds_status,created_at,updated_at
     ) VALUES (
       ${id},${bookingId},${customerUserId},${String(booking.vendor_owner_clerk_user_id)},'paystack',
-      ${reference},'full',${outstanding},'NGN','created','not_received',${now},${now}
+      ${reference},${purpose},${amount},'NGN','created','not_received',${now},${now}
     )
   `;
 
@@ -358,13 +404,14 @@ export async function initializeBookingPayment(
       method: "POST",
       body: JSON.stringify({
         email: String(booking.customer_email),
-        amount: Math.round(outstanding * 100),
+        amount: Math.round(amount * 100),
         currency: "NGN",
         reference,
         callback_url: callbackUrl.toString(),
         metadata: {
           smitten_booking_id: bookingId,
           smitten_payment_order_id: id,
+          smitten_payment_purpose: purpose,
         },
       }),
     });
@@ -383,14 +430,15 @@ export async function initializeBookingPayment(
     `;
     await sql`
       INSERT INTO payment_events(id,payment_order_id,event_type,payload)
-      VALUES(${crypto.randomUUID()},${id},'payment.initialized',${JSON.stringify({ reference, amount: outstanding })}::jsonb)
+      VALUES(${crypto.randomUUID()},${id},'payment.initialized',${JSON.stringify({ reference, amount, purpose })}::jsonb)
     `;
 
     return {
       paymentId: id,
       reference,
       authorizationUrl: response.data.authorization_url,
-      amount: outstanding,
+      amount,
+      purpose,
     };
   } catch (error) {
     await sql`UPDATE payment_orders SET status='failed',updated_at=now() WHERE id=${id}`;
@@ -472,7 +520,7 @@ export async function releaseBookingPayment(bookingId: string, customerUserId: s
 
   const sql = getSql();
   const bookingRows = await sql`
-    SELECT id,vendor_owner_clerk_user_id,customer_clerk_user_id,service_summary
+    SELECT id,total,vendor_owner_clerk_user_id,customer_clerk_user_id,service_summary
     FROM bookings
     WHERE id=${bookingId}
       AND customer_clerk_user_id=${customerUserId}
@@ -480,6 +528,15 @@ export async function releaseBookingPayment(bookingId: string, customerUserId: s
   `;
   const booking = bookingRows[0];
   if (!booking) throw new Error("BOOKING_NOT_FOUND");
+
+  const paidTotalRows = await sql`
+    SELECT COALESCE(SUM(amount),0) AS paid
+    FROM payment_orders
+    WHERE booking_id=${bookingId} AND status='paid'
+  `;
+  if (money(paidTotalRows[0]?.paid) < money(booking.total)) {
+    throw new Error("BOOKING_BALANCE_OUTSTANDING");
+  }
 
   const payoutRows = await sql`
     SELECT recipient_code,status
