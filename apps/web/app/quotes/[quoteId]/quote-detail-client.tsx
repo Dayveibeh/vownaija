@@ -100,6 +100,12 @@ export default function QuoteDetailClient({
             <span className="grand-total">Total <strong>{formatNaira(quote.total)}</strong></span>
           </section>
 
+          <section className="quote-payment-terms-card">
+            <div><small>Payment terms</small><strong>{quote.paymentPlan === "deposit" ? "Deposit + balance" : "Full payment"}</strong></div>
+            <span><small>Due to secure booking</small><strong>{formatNaira(quote.depositAmount)}</strong></span>
+            {quote.paymentPlan === "deposit" && <span><small>Remaining balance</small><strong>{formatNaira(Math.max(0, quote.total - quote.depositAmount))}</strong></span>}
+          </section>
+
           {quote.notes && <section className="quote-document-notes"><small>Note from {quote.vendorName}</small><p>{quote.notes}</p></section>}
 
           <footer>
