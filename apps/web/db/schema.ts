@@ -252,10 +252,41 @@ export const paymentEvents = pgTable("payment_events", {
   id: text("id").primaryKey(),
   paymentOrderId: text("payment_order_id").notNull().references(() => paymentOrders.id, { onDelete: "cascade" }),
   eventType: text("event_type").notNull(),
+  eventKey: text("event_key"),
   payload: jsonb("payload").$type<Record<string, unknown>>().default({}).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("payment_events_order_idx").on(table.paymentOrderId),
+]);
+
+export const providerWebhookEvents = pgTable("provider_webhook_events", {
+  eventKey: text("event_key").primaryKey(),
+  provider: text("provider").default("paystack").notNull(),
+  eventType: text("event_type").notNull(),
+  providerReference: text("provider_reference"),
+  payload: jsonb("payload").$type<Record<string, unknown>>().default({}).notNull(),
+  status: text("status", { enum: ["processing", "processed", "failed"] }).default("processing").notNull(),
+  errorMessage: text("error_message"),
+  receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow().notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const paymentReconciliations = pgTable("payment_reconciliations", {
+  id: text("id").primaryKey(),
+  paymentOrderId: text("payment_order_id").notNull().references(() => paymentOrders.id, { onDelete: "cascade" }),
+  checkedByClerkUserId: text("checked_by_clerk_user_id").references(() => users.clerkUserId, { onDelete: "set null" }),
+  result: text("result", { enum: ["matched", "repaired", "needs_attention"] }).notNull(),
+  localStatusBefore: text("local_status_before").notNull(),
+  localFundsStatusBefore: text("local_funds_status_before").notNull(),
+  providerStatus: text("provider_status").notNull(),
+  providerAmount: numeric("provider_amount", { precision: 14, scale: 2 }),
+  providerCurrency: text("provider_currency"),
+  note: text("note"),
+  providerPayload: jsonb("provider_payload").$type<Record<string, unknown>>().default({}).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("payment_reconciliations_order_idx").on(table.paymentOrderId, table.createdAt),
 ]);
 
 export const vendorPayoutProfiles = pgTable("vendor_payout_profiles", {
@@ -335,3 +366,6 @@ export type PayoutReleaseRecord = typeof payoutReleases.$inferSelect;
 
 
 export type NotificationRecord = typeof notifications.$inferSelect;
+
+export type ProviderWebhookEventRecord = typeof providerWebhookEvents.$inferSelect;
+export type PaymentReconciliationRecord = typeof paymentReconciliations.$inferSelect;
