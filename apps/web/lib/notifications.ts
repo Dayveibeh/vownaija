@@ -310,7 +310,7 @@ export async function notifyPayoutReleased(paymentOrderId: string, simulated = f
   const customerId = String(context.customer_clerk_user_id);
   const vendorId = String(context.vendor_owner_clerk_user_id);
   const service = String(context.service_summary);
-  const amount = money(context.amount);
+  const total = money(context.total);
   const href = `/bookings/${bookingId}`;
 
   await createNotification({
@@ -321,17 +321,17 @@ export async function notifyPayoutReleased(paymentOrderId: string, simulated = f
       ? `The staging release for ${service} was simulated successfully. No real money moved.`
       : `The vendor payout for ${service} has been released.`,
     href,
-    uniqueKey: `payment:${paymentOrderId}:payout-released:customer`,
+    uniqueKey: `booking:${bookingId}:payout-released:customer`,
   });
   await createNotification({
     userId: vendorId,
     type: "payout.released",
     title: simulated ? "Test payout release complete" : "Payout released",
     body: simulated
-      ? `Smitten simulated the ${formatNaira(amount)} payout for ${service}. No real bank transfer was sent.`
-      : `Smitten released ${formatNaira(amount)} for ${service} to your payout account.`,
+      ? `Smitten simulated the ${formatNaira(total)} booking payout for ${service}. No real bank transfer was sent.`
+      : `Smitten released the ${formatNaira(total)} booking payout for ${service} to your payout account.`,
     href,
-    uniqueKey: `payment:${paymentOrderId}:payout-released:vendor`,
+    uniqueKey: `booking:${bookingId}:payout-released:vendor`,
   });
 }
 
@@ -349,7 +349,7 @@ export async function notifyPayoutProcessing(paymentOrderId: string) {
     title: "Payout release in progress",
     body: `Paystack is processing the vendor payout for ${service}.`,
     href,
-    uniqueKey: `payment:${paymentOrderId}:payout-processing:customer`,
+    uniqueKey: `booking:${bookingId}:payout-processing:customer`,
   });
   await createNotification({
     userId: String(context.vendor_owner_clerk_user_id),
@@ -357,7 +357,7 @@ export async function notifyPayoutProcessing(paymentOrderId: string) {
     title: "Payout processing",
     body: `Your payout for ${service} has been sent for processing.`,
     href,
-    uniqueKey: `payment:${paymentOrderId}:payout-processing:vendor`,
+    uniqueKey: `booking:${bookingId}:payout-processing:vendor`,
   });
 }
 
@@ -380,7 +380,7 @@ export async function notifyPayoutFailed(paymentOrderId: string, reversed = fals
       title,
       body,
       href,
-      uniqueKey: `payment:${paymentOrderId}:${reversed ? "payout-reversed" : "payout-failed"}:${userId}`,
+      uniqueKey: `booking:${bookingId}:${reversed ? "payout-reversed" : "payout-failed"}:${userId}`,
     });
   }
 
@@ -391,7 +391,7 @@ export async function notifyPayoutFailed(paymentOrderId: string, reversed = fals
       title,
       body,
       href: "/admin/payments",
-      uniqueKey: `payment:${paymentOrderId}:${reversed ? "payout-reversed" : "payout-failed"}:admin:${userId}`,
+      uniqueKey: `booking:${bookingId}:${reversed ? "payout-reversed" : "payout-failed"}:admin:${userId}`,
     });
   }
 }
