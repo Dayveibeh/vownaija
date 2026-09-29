@@ -55,7 +55,9 @@ export default function AdminFinanceClient({ initialPayments }: { initialPayment
   }
 
   const openCount = initialPayments.filter((payment) =>
-    payment.caseStatus && ["open","processing","needs_attention"].includes(payment.caseStatus)
+    (payment.caseStatus && ["open","processing","needs_attention"].includes(payment.caseStatus))
+    || payment.reconciliationResult === "needs_attention"
+    || ["pending","failed","cancelled"].includes(payment.status)
   ).length;
 
   return (
