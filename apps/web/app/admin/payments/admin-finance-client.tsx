@@ -15,10 +15,12 @@ export default function AdminFinanceClient({ initialPayments }: { initialPayment
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
-  async function runAction(paymentOrderId: string, action: "resolve_dispute" | "refund") {
+  async function runAction(paymentOrderId: string, action: "resolve_dispute" | "refund" | "reconcile") {
     const promptText = action === "refund"
       ? window.prompt("Reason for this full refund:", "Refund approved by Smitten support")
-      : "Resolve this dispute and return the payment to the held state?";
+      : action === "resolve_dispute"
+        ? "Resolve this dispute and return the payment to the held state?"
+        : null;
     if (action === "refund" && promptText === null) return;
     if (action === "resolve_dispute" && !window.confirm(String(promptText))) return;
 
@@ -37,7 +39,13 @@ export default function AdminFinanceClient({ initialPayments }: { initialPayment
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result?.message || "Finance action failed.");
-      setNotice(action === "refund" ? "Refund request submitted." : "Dispute resolved.");
+      setNotice(
+        action === "refund"
+          ? "Refund request submitted."
+          : action === "resolve_dispute"
+            ? "Dispute resolved."
+            : result?.reconciliation?.note || "Payment reconciled with Paystack.",
+      );
       window.setTimeout(() => window.location.reload(), 650);
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : "Finance action failed.");
@@ -97,13 +105,24 @@ export default function AdminFinanceClient({ initialPayments }: { initialPayment
                   <ShieldAlert size={13} />
                   <span><strong>{payment.caseType === "dispute" ? "Customer dispute" : "Refund"}</strong><small>{payment.caseStatus?.replace("_"," ")}</small></span>
                 </div>}
+                {payment.reconciliationResult && <div className={"admin-reconciliation-chip " + payment.reconciliationResult}>
+                  <RefreshCcw size={13} />
+                  <span>
+                    <strong>{payment.reconciliationResult === "matched" ? "Provider matched" : payment.reconciliationResult === "repaired" ? "Repaired from Paystack" : "Needs finance review"}</strong>
+                    <small>Paystack: {payment.providerStatus || "unknown"}</small>
+                  </span>
+                </div>}
                 {payment.caseReason && <blockquote>{payment.caseReason}</blockquote>}
+                {payment.reconciliationNote && <p className="admin-reconciliation-note">{payment.reconciliationNote}</p>}
               </div>
               <div className="admin-finance-amount">
                 <strong>{formatNaira(payment.amount)}</strong>
                 <small>{payment.status}</small>
               </div>
               <div className="admin-finance-actions">
+                <button className="reconcile" disabled={busyId === payment.id} onClick={() => void runAction(payment.id,"reconcile")}>
+                  <RefreshCcw size={15} /> {busyId === payment.id ? "Checking…" : "Reconcile"}
+                </button>
                 {disputeOpen && <button disabled={busyId === payment.id} onClick={() => void runAction(payment.id,"resolve_dispute")}>
                   <CheckCircle2 size={15} /> Resolve dispute
                 </button>}
@@ -115,7 +134,7 @@ export default function AdminFinanceClient({ initialPayments }: { initialPayment
           })}
         </div>
 
-        <p className="admin-finance-footnote"><RefreshCcw size={13} /> Provider refund states are updated by the existing Paystack webhook.</p>
+        <p className="admin-finance-footnote"><RefreshCcw size={13} /> Reconcile checks the Paystack transaction directly and only repairs safe payment-state differences. Ambiguous money states are flagged for manual review.</p>
       </section>
     </main>
   );
