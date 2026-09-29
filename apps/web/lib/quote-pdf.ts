@@ -120,7 +120,22 @@ export function buildQuotePdf(quote: QuoteView) {
   y -= 19;
   text("TOTAL", pageWidth - margin - 210, 12, true);
   text(money(quote.total), pageWidth - margin - 110, 12, true);
-  y -= 32;
+  y -= 26;
+
+  ensure(62);
+  text("PAYMENT TERMS", margin, 9, true);
+  y -= 16;
+  if (quote.paymentPlan === "deposit") {
+    text("Deposit due to secure booking", margin, 9);
+    text(money(quote.depositAmount), pageWidth - margin - 110, 9, true);
+    y -= 14;
+    text("Balance after deposit", margin, 9);
+    text(money(Math.max(0, quote.total - quote.depositAmount)), pageWidth - margin - 110, 9, true);
+  } else {
+    text("Full payment due", margin, 9);
+    text(money(quote.total), pageWidth - margin - 110, 9, true);
+  }
+  y -= 28;
 
   if (quote.notes) {
     ensure(80);
