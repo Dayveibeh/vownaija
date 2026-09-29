@@ -5,6 +5,8 @@ export type QuoteView = {
   vendorName: string; customerName: string; title: string; notes: string | null;
   subtotal: number; discountAmount: number; additionalFees: number; total: number;
   currencyCode: "NGN"; validUntil: string | null; revision: number;
+  paymentPlan: "full" | "deposit"; depositType: "percentage" | "fixed" | null;
+  depositValue: number; depositAmount: number;
   status: "sent" | "viewed" | "accepted" | "declined" | "expired";
   bookingId: string | null;
   sentAt: string; viewedAt: string | null; respondedAt: string | null;
@@ -15,6 +17,7 @@ export type BookingView = {
   id: string; quoteId: string; conversationId: string; enquiryId: string; vendorId: string;
   vendorName: string; customerName: string; weddingDate: string | null; weddingLocation: string;
   serviceSummary: string; total: number; currencyCode: "NGN";
+  paymentPlan: "full" | "deposit"; depositAmount: number;
   status: "confirmed" | "completed" | "cancelled"; confirmedAt: string;
 };
 
@@ -36,6 +39,10 @@ async function mapQuote(row: Record<string, unknown>): Promise<QuoteView> {
     title:String(row.title), notes:row.notes ? String(row.notes) : null,
     subtotal:money(row.subtotal), discountAmount:money(row.discount_amount), additionalFees:money(row.additional_fees),
     total:money(row.total), currencyCode:"NGN", validUntil:dateOnly(row.valid_until), revision:Number(row.revision),
+    paymentPlan:(String(row.payment_plan ?? "full") === "deposit" ? "deposit" : "full"),
+    depositType:row.deposit_type ? String(row.deposit_type) as QuoteView["depositType"] : null,
+    depositValue:money(row.deposit_value),
+    depositAmount:money(row.deposit_amount ?? row.total),
     status:String(row.status) as QuoteView["status"], bookingId: bookingRows[0] ? String(bookingRows[0].id) : null, sentAt:iso(row.sent_at) ?? new Date().toISOString(),
     viewedAt:iso(row.viewed_at), respondedAt:iso(row.responded_at),
     items:items.map(i=>({id:String(i.id),title:String(i.title),description:i.description?String(i.description):null,quantity:Number(i.quantity),unitPrice:money(i.unit_price),lineTotal:money(i.line_total)})),
@@ -48,7 +55,10 @@ function mapBooking(row: Record<string, unknown>): BookingView {
     enquiryId:String(row.enquiry_id), vendorId:String(row.vendor_id), vendorName:String(row.vendor_name),
     customerName:String(row.customer_name), weddingDate:dateOnly(row.wedding_date),
     weddingLocation:String(row.wedding_location), serviceSummary:String(row.service_summary),
-    total:money(row.total), currencyCode:"NGN", status:String(row.status) as BookingView["status"],
+    total:money(row.total), currencyCode:"NGN",
+    paymentPlan:(String(row.payment_plan ?? "full") === "deposit" ? "deposit" : "full"),
+    depositAmount:money(row.deposit_amount ?? row.total),
+    status:String(row.status) as BookingView["status"],
     confirmedAt:iso(row.confirmed_at) ?? new Date().toISOString(),
   };
 }
@@ -84,6 +94,7 @@ export async function loadConversationQuotes(conversationId:string,userId:string
 
 export async function createConversationQuote(conversationId:string,vendorUserId:string,input:{
   title:string; notes?:string|null; validUntil?:string|null; discountAmount?:number; additionalFees?:number;
+  paymentPlan?:"full"|"deposit"; depositType?:"percentage"|"fixed"|null; depositValue?:number;
   items:Array<{title:string;description?:string|null;quantity:number;unitPrice:number}>;
 }) {
   await ensureDatabaseSchema(); const sql=getSql();
@@ -98,11 +109,20 @@ export async function createConversationQuote(conversationId:string,vendorUserId
   const subtotal=items.reduce((s,i)=>s+i.quantity*i.unitPrice,0);
   const discount=Math.min(Math.max(0,input.discountAmount??0),subtotal), fees=Math.max(0,input.additionalFees??0), total=subtotal-discount+fees;
   if(total<=0) throw new Error("INVALID_TOTAL");
+  const paymentPlan=input.paymentPlan==="deposit" ? "deposit" : "full";
+  const depositType=paymentPlan==="deposit" ? (input.depositType==="fixed" ? "fixed" : "percentage") : null;
+  const depositValue=paymentPlan==="deposit" ? Math.max(0,Number(input.depositValue??0)) : 0;
+  const depositAmount=paymentPlan==="full"
+    ? total
+    : depositType==="fixed"
+      ? Math.min(total,depositValue)
+      : Math.min(total,Math.round(total*depositValue/100));
+  if(paymentPlan==="deposit" && (depositAmount<=0 || depositAmount>=total)) throw new Error("INVALID_DEPOSIT");
   const rev=await sql`SELECT COALESCE(MAX(revision),0)::int revision FROM quotes WHERE conversation_id=${conversationId}`;
   const id=crypto.randomUUID(), now=new Date();
   await sql`
-    INSERT INTO quotes(id,conversation_id,enquiry_id,vendor_id,vendor_owner_clerk_user_id,customer_clerk_user_id,title,notes,subtotal,discount_amount,additional_fees,total,currency_code,valid_until,revision,status,sent_at,created_at,updated_at)
-    VALUES(${id},${conversationId},${String(c.enquiry_id)},${String(c.vendor_id)},${vendorUserId},${String(c.customer_clerk_user_id)},${input.title.trim()},${input.notes?.trim()||null},${subtotal},${discount},${fees},${total},'NGN',${input.validUntil||null},${Number(rev[0]?.revision??0)+1},'sent',${now},${now},${now})
+    INSERT INTO quotes(id,conversation_id,enquiry_id,vendor_id,vendor_owner_clerk_user_id,customer_clerk_user_id,title,notes,subtotal,discount_amount,additional_fees,total,currency_code,payment_plan,deposit_type,deposit_value,deposit_amount,valid_until,revision,status,sent_at,created_at,updated_at)
+    VALUES(${id},${conversationId},${String(c.enquiry_id)},${String(c.vendor_id)},${vendorUserId},${String(c.customer_clerk_user_id)},${input.title.trim()},${input.notes?.trim()||null},${subtotal},${discount},${fees},${total},'NGN',${paymentPlan},${depositType},${depositValue},${depositAmount},${input.validUntil||null},${Number(rev[0]?.revision??0)+1},'sent',${now},${now},${now})
   `;
   for(let n=0;n<items.length;n++){const i=items[n]; await sql`
     INSERT INTO quote_items(id,quote_id,title,description,quantity,unit_price,line_total,display_order)
@@ -133,8 +153,8 @@ export async function respondToQuote(quoteId:string,customerUserId:string,action
   const updated=await sql`UPDATE quotes SET status='accepted',responded_at=${now},updated_at=${now} WHERE id=${quoteId} AND status IN ('sent','viewed') RETURNING id`; if(!updated[0]) throw new Error("QUOTE_ALREADY_RESPONDED");
   const bookingId=crypto.randomUUID();
   await sql`
-    INSERT INTO bookings(id,quote_id,conversation_id,enquiry_id,vendor_id,vendor_owner_clerk_user_id,customer_clerk_user_id,wedding_date,wedding_location,service_summary,total,currency_code,status,confirmed_at,created_at,updated_at)
-    VALUES(${bookingId},${quoteId},${String(q.conversation_id)},${String(q.enquiry_id)},${String(q.vendor_id)},${String(q.vendor_owner_clerk_user_id)},${customerUserId},${dateOnly(q.wedding_date)},${String(q.wedding_location)},${String(q.title)},${money(q.total)},'NGN','confirmed',${now},${now},${now})
+    INSERT INTO bookings(id,quote_id,conversation_id,enquiry_id,vendor_id,vendor_owner_clerk_user_id,customer_clerk_user_id,wedding_date,wedding_location,service_summary,total,currency_code,payment_plan,deposit_amount,status,confirmed_at,created_at,updated_at)
+    VALUES(${bookingId},${quoteId},${String(q.conversation_id)},${String(q.enquiry_id)},${String(q.vendor_id)},${String(q.vendor_owner_clerk_user_id)},${customerUserId},${dateOnly(q.wedding_date)},${String(q.wedding_location)},${String(q.title)},${money(q.total)},'NGN',${String(q.payment_plan??"full")},${money(q.deposit_amount??q.total)},'confirmed',${now},${now},${now})
   `;
   await sql`UPDATE quotes SET status='declined',responded_at=COALESCE(responded_at,${now}),updated_at=${now} WHERE conversation_id=${String(q.conversation_id)} AND id<>${quoteId} AND status IN ('sent','viewed')`;
   await sql`UPDATE enquiries SET status='closed',updated_at=${now} WHERE id=${String(q.enquiry_id)}`;
