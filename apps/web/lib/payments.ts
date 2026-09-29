@@ -14,6 +14,7 @@ export type PaymentStatus = "created" | "pending" | "paid" | "failed" | "cancell
 export type FundsStatus = "not_received" | "held" | "releasable" | "released" | "refunded" | "disputed";
 export type PayoutReleaseStatus = "not_ready" | "ready" | "queued" | "processing" | "released" | "failed";
 export type PaymentCaseStatus = "none" | "dispute_open" | "refund_processing" | "refund_needs_attention" | "refund_processed" | "refund_failed";
+export type ReconciliationResult = "matched" | "repaired" | "needs_attention";
 
 export type PaymentView = {
   id: string;
@@ -218,6 +219,69 @@ async function paystackRequest<T>(path: string, init?: RequestInit): Promise<T> 
   const payload = await response.json() as T & { message?: string };
   if (!response.ok) throw new Error((payload as { message?: string }).message || "PAYSTACK_REQUEST_FAILED");
   return payload;
+}
+
+async function insertPaymentEventOnce(
+  paymentOrderId: string,
+  eventType: string,
+  payload: Record<string, unknown>,
+  eventKey: string,
+) {
+  const rows = await getSql()`
+    INSERT INTO payment_events(id,payment_order_id,event_type,event_key,payload)
+    VALUES(${crypto.randomUUID()},${paymentOrderId},${eventType},${eventKey},${JSON.stringify(payload)}::jsonb)
+    ON CONFLICT (event_key) DO NOTHING
+    RETURNING id
+  `;
+  return Boolean(rows[0]);
+}
+
+export async function claimPaystackWebhookEvent(
+  rawBody: string,
+  eventType: string,
+  providerReference: string | null,
+  payload: Record<string, unknown>,
+) {
+  await ensureDatabaseSchema();
+  const sql = getSql();
+  const eventKey = crypto.createHash("sha256").update(rawBody).digest("hex");
+
+  const inserted = await sql`
+    INSERT INTO provider_webhook_events(
+      event_key,provider,event_type,provider_reference,payload,status,received_at,updated_at
+    ) VALUES(
+      ${eventKey},'paystack',${eventType},${providerReference},${JSON.stringify(payload)}::jsonb,'processing',now(),now()
+    )
+    ON CONFLICT (event_key) DO NOTHING
+    RETURNING event_key
+  `;
+  if (inserted[0]) return { eventKey, shouldProcess: true, duplicate: false };
+
+  const reclaimed = await sql`
+    UPDATE provider_webhook_events
+    SET status='processing',error_message=NULL,updated_at=now()
+    WHERE event_key=${eventKey}
+      AND (
+        status='failed'
+        OR (status='processing' AND updated_at < now() - interval '5 minutes')
+      )
+    RETURNING event_key
+  `;
+  if (reclaimed[0]) return { eventKey, shouldProcess: true, duplicate: true };
+
+  return { eventKey, shouldProcess: false, duplicate: true };
+}
+
+export async function finishPaystackWebhookEvent(eventKey: string, errorMessage?: string | null) {
+  await ensureDatabaseSchema();
+  await getSql()`
+    UPDATE provider_webhook_events
+    SET status=${errorMessage ? "failed" : "processed"},
+        error_message=${errorMessage ?? null},
+        processed_at=${errorMessage ? null : new Date()},
+        updated_at=now()
+    WHERE event_key=${eventKey}
+  `;
 }
 
 export async function getBookingPaymentSummary(
@@ -477,18 +541,28 @@ export async function reconcilePaystackPayment(reference: string) {
 
   if (data.status === "success") {
     const paidAt = data.paid_at ? new Date(data.paid_at) : new Date();
-    await sql`
+    const updated = await sql`
       UPDATE payment_orders
       SET status='paid',funds_status='held',provider_paid_at=${paidAt},updated_at=now()
-      WHERE id=${String(order.id)} AND status<>'paid'
+      WHERE id=${String(order.id)}
+        AND status IN ('created','pending','failed','cancelled')
+      RETURNING id
     `;
-    await sql`
-      INSERT INTO payment_events(id,payment_order_id,event_type,payload)
-      VALUES(${crypto.randomUUID()},${String(order.id)},'payment.paid',${JSON.stringify({ reference, amount: data.amount, currency: data.currency, status: data.status })}::jsonb)
-    `;
-    await notifyPaymentPaid(String(order.id));
+    if (updated[0]) {
+      await insertPaymentEventOnce(
+        String(order.id),
+        "payment.paid",
+        { reference, amount: data.amount, currency: data.currency, status: data.status },
+        `payment:${String(order.id)}:paid`,
+      );
+      await notifyPaymentPaid(String(order.id));
+    }
   } else if (["failed","abandoned","reversed"].includes(data.status)) {
-    await sql`UPDATE payment_orders SET status='failed',updated_at=now() WHERE id=${String(order.id)} AND status<>'paid'`;
+    await sql`
+      UPDATE payment_orders
+      SET status='failed',updated_at=now()
+      WHERE id=${String(order.id)} AND status IN ('created','pending')
+    `;
   }
 
   const refreshed = await sql`SELECT * FROM payment_orders WHERE id=${String(order.id)} LIMIT 1`;
@@ -654,21 +728,18 @@ export async function releaseBookingPayment(bookingId: string, customerUserId: s
         WHERE id=${releaseId}
       `;
 
-      await sql`
-        INSERT INTO payment_events(id,payment_order_id,event_type,payload)
-        VALUES(
-          ${crypto.randomUUID()},
-          ${paymentOrderId},
-          'payout.simulated',
-          ${JSON.stringify({
-            reference: transferReference,
-            mode: "test",
-            simulated: true,
-            amount,
-            currency: "NGN",
-          })}::jsonb
-        )
-      `;
+      await insertPaymentEventOnce(
+        paymentOrderId,
+        "payout.simulated",
+        {
+          reference: transferReference,
+          mode: "test",
+          simulated: true,
+          amount,
+          currency: "NGN",
+        },
+        `payout:${releaseId}:simulated`,
+      );
 
       await markPaymentReleased(paymentOrderId, releasedAt);
       await notifyPayoutReleased(paymentOrderId, true);
@@ -726,21 +797,18 @@ export async function releaseBookingPayment(bookingId: string, customerUserId: s
       WHERE id=${releaseId}
     `;
 
-    await sql`
-      INSERT INTO payment_events(id,payment_order_id,event_type,payload)
-      VALUES(
-        ${crypto.randomUUID()},
-        ${paymentOrderId},
-        'payout.initiated',
-        ${JSON.stringify({
-          reference: transferReference,
-          transferCode,
-          status: transferStatus,
-          amount: data.amount,
-          currency: data.currency,
-        })}::jsonb
-      )
-    `;
+    await insertPaymentEventOnce(
+      paymentOrderId,
+      "payout.initiated",
+      {
+        reference: transferReference,
+        transferCode,
+        status: transferStatus,
+        amount: data.amount,
+        currency: data.currency,
+      },
+      `payout:${releaseId}:initiated`,
+    );
 
     if (transferStatus === "success") {
       await markPaymentReleased(paymentOrderId, new Date(data.transferred_at || Date.now()));
@@ -822,15 +890,12 @@ export async function reconcilePaystackTransferEvent(
     previousStatus !== (eventType === "transfer.success" ? "paid" : "failed") ||
     eventType === "transfer.reversed"
   ) {
-    await sql`
-      INSERT INTO payment_events(id,payment_order_id,event_type,payload)
-      VALUES(
-        ${crypto.randomUUID()},
-        ${paymentOrderId},
-        ${eventType === "transfer.success" ? "payout.released" : eventType === "transfer.reversed" ? "payout.reversed" : "payout.failed"},
-        ${JSON.stringify(data)}::jsonb
-      )
-    `;
+    await insertPaymentEventOnce(
+      paymentOrderId,
+      eventType === "transfer.success" ? "payout.released" : eventType === "transfer.reversed" ? "payout.reversed" : "payout.failed",
+      data as Record<string, unknown>,
+      `paystack:${eventType}:${reference}`,
+    );
   }
 
   return { paymentOrderId, reference, eventType };
@@ -889,15 +954,12 @@ export async function openPaymentDispute(bookingId: string, customerUserId: stri
     SET funds_status='disputed',updated_at=now()
     WHERE id=${String(payment.id)} AND status='paid'
   `;
-  await sql`
-    INSERT INTO payment_events(id,payment_order_id,event_type,payload)
-    VALUES(
-      ${crypto.randomUUID()},
-      ${String(payment.id)},
-      'dispute.opened',
-      ${JSON.stringify({ caseId, reason: normalizedReason })}::jsonb
-    )
-  `;
+  await insertPaymentEventOnce(
+    String(payment.id),
+    "dispute.opened",
+    { caseId, reason: normalizedReason },
+    `dispute:${caseId}:opened`,
+  );
   await notifyDisputeOpened(String(payment.id), normalizedReason);
 
   return { caseId, bookingId };
@@ -908,6 +970,10 @@ export type AdminFinancePaymentView = AccountPaymentView & {
   caseType: "dispute" | "refund" | null;
   caseStatus: string | null;
   caseReason: string | null;
+  reconciliationResult: ReconciliationResult | null;
+  providerStatus: string | null;
+  reconciliationNote: string | null;
+  reconciledAt: string | null;
 };
 
 export async function listAdminFinancePayments(): Promise<AdminFinancePaymentView[]> {
@@ -924,7 +990,11 @@ export async function listAdminFinancePayments(): Promise<AdminFinancePaymentVie
       pc.id AS case_id,
       pc.case_type,
       pc.status AS case_status,
-      pc.reason AS case_reason
+      pc.reason AS case_reason,
+      prc.result AS reconciliation_result,
+      prc.provider_status AS reconciliation_provider_status,
+      prc.note AS reconciliation_note,
+      prc.created_at AS reconciled_at
     FROM payment_orders p
     JOIN bookings b ON b.id=p.booking_id
     JOIN marketplace_vendors mv ON mv.id=b.vendor_id
@@ -937,6 +1007,13 @@ export async function listAdminFinancePayments(): Promise<AdminFinancePaymentVie
       ORDER BY created_at DESC
       LIMIT 1
     ) pc ON true
+    LEFT JOIN LATERAL (
+      SELECT result,provider_status,note,created_at
+      FROM payment_reconciliations
+      WHERE payment_order_id=p.id
+      ORDER BY created_at DESC
+      LIMIT 1
+    ) prc ON true
     WHERE p.status<>'cancelled'
     ORDER BY
       CASE WHEN pc.status IN ('open','processing','needs_attention') THEN 0 ELSE 1 END,
@@ -955,7 +1032,128 @@ export async function listAdminFinancePayments(): Promise<AdminFinancePaymentVie
     caseType: row.case_type ? String(row.case_type) as "dispute" | "refund" : null,
     caseStatus: row.case_status ? String(row.case_status) : null,
     caseReason: row.case_reason ? String(row.case_reason) : null,
+    reconciliationResult: row.reconciliation_result ? String(row.reconciliation_result) as ReconciliationResult : null,
+    providerStatus: row.reconciliation_provider_status ? String(row.reconciliation_provider_status) : null,
+    reconciliationNote: row.reconciliation_note ? String(row.reconciliation_note) : null,
+    reconciledAt: iso(row.reconciled_at),
   }));
+}
+
+export async function reconcileAdminPayment(paymentOrderId: string, adminUserId: string) {
+  await ensureDatabaseSchema();
+  if (!isPaystackConfigured()) throw new Error("PAYSTACK_NOT_CONFIGURED");
+
+  const sql = getSql();
+  const rows = await sql`SELECT * FROM payment_orders WHERE id=${paymentOrderId} LIMIT 1`;
+  const order = rows[0];
+  if (!order) throw new Error("PAYMENT_NOT_FOUND");
+
+  const localStatusBefore = String(order.status);
+  const localFundsStatusBefore = String(order.funds_status);
+  const reference = String(order.provider_reference);
+  const response = await paystackRequest<PaystackVerifyResponse>(
+    `/transaction/verify/${encodeURIComponent(reference)}`,
+    { method: "GET" },
+  );
+  const data = response.data;
+  if (!response.status || !data) throw new Error("PAYSTACK_VERIFY_FAILED");
+
+  const expectedKobo = Math.round(money(order.amount) * 100);
+  const referenceMatches = data.reference === reference;
+  const currencyMatches = String(data.currency).toUpperCase() === "NGN";
+  const amountMatches = Number(data.amount) === expectedKobo;
+
+  let result: ReconciliationResult = "matched";
+  let note = "Smitten and Paystack agree on this transaction.";
+  const providerStatus = String(data.status || "unknown").toLowerCase();
+
+  if (!referenceMatches || !currencyMatches || !amountMatches) {
+    result = "needs_attention";
+    note = "Paystack returned transaction details that do not match the Smitten payment record. No automatic changes were made.";
+  } else if (providerStatus === "success") {
+    if (["created","pending","failed","cancelled"].includes(localStatusBefore) && localFundsStatusBefore === "not_received") {
+      const paidAt = data.paid_at ? new Date(data.paid_at) : new Date();
+      const updated = await sql`
+        UPDATE payment_orders
+        SET status='paid',funds_status='held',provider_paid_at=${paidAt},updated_at=now()
+        WHERE id=${paymentOrderId}
+          AND status IN ('created','pending','failed','cancelled')
+          AND funds_status='not_received'
+        RETURNING id
+      `;
+      if (updated[0]) {
+        result = "repaired";
+        note = "Paystack confirms payment succeeded. Smitten was repaired to paid / held.";
+        await insertPaymentEventOnce(
+          paymentOrderId,
+          "payment.reconciled_paid",
+          { reference, providerStatus, adminUserId },
+          `reconcile:${paymentOrderId}:paid`,
+        );
+        await notifyPaymentPaid(paymentOrderId);
+      }
+    } else if (localStatusBefore === "refunded" && localFundsStatusBefore === "refunded") {
+      note = "The original Paystack charge is successful and Smitten records the later refund separately.";
+    } else if (localStatusBefore !== "paid") {
+      result = "needs_attention";
+      note = "Paystack confirms the charge succeeded, but the current Smitten money state is not safe to change automatically.";
+    }
+  } else if (["failed","abandoned","reversed"].includes(providerStatus)) {
+    if (["created","pending"].includes(localStatusBefore) && localFundsStatusBefore === "not_received") {
+      await sql`
+        UPDATE payment_orders
+        SET status='failed',updated_at=now()
+        WHERE id=${paymentOrderId} AND status IN ('created','pending')
+      `;
+      result = "repaired";
+      note = `Paystack reports ${providerStatus}. Smitten was updated to failed.`;
+    } else if (localStatusBefore === "paid" || localStatusBefore === "refunded") {
+      result = "needs_attention";
+      note = `Paystack reports ${providerStatus}, but Smitten records received funds. Manual finance review is required.`;
+    } else {
+      note = `Paystack reports ${providerStatus}, consistent with the current Smitten payment state.`;
+    }
+  } else {
+    if (localStatusBefore === "paid" || localStatusBefore === "refunded") {
+      result = "needs_attention";
+      note = `Paystack reports ${providerStatus}, while Smitten records the payment as ${localStatusBefore}. No automatic change was made.`;
+    } else {
+      note = `Paystack currently reports ${providerStatus}. No Smitten state change was needed.`;
+    }
+  }
+
+  const reconciliationId = crypto.randomUUID();
+  await sql`
+    INSERT INTO payment_reconciliations(
+      id,payment_order_id,checked_by_clerk_user_id,result,
+      local_status_before,local_funds_status_before,provider_status,
+      provider_amount,provider_currency,note,provider_payload,created_at
+    ) VALUES(
+      ${reconciliationId},${paymentOrderId},${adminUserId},${result},
+      ${localStatusBefore},${localFundsStatusBefore},${providerStatus},
+      ${Number(data.amount) / 100},${String(data.currency || "")},${note},
+      ${JSON.stringify(data)}::jsonb,now()
+    )
+  `;
+
+  await insertPaymentEventOnce(
+    paymentOrderId,
+    "payment.reconciliation_checked",
+    { reconciliationId, result, providerStatus, note, adminUserId },
+    `reconciliation:${reconciliationId}`,
+  );
+
+  const refreshed = await sql`SELECT * FROM payment_orders WHERE id=${paymentOrderId} LIMIT 1`;
+  return {
+    payment: mapPayment(refreshed[0] as Record<string, unknown>),
+    reconciliation: {
+      id: reconciliationId,
+      result,
+      providerStatus,
+      note,
+      checkedAt: new Date().toISOString(),
+    },
+  };
 }
 
 export async function resolvePaymentDispute(paymentOrderId: string, adminUserId: string) {
@@ -988,10 +1186,12 @@ export async function resolvePaymentDispute(paymentOrderId: string, adminUserId:
     SET funds_status='held',updated_at=now()
     WHERE id=${paymentOrderId} AND status='paid' AND funds_status='disputed'
   `;
-  await sql`
-    INSERT INTO payment_events(id,payment_order_id,event_type,payload)
-    VALUES(${crypto.randomUUID()},${paymentOrderId},'dispute.resolved',${JSON.stringify({ caseId: String(activeCase.id), adminUserId })}::jsonb)
-  `;
+  await insertPaymentEventOnce(
+    paymentOrderId,
+    "dispute.resolved",
+    { caseId: String(activeCase.id), adminUserId },
+    `dispute:${String(activeCase.id)}:resolved`,
+  );
   await notifyDisputeResolved(paymentOrderId);
 
   return { paymentOrderId, caseId: String(activeCase.id) };
@@ -1079,15 +1279,12 @@ export async function initiatePaymentRefund(paymentOrderId: string, adminUserId:
     `;
   }
 
-  await sql`
-    INSERT INTO payment_events(id,payment_order_id,event_type,payload)
-    VALUES(
-      ${crypto.randomUUID()},
-      ${paymentOrderId},
-      'refund.initiated',
-      ${JSON.stringify({ caseId, status: refundStatus, refundReference: refundRef, reason: normalizedReason })}::jsonb
-    )
-  `;
+  await insertPaymentEventOnce(
+    paymentOrderId,
+    "refund.initiated",
+    { caseId, status: refundStatus, refundReference: refundRef, reason: normalizedReason },
+    `refund:${caseId}:initiated`,
+  );
 
   await notifyRefundStatus(
     paymentOrderId,
@@ -1172,15 +1369,12 @@ export async function reconcilePaystackRefundEvent(
     `;
   }
 
-  await sql`
-    INSERT INTO payment_events(id,payment_order_id,event_type,payload)
-    VALUES(
-      ${crypto.randomUUID()},
-      ${String(payment.id)},
-      ${eventType},
-      ${JSON.stringify(data)}::jsonb
-    )
-  `;
+  await insertPaymentEventOnce(
+    String(payment.id),
+    eventType,
+    data as Record<string, unknown>,
+    `paystack:${eventType}:${transactionReference}`,
+  );
 
   await notifyRefundStatus(
     String(payment.id),
