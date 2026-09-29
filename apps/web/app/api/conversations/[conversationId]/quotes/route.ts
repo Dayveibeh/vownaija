@@ -17,6 +17,9 @@ const quoteSchema = z.object({
   validUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   discountAmount: z.number().min(0).max(1000000000).optional(),
   additionalFees: z.number().min(0).max(1000000000).optional(),
+  paymentPlan: z.enum(["full","deposit"]).optional(),
+  depositType: z.enum(["percentage","fixed"]).nullable().optional(),
+  depositValue: z.number().min(0).max(1000000000).optional(),
   items: z.array(itemSchema).min(1).max(20),
 });
 
@@ -52,6 +55,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ con
     return NextResponse.json({ ok: true, quote }, { status: 201 });
   } catch (error) {
     const code = error instanceof Error ? error.message : "";
+    if (code === "INVALID_DEPOSIT") return NextResponse.json({ message: "Choose a deposit greater than zero and lower than the full quote total." }, { status: 400 });
     if (code === "CONVERSATION_BOOKED") return NextResponse.json({ message: "This enquiry already has a confirmed booking." }, { status: 409 });
     if (code === "INVALID_TOTAL") return NextResponse.json({ message: "The quote total must be greater than zero." }, { status: 400 });
     if (code === "CONVERSATION_NOT_FOUND") return NextResponse.json({ message: "Conversation not found." }, { status: 404 });
