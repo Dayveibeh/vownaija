@@ -262,6 +262,14 @@ export default function Home() {
             <button className="search-button" type="submit" aria-label="Search vendors"><Search size={21} /> <span>Search</span></button>
           </form>
 
+          <div className="hero-vibes" aria-label="Popular vendor shortcuts">
+            <span>Popular right now</span>
+            <button type="button" className={category === "Photography" ? "active" : ""} onClick={() => setCategory("Photography")}>Photography</button>
+            <button type="button" className={category === "Planning & décor" ? "active" : ""} onClick={() => setCategory("Planning & décor")}>Planning & décor</button>
+            <button type="button" className={category === "Venues" ? "active" : ""} onClick={() => setCategory("Venues")}>Venues</button>
+            <button type="button" className={category === "Bridal beauty" ? "active" : ""} onClick={() => setCategory("Bridal beauty")}>Bridal beauty</button>
+          </div>
+
           <div className="hero-proof">
             <div className="avatar-stack" aria-hidden="true"><span>AO</span><span>TF</span><span>NK</span><span>+2k</span></div>
             <p><strong>2,000+ couples</strong><br />planning with Smitten</p>
@@ -270,6 +278,7 @@ export default function Home() {
         </div>
 
         <div className="hero-visual">
+          <div className="hero-stamp" aria-hidden="true"><span><strong>Made for</strong><small>modern Naija love</small></span></div>
           <img src="https://static.wixstatic.com/media/fdf893_120788a0b4fa499fb373d950cc86501e~mv2.jpg/v1/fill/w_980%2Ch_980%2Cal_c%2Cq_85%2Cusm_0.66_1.00_0.01%2Cenc_avif%2Cquality_auto/fdf893_120788a0b4fa499fb373d950cc86501e~mv2.jpg" alt="Nigerian couple in traditional wedding attire" />
           <div className="hero-caption"><span><MapPin size={15} /> Lagos, Nigeria</span><p>“Every detail felt like us.”</p><small>Amara & Tunde</small></div>
         </div>
