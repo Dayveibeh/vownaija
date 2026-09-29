@@ -3901,3 +3901,162 @@ button.user-avatar {
     padding: 0 10px;
   }
 }
+
+
+/* Phase 3 deposit and balance payments */
+.quote-builder-payment-terms {
+  display: grid;
+  gap: 13px;
+  padding: 15px;
+  border: 1px solid #e3ddd7;
+  border-radius: 16px;
+  background: #f8f5f1;
+}
+
+.quote-builder-payment-terms > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.quote-builder-payment-terms > div:first-child strong {
+  font-size: 10px;
+}
+
+.quote-builder-payment-terms > div:first-child small {
+  color: #8d837e;
+  font-size: 8px;
+}
+
+.quote-payment-term-grid {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 10px;
+}
+
+.quote-payment-preview {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 8px;
+}
+
+.quote-payment-preview > span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.quote-payment-preview small {
+  color: #958a84;
+  font-size: 7px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.quote-payment-preview strong {
+  font-size: 12px;
+}
+
+.conversation-quote-payment-terms {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 11px;
+  padding: 9px 10px;
+  border-radius: 11px;
+  background: #f2f5ec;
+}
+
+.conversation-quote-payment-terms > small {
+  color: #78806b;
+  font-size: 7px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.conversation-quote-payment-terms > strong {
+  color: #4d593e;
+  font-size: 9px;
+}
+
+.conversation-quote-payment-terms > span {
+  color: #827a74;
+  font-size: 8px;
+}
+
+.quote-payment-terms-card {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto auto;
+  align-items: center;
+  gap: 18px;
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid #dfe6d7;
+  border-radius: 15px;
+  background: #f3f7ee;
+}
+
+.quote-payment-terms-card > div,
+.quote-payment-terms-card > span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.quote-payment-terms-card small {
+  color: #849076;
+  font-size: 7px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.quote-payment-terms-card strong {
+  font-size: 10px;
+}
+
+.booking-payment-schedule {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 10px;
+  margin: -3px 0 14px;
+}
+
+.booking-payment-schedule > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  padding: 12px 14px;
+  border: 1px solid #dfe6d7;
+  border-radius: 14px;
+  background: #f4f7ef;
+}
+
+.booking-payment-schedule small {
+  color: #829072;
+  font-size: 7px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.booking-payment-schedule strong {
+  font-size: 11px;
+}
+
+.booking-payment-schedule span {
+  grid-column: 1 / -1;
+  color: #7d776f;
+  font-size: 8px;
+}
+
+@media (max-width: 680px) {
+  .quote-payment-term-grid,
+  .quote-payment-preview,
+  .quote-payment-terms-card,
+  .booking-payment-schedule {
+    grid-template-columns: 1fr;
+  }
+}
