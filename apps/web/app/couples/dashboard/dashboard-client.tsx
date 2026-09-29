@@ -157,7 +157,7 @@ export default function CoupleDashboardClient({ profile }: { profile: { fullName
         </header>
 
         <div className="couple-dashboard-content" id="couple-overview">
-          <div className="couple-dash-heading"><div><p>Thursday, 13 August</p><h1>Good afternoon, {firstName}</h1><span>You’re making lovely progress. Here’s what’s next for your wedding.</span></div><Link href="/" className="button button-primary">Find vendors <Search size={16} /></Link></div>
+          <div className="couple-dash-heading"><div><p>Your wedding studio</p><h1>Good afternoon, {firstName}</h1><span>Your plans are taking shape beautifully. Keep the momentum going with the things that matter next.</span></div><Link href="/" className="button button-primary">Discover vendors <Search size={16} /></Link></div>
 
           <section className="couple-ai-banner"><div className="couple-ai-icon"><Sparkles /></div><div><p>Smitten AI recommendations</p><h2>Your personalised vendor shortlist is ready</h2><span>We found 4 strong matches for your Lagos wedding and ₦1m–₦3m vendor budget.</span></div><Link href="/couples/match" onClick={() => setMobileTab("matches")}>View my matches <ArrowRight /></Link><div className="mini-matches"><span>AE</span><span>LL</span><span>DC</span><span>+1</span></div></section>
 
