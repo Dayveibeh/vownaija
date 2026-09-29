@@ -286,6 +286,23 @@ export const payoutReleases = pgTable("payout_releases", {
   index("payout_releases_status_idx").on(table.status),
 ]);
 
+export const notifications = pgTable("notifications", {
+  id: text("id").primaryKey(),
+  clerkUserId: text("clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  href: text("href"),
+  uniqueKey: text("unique_key").notNull().unique(),
+  readAt: timestamp("read_at", { withTimezone: true }),
+  emailStatus: text("email_status", { enum: ["skipped", "pending", "sent", "failed"] }).default("skipped").notNull(),
+  emailSentAt: timestamp("email_sent_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("notifications_user_created_idx").on(table.clerkUserId, table.createdAt),
+  index("notifications_user_unread_idx").on(table.clerkUserId, table.readAt),
+]);
+
 export const favourites = pgTable("favourites", {
   clerkUserId: text("clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "cascade" }),
   vendorId: text("vendor_id").notNull().references(() => marketplaceVendors.id, { onDelete: "cascade" }),
@@ -315,3 +332,6 @@ export type PaymentOrderRecord = typeof paymentOrders.$inferSelect;
 export type PaymentEventRecord = typeof paymentEvents.$inferSelect;
 export type VendorPayoutProfileRecord = typeof vendorPayoutProfiles.$inferSelect;
 export type PayoutReleaseRecord = typeof payoutReleases.$inferSelect;
+
+
+export type NotificationRecord = typeof notifications.$inferSelect;
