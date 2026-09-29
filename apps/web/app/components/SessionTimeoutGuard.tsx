@@ -56,12 +56,19 @@ export function SessionTimeoutGuard() {
   const recordActivity = useCallback((force = false) => {
     if (!storageKey || !isSignedIn) return;
     const now = Date.now();
+    const stored = Number(window.localStorage.getItem(storageKey));
+
+    if (!force && Number.isFinite(stored) && stored > 0 && now - stored >= idleMs) {
+      void signOutForTimeout();
+      return;
+    }
+
     if (!force && now - lastWriteRef.current < ACTIVITY_WRITE_THROTTLE_MS) return;
     lastWriteRef.current = now;
     window.localStorage.setItem(storageKey, String(now));
     setWarningOpen(false);
     setRemainingMs(idleMs);
-  }, [idleMs, isSignedIn, storageKey]);
+  }, [idleMs, isSignedIn, signOutForTimeout, storageKey]);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !userId || !storageKey) {
