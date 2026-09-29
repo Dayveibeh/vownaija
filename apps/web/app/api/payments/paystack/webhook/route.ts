@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import {
+  claimPaystackWebhookEvent,
+  finishPaystackWebhookEvent,
   reconcilePaystackPayment,
   reconcilePaystackRefundEvent,
   reconcilePaystackTransferEvent,
@@ -34,44 +36,58 @@ export async function POST(request: Request) {
   try { event = JSON.parse(rawBody) as PaystackWebhookEvent; }
   catch { return NextResponse.json({ message: "Invalid payload." }, { status: 400 }); }
 
-  if (event.event === "charge.success" && event.data?.reference) {
-    try {
+  const eventType = event.event?.trim() || "unknown";
+  const providerReference =
+    event.data?.reference?.trim() ||
+    event.data?.transaction_reference?.trim() ||
+    event.data?.refund_reference?.trim() ||
+    (event.data?.id ? String(event.data.id) : null);
+
+  const receipt = await claimPaystackWebhookEvent(
+    rawBody,
+    eventType,
+    providerReference,
+    event.data ? { ...event.data } : {},
+  );
+
+  if (!receipt.shouldProcess) {
+    return NextResponse.json({ received: true, duplicate: true });
+  }
+
+  try {
+    if (event.event === "charge.success" && event.data?.reference) {
       await reconcilePaystackPayment(event.data.reference);
-    } catch (error) {
-      console.error("Paystack webhook payment reconciliation failed", error);
-      return NextResponse.json({ received: true, reconciled: false });
     }
-  }
 
-  if (
-    (event.event === "transfer.success" ||
-      event.event === "transfer.failed" ||
-      event.event === "transfer.reversed") &&
-    event.data?.reference
-  ) {
-    try {
+    if (
+      (event.event === "transfer.success" ||
+        event.event === "transfer.failed" ||
+        event.event === "transfer.reversed") &&
+      event.data?.reference
+    ) {
       await reconcilePaystackTransferEvent(event.event, event.data);
-    } catch (error) {
-      console.error("Paystack webhook payout reconciliation failed", error);
-      return NextResponse.json({ received: true, reconciled: false });
     }
-  }
 
-  if (
-    (event.event === "refund.pending" ||
-      event.event === "refund.processing" ||
-      event.event === "refund.needs-attention" ||
-      event.event === "refund.failed" ||
-      event.event === "refund.processed") &&
-    event.data?.transaction_reference
-  ) {
-    try {
+    if (
+      (event.event === "refund.pending" ||
+        event.event === "refund.processing" ||
+        event.event === "refund.needs-attention" ||
+        event.event === "refund.failed" ||
+        event.event === "refund.processed") &&
+      event.data?.transaction_reference
+    ) {
       await reconcilePaystackRefundEvent(event.event, event.data);
-    } catch (error) {
-      console.error("Paystack webhook refund reconciliation failed", error);
-      return NextResponse.json({ received: true, reconciled: false });
     }
-  }
 
-  return NextResponse.json({ received: true });
+    await finishPaystackWebhookEvent(receipt.eventKey);
+    return NextResponse.json({ received: true, duplicate: receipt.duplicate });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Webhook reconciliation failed";
+    await finishPaystackWebhookEvent(receipt.eventKey, message);
+    console.error("Paystack webhook reconciliation failed", error);
+    return NextResponse.json(
+      { received: true, reconciled: false },
+      { status: 500 },
+    );
+  }
 }
