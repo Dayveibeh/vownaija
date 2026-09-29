@@ -189,7 +189,7 @@ export default function Home() {
   }
 
   return (
-    <main>
+    <main className="smitten-awwwards-home">
       <header className="site-header">
         <Brand priority />
 
@@ -358,6 +358,13 @@ export default function Home() {
         <div className="footer-top"><Brand light /><p>Celebrating love, culture and brilliant Nigerian businesses.</p><div className="socials"><a href="https://instagram.com/Smitten_NG" target="_blank" rel="noreferrer">Instagram: Smitten_NG</a><a href="https://x.com/Smitten_NG" target="_blank" rel="noreferrer">X: Smitten_NG</a></div></div>
         <div className="footer-bottom"><span>© 2026 Smitten</span><span>Privacy · Terms</span></div>
       </footer>
+
+      <nav className="awwwards-floating-dock" aria-label="Quick actions">
+        <a href="#featured"><Search size={16} /><span>Explore</span></a>
+        <Link href="/couples/match"><Sparkles size={16} /><span>AI match</span></Link>
+        <a href="#categories"><Heart size={16} /><span>Vendors</span></a>
+        <Link href="/couples/sign-up?mode=signin"><UserRound size={16} /><span>Workspace</span></Link>
+      </nav>
 
       {activeVendor && <div className="vendor-modal-backdrop" onMouseDown={() => setActiveVendor(null)}>
         <section className="vendor-preview-modal" role="dialog" aria-modal="true" aria-label={`${activeVendor.name} profile`} onMouseDown={(event) => event.stopPropagation()}>
