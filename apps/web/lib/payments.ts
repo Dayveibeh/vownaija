@@ -1,5 +1,14 @@
 import crypto from "node:crypto";
 import { ensureDatabaseSchema, getSql } from "@/db";
+import {
+  notifyDisputeOpened,
+  notifyDisputeResolved,
+  notifyPaymentPaid,
+  notifyPayoutFailed,
+  notifyPayoutProcessing,
+  notifyPayoutReleased,
+  notifyRefundStatus,
+} from "@/lib/notifications";
 
 export type PaymentStatus = "created" | "pending" | "paid" | "failed" | "cancelled" | "refunded";
 export type FundsStatus = "not_received" | "held" | "releasable" | "released" | "refunded" | "disputed";
@@ -477,6 +486,7 @@ export async function reconcilePaystackPayment(reference: string) {
       INSERT INTO payment_events(id,payment_order_id,event_type,payload)
       VALUES(${crypto.randomUUID()},${String(order.id)},'payment.paid',${JSON.stringify({ reference, amount: data.amount, currency: data.currency, status: data.status })}::jsonb)
     `;
+    await notifyPaymentPaid(String(order.id));
   } else if (["failed","abandoned","reversed"].includes(data.status)) {
     await sql`UPDATE payment_orders SET status='failed',updated_at=now() WHERE id=${String(order.id)} AND status<>'paid'`;
   }
@@ -661,6 +671,7 @@ export async function releaseBookingPayment(bookingId: string, customerUserId: s
       `;
 
       await markPaymentReleased(paymentOrderId, releasedAt);
+      await notifyPayoutReleased(paymentOrderId, true);
       results.push({ paymentOrderId, status: "simulated", reference: transferReference });
       continue;
     }
@@ -733,6 +744,9 @@ export async function releaseBookingPayment(bookingId: string, customerUserId: s
 
     if (transferStatus === "success") {
       await markPaymentReleased(paymentOrderId, new Date(data.transferred_at || Date.now()));
+      await notifyPayoutReleased(paymentOrderId, false);
+    } else if (transferStatus !== "otp") {
+      await notifyPayoutProcessing(paymentOrderId);
     }
 
     results.push({ paymentOrderId, status: transferStatus, reference: transferReference });
@@ -787,6 +801,7 @@ export async function reconcilePaystackTransferEvent(
         data.transferred_at ? new Date(data.transferred_at) : new Date(),
       );
     }
+    await notifyPayoutReleased(paymentOrderId, false);
   } else {
     await sql`
       UPDATE payout_releases
@@ -800,6 +815,7 @@ export async function reconcilePaystackTransferEvent(
       SET funds_status='releasable',updated_at=now()
       WHERE id=${paymentOrderId} AND status='paid'
     `;
+    await notifyPayoutFailed(paymentOrderId, eventType === "transfer.reversed");
   }
 
   if (
@@ -882,6 +898,7 @@ export async function openPaymentDispute(bookingId: string, customerUserId: stri
       ${JSON.stringify({ caseId, reason: normalizedReason })}::jsonb
     )
   `;
+  await notifyDisputeOpened(String(payment.id), normalizedReason);
 
   return { caseId, bookingId };
 }
@@ -975,6 +992,7 @@ export async function resolvePaymentDispute(paymentOrderId: string, adminUserId:
     INSERT INTO payment_events(id,payment_order_id,event_type,payload)
     VALUES(${crypto.randomUUID()},${paymentOrderId},'dispute.resolved',${JSON.stringify({ caseId: String(activeCase.id), adminUserId })}::jsonb)
   `;
+  await notifyDisputeResolved(paymentOrderId);
 
   return { paymentOrderId, caseId: String(activeCase.id) };
 }
@@ -1071,6 +1089,17 @@ export async function initiatePaymentRefund(paymentOrderId: string, adminUserId:
     )
   `;
 
+  await notifyRefundStatus(
+    paymentOrderId,
+    refundStatus === "processed"
+      ? "processed"
+      : refundStatus === "failed"
+        ? "failed"
+        : refundStatus === "needs-attention"
+          ? "needs_attention"
+          : "processing",
+  );
+
   return { paymentOrderId, caseId, status: refundStatus };
 }
 
@@ -1152,6 +1181,11 @@ export async function reconcilePaystackRefundEvent(
       ${JSON.stringify(data)}::jsonb
     )
   `;
+
+  await notifyRefundStatus(
+    String(payment.id),
+    nextStatus as "processing" | "needs_attention" | "processed" | "failed",
+  );
 
   return { paymentOrderId: String(payment.id), status: nextStatus };
 }
