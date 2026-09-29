@@ -1,20 +1,32 @@
+import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { getVendorProfile, isClerkConfigured, syncCurrentUserProfile } from "@/lib/accounts";
-import type { UserRole } from "@/db/schema";
+import { isClerkConfigured } from "@/lib/accounts";
+import AccountTransition from "./account-transition";
 
 export const dynamic = "force-dynamic";
 
-export default async function AccountSetupPage({ searchParams }: { searchParams: Promise<{ intent?: string }> }) {
+function safeReturnTo(value: string | undefined) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return undefined;
+  if (
+    value.startsWith("/couples/sign-up") ||
+    value.startsWith("/vendor/sign-up") ||
+    value.startsWith("/account/setup")
+  ) return undefined;
+  return value;
+}
+
+export default async function AccountSetupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ intent?: string; returnTo?: string }>;
+}) {
   if (!isClerkConfigured()) redirect("/couples/sign-up?service=unavailable");
 
-  const { intent } = await searchParams;
-  const fallbackRole: UserRole = intent === "vendor" ? "vendor" : "couple";
-  const profile = await syncCurrentUserProfile(fallbackRole);
+  const { userId } = await auth();
+  if (!userId) redirect("/couples/sign-up?mode=signin");
 
-  if (profile.role === "vendor") {
-    const vendorProfile = await getVendorProfile(profile.clerkUserId);
-    redirect(vendorProfile?.onboardingComplete ? "/dashboard" : "/onboarding");
-  }
+  const params = await searchParams;
+  const intent = params.intent === "vendor" ? "vendor" : "couple";
 
-  redirect("/couples/dashboard");
+  return <AccountTransition intent={intent} returnTo={safeReturnTo(params.returnTo)} />;
 }

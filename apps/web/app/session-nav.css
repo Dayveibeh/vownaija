@@ -301,3 +301,290 @@
     display: none;
   }
 }
+
+
+/* Smooth authentication transition */
+.couple-auth-card {
+  position: relative;
+}
+
+.couple-auth-card.is-transitioning {
+  min-height: 420px;
+}
+
+.couple-auth-card.is-transitioning > :not(.auth-transition-overlay) {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .16s ease;
+}
+
+.auth-transition-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  padding: 36px;
+  text-align: center;
+  border-radius: 24px;
+  background: rgba(255,255,255,.96);
+  animation: auth-transition-in .22s ease both;
+}
+
+.auth-transition-overlay .eyebrow {
+  margin: 2px 0 0;
+}
+
+.auth-transition-overlay h2 {
+  margin-top: 0;
+}
+
+.auth-transition-overlay > p:last-child {
+  max-width: 320px;
+  margin: 0;
+  color: #847a75;
+}
+
+.auth-transition-spinner {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 4px;
+  color: #5e694f;
+  border-radius: 50%;
+  background: #eef2e8;
+}
+
+.auth-transition-spinner svg,
+.account-transition-mark .spin {
+  animation: smitten-spin .9s linear infinite;
+}
+
+.account-transition-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(239,226,218,.7), transparent 34%),
+    #f7f4f1;
+}
+
+.account-transition-card {
+  width: min(520px, 100%);
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 46px 42px;
+  text-align: center;
+  border: 1px solid #e8e0db;
+  border-radius: 28px;
+  background: rgba(255,255,255,.95);
+  box-shadow: 0 24px 70px rgba(49,39,34,.08);
+}
+
+.account-transition-card > .brand {
+  margin-bottom: 18px;
+}
+
+.account-transition-mark {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  color: #5d694d;
+  border-radius: 50%;
+  background: #eef2e8;
+}
+
+.account-transition-mark svg {
+  width: 24px;
+  height: 24px;
+}
+
+.account-transition-card h1 {
+  max-width: 430px;
+  margin: 2px 0 0;
+  font-family: Georgia, serif;
+  font-size: clamp(30px,5vw,42px);
+  font-weight: 400;
+  letter-spacing: -.045em;
+}
+
+.account-transition-card > p:not(.eyebrow) {
+  max-width: 390px;
+  margin: 0;
+  color: #827873;
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+.account-transition-card > button {
+  min-height: 42px;
+  margin-top: 8px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #272221;
+  color: #fff;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 740;
+  cursor: pointer;
+}
+
+.account-transition-steps {
+  width: min(390px,100%);
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 7px;
+  margin-top: 20px;
+}
+
+.account-transition-steps > span {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  color: #aaa09b;
+  border-radius: 12px;
+  background: #f7f4f2;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.account-transition-steps > span.active {
+  color: #725d4d;
+  background: #f7efe8;
+}
+
+.account-transition-steps > span.done {
+  color: #536143;
+  background: #eff4e9;
+}
+
+.account-transition-steps svg,
+.account-transition-steps > span > span {
+  width: 14px;
+  height: 14px;
+}
+
+.account-transition-steps > span > span {
+  display: inline-block;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+/* Inactivity session timeout */
+.session-timeout-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(31,26,25,.42);
+  backdrop-filter: blur(7px);
+  animation: auth-transition-in .18s ease both;
+}
+
+.session-timeout-dialog {
+  width: min(440px,100%);
+  padding: 28px;
+  border: 1px solid #e4ddd8;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 28px 90px rgba(23,18,17,.2);
+}
+
+.session-timeout-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 14px;
+  color: #6b604e;
+  border-radius: 15px;
+  background: #f6efe5;
+}
+
+.session-timeout-dialog h2 {
+  margin: 5px 0 7px;
+  font-family: Georgia,serif;
+  font-size: 29px;
+  font-weight: 400;
+  letter-spacing: -.035em;
+}
+
+.session-timeout-dialog > p:not(.eyebrow) {
+  margin: 0;
+  color: #786e69;
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+.session-timeout-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  margin-top: 20px;
+}
+
+.session-timeout-actions button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 740;
+  cursor: pointer;
+}
+
+.session-timeout-actions button.stay {
+  color: #fff;
+  border: 0;
+  background: #2b2827;
+}
+
+.session-timeout-actions button.leave {
+  color: #675e59;
+  border: 1px solid #dfd7d2;
+  background: #fff;
+}
+
+.session-timeout-actions svg {
+  width: 15px;
+  height: 15px;
+}
+
+@keyframes smitten-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes auth-transition-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 620px) {
+  .account-transition-card {
+    padding: 36px 20px;
+    border-radius: 22px;
+  }
+
+  .account-transition-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .session-timeout-actions {
+    grid-template-columns: 1fr;
+  }
+}

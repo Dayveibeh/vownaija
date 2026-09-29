@@ -67,12 +67,34 @@ function PasswordRequirements({ password }: { password: string }) {
   );
 }
 
-export function AuthExperience({ role, initialMode = "signup", available = true }: { role: AccountRole; initialMode?: AuthMode; available?: boolean }) {
+export function AuthExperience({
+  role,
+  initialMode = "signup",
+  available = true,
+  returnTo,
+  sessionExpired = false,
+}: {
+  role: AccountRole;
+  initialMode?: AuthMode;
+  available?: boolean;
+  returnTo?: string;
+  sessionExpired?: boolean;
+}) {
   if (!available) return <AuthUnavailable role={role} />;
-  return <ClerkAuthExperience role={role} initialMode={initialMode} />;
+  return <ClerkAuthExperience role={role} initialMode={initialMode} returnTo={returnTo} sessionExpired={sessionExpired} />;
 }
 
-function ClerkAuthExperience({ role, initialMode }: { role: AccountRole; initialMode: AuthMode }) {
+function ClerkAuthExperience({
+  role,
+  initialMode,
+  returnTo,
+  sessionExpired,
+}: {
+  role: AccountRole;
+  initialMode: AuthMode;
+  returnTo?: string;
+  sessionExpired: boolean;
+}) {
   const router = useRouter();
   const { isSignedIn } = useAuth();
   const { signUp, fetchStatus: signUpStatus } = useSignUp();
@@ -87,7 +109,8 @@ function ClerkAuthExperience({ role, initialMode }: { role: AccountRole; initial
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState(sessionExpired ? "Your session timed out after a period of inactivity. Sign in to continue." : "");
+  const [transitioning, setTransitioning] = useState(false);
 
   const busy = signUpStatus === "fetching" || signInStatus === "fetching";
   const copy = useMemo(() => role === "vendor" ? {
@@ -107,8 +130,10 @@ function ClerkAuthExperience({ role, initialMode }: { role: AccountRole; initial
   }, [role]);
 
   useEffect(() => {
-    if (isSignedIn) router.replace(`/account/setup?intent=${role}`);
-  }, [isSignedIn, role, router]);
+    const setupUrl = `/account/setup?intent=${role}${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}`;
+    router.prefetch(setupUrl);
+    if (isSignedIn && !transitioning) router.replace(setupUrl);
+  }, [isSignedIn, role, returnTo, router, transitioning]);
 
   function clearFeedback() {
     setError("");
@@ -120,6 +145,7 @@ function ClerkAuthExperience({ role, initialMode }: { role: AccountRole; initial
     try {
       return await request();
     } catch {
+      setTransitioning(false);
       setError("We couldn’t reach the secure account service. Check your connection and try again.");
       return null;
     }
@@ -155,12 +181,25 @@ function ClerkAuthExperience({ role, initialMode }: { role: AccountRole; initial
     return {
       navigate: ({ session, decorateUrl }: { session: { currentTask?: unknown } | null; decorateUrl: (url: string) => string }) => {
         if (session?.currentTask) {
+          setTransitioning(false);
           setError("Your account needs one more security check. Please follow the instructions sent by Clerk.");
           return;
         }
-        const url = decorateUrl(`/account/setup?intent=${role}`);
-        if (url.startsWith("http")) window.location.href = url;
-        else router.replace(url);
+
+        const setupPath = `/account/setup?intent=${role}${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}`;
+        const decorated = decorateUrl(setupPath);
+
+        try {
+          const target = new URL(decorated, window.location.origin);
+          if (target.origin === window.location.origin) {
+            router.replace(`${target.pathname}${target.search}${target.hash}`);
+            return;
+          }
+        } catch {
+          // Fall back to a normal navigation below.
+        }
+
+        window.location.assign(decorated);
       },
     };
   }
@@ -211,6 +250,7 @@ function ClerkAuthExperience({ role, initialMode }: { role: AccountRole; initial
       return;
     }
     if (signIn.status === "complete") {
+      setTransitioning(true);
       await authRequest(() => signIn.finalize(navigateAfterAuth()));
       return;
     }
@@ -245,7 +285,7 @@ function ClerkAuthExperience({ role, initialMode }: { role: AccountRole; initial
         setFieldErrors({ code: messageFor(verifyError, "code") });
         return;
       }
-      if (signUp.status === "complete") await authRequest(() => signUp.finalize(navigateAfterAuth()));
+      if (signUp.status === "complete") { setTransitioning(true); await authRequest(() => signUp.finalize(navigateAfterAuth())); }
       else setError("Your email was verified, but the account is still missing information. Please start again.");
       return;
     }
@@ -258,7 +298,7 @@ function ClerkAuthExperience({ role, initialMode }: { role: AccountRole; initial
         setFieldErrors({ code: messageFor(verifyError, "code") });
         return;
       }
-      if (signIn.status === "complete") await authRequest(() => signIn.finalize(navigateAfterAuth()));
+      if (signIn.status === "complete") { setTransitioning(true); await authRequest(() => signIn.finalize(navigateAfterAuth())); }
       else setError("We couldn’t complete the security check. Please start again.");
       return;
     }
@@ -322,7 +362,7 @@ function ClerkAuthExperience({ role, initialMode }: { role: AccountRole; initial
       setError(messageFor(resetError, "reset"));
       return;
     }
-    if (signIn.status === "complete") await authRequest(() => signIn.finalize(navigateAfterAuth()));
+    if (signIn.status === "complete") { setTransitioning(true); await authRequest(() => signIn.finalize(navigateAfterAuth())); }
     else setError("Your password changed, but sign-in could not be completed. Return to sign in with your new password.");
   }
 
@@ -357,7 +397,13 @@ function ClerkAuthExperience({ role, initialMode }: { role: AccountRole; initial
           <Link href="/"><ArrowLeft size={16} /> Back to marketplace</Link>
           <span>{role === "vendor" ? <>Planning a wedding? <Link href="/couples/sign-up">Create an account</Link></> : <>Are you a vendor? <Link href="/vendor/sign-up">List your business</Link></>}</span>
         </div>
-        <div className="couple-auth-card">
+        <div className={`couple-auth-card ${transitioning ? "is-transitioning" : ""}`}>
+          {transitioning && <div className="auth-transition-overlay" role="status" aria-live="polite">
+            <div className="auth-transition-spinner"><RefreshCw /></div>
+            <p className="eyebrow"><span /> Signed in securely</p>
+            <h2>Opening your workspace…</h2>
+            <p>Restoring your account and getting everything ready.</p>
+          </div>}
           {step === "credentials" && <div className="auth-tabs" role="tablist" aria-label="Account access"><button type="button" role="tab" aria-selected={mode === "signup"} className={mode === "signup" ? "active" : ""} onClick={() => changeMode("signup")}>Create account</button><button type="button" role="tab" aria-selected={mode === "signin"} className={mode === "signin" ? "active" : ""} onClick={() => changeMode("signin")}>Sign in</button></div>}
 
           <div className="auth-heading-row">
