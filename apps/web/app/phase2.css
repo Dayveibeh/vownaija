@@ -4298,3 +4298,57 @@ button.user-avatar {
     align-items: flex-start;
   }
 }
+
+
+/* Phase 3 payment reconciliation */
+.admin-reconciliation-chip {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  color: #5f6754;
+  background: #eef2e9;
+}
+
+.admin-reconciliation-chip.repaired {
+  color: #4f6444;
+  background: #e8f1e1;
+}
+
+.admin-reconciliation-chip.needs_attention {
+  color: #7d5b28;
+  background: #f8eed7;
+}
+
+.admin-reconciliation-chip > span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.admin-reconciliation-chip strong {
+  font-size: 8px;
+}
+
+.admin-reconciliation-chip small {
+  color: inherit;
+  opacity: .75;
+  font-size: 7px;
+}
+
+.admin-reconciliation-note {
+  max-width: 520px;
+  margin: 5px 0 0 !important;
+  color: #6f6661 !important;
+  font-size: 8px !important;
+  line-height: 1.5;
+}
+
+.admin-finance-actions button.reconcile {
+  color: #536043;
+  border-color: #d7e0cf;
+  background: #f3f6ef;
+}
