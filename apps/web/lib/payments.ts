@@ -71,8 +71,10 @@ export type BookingPaymentSummary = {
   payoutMode: "test" | "live" | "unconfigured";
   releaseEnabled: boolean;
   simulationEnabled: boolean;
+  releaseAt: string | null;
   caseStatus: PaymentCaseStatus;
   caseReason: string | null;
+  caseOpenedAt: string | null;
   payments: PaymentView[];
 };
 
@@ -350,7 +352,7 @@ export async function getBookingPaymentSummary(
     Boolean(vendorPayoutRows[0]?.recipient_code);
 
   const releaseRows = await sql`
-    SELECT pr.status,pr.provider_transfer_reference
+    SELECT pr.status,pr.provider_transfer_reference,pr.released_at
     FROM payout_releases pr
     JOIN payment_orders p ON p.id=pr.payment_order_id
     WHERE p.booking_id=${bookingId}
@@ -360,7 +362,7 @@ export async function getBookingPaymentSummary(
   const latestReleaseStatus = releaseRows[0]?.status ? String(releaseRows[0].status) : "";
 
   const caseRows = await sql`
-    SELECT case_type,status,reason
+    SELECT case_type,status,reason,created_at
     FROM payment_cases
     WHERE booking_id=${bookingId}
     ORDER BY created_at DESC
@@ -406,8 +408,10 @@ export async function getBookingPaymentSummary(
     payoutMode: paystackMode(),
     releaseEnabled: isPayoutReleaseEnabled(),
     simulationEnabled: isPayoutSimulationEnabled(),
+    releaseAt: iso(releaseRows[0]?.released_at),
     caseStatus,
     caseReason: latestCase?.reason ? String(latestCase.reason) : null,
+    caseOpenedAt: iso(latestCase?.created_at),
     payments,
   };
 }
@@ -1386,6 +1390,97 @@ export async function reconcilePaystackRefundEvent(
   );
 
   return { paymentOrderId: String(payment.id), status: nextStatus };
+}
+
+
+export type PaymentReceiptData = {
+  paymentId: string;
+  bookingId: string;
+  providerReference: string;
+  purpose: "full" | "deposit" | "balance";
+  amount: number;
+  currencyCode: "NGN";
+  status: PaymentStatus;
+  paidAt: string;
+  bookingTotal: number;
+  paidAfterThisPayment: number;
+  remainingAfterThisPayment: number;
+  serviceSummary: string;
+  vendorName: string;
+  customerName: string;
+  weddingDate: string | null;
+  weddingLocation: string;
+};
+
+export async function getPaymentReceiptData(
+  paymentId: string,
+  userId: string,
+  role: "couple" | "vendor" | "admin",
+): Promise<PaymentReceiptData | null> {
+  await ensureDatabaseSchema();
+  const sql = getSql();
+
+  const rows = await sql`
+    SELECT
+      p.*,
+      b.total AS booking_total,
+      b.service_summary,
+      b.wedding_date,
+      b.wedding_location,
+      b.customer_clerk_user_id,
+      b.vendor_owner_clerk_user_id,
+      mv.business_name AS vendor_name,
+      COALESCE(e.contact_name,customer.full_name) AS customer_name
+    FROM payment_orders p
+    JOIN bookings b ON b.id=p.booking_id
+    JOIN marketplace_vendors mv ON mv.id=b.vendor_id
+    JOIN enquiries e ON e.id=b.enquiry_id
+    JOIN smitten_users customer ON customer.clerk_user_id=b.customer_clerk_user_id
+    WHERE p.id=${paymentId}
+      AND (
+        ${role}='admin'
+        OR (${role}='couple' AND b.customer_clerk_user_id=${userId})
+        OR (${role}='vendor' AND b.vendor_owner_clerk_user_id=${userId})
+      )
+    LIMIT 1
+  `;
+  const payment = rows[0];
+  if (!payment || !["paid","refunded"].includes(String(payment.status))) return null;
+
+  const paidAt = iso(payment.provider_paid_at);
+  if (!paidAt) return null;
+
+  const paidRows = await sql`
+    SELECT COALESCE(SUM(amount),0) AS paid
+    FROM payment_orders
+    WHERE booking_id=${String(payment.booking_id)}
+      AND status IN ('paid','refunded')
+      AND (
+        provider_paid_at < ${new Date(paidAt)}
+        OR (provider_paid_at = ${new Date(paidAt)} AND created_at <= ${new Date(String(payment.created_at))})
+      )
+  `;
+  const bookingTotal = money(payment.booking_total);
+  const paidAfterThisPayment = money(paidRows[0]?.paid);
+
+  return {
+    paymentId: String(payment.id),
+    bookingId: String(payment.booking_id),
+    providerReference: String(payment.provider_reference),
+    purpose: String(payment.purpose) as PaymentReceiptData["purpose"],
+    amount: money(payment.amount),
+    currencyCode: "NGN",
+    status: String(payment.status) as PaymentStatus,
+    paidAt,
+    bookingTotal,
+    paidAfterThisPayment,
+    remainingAfterThisPayment: Math.max(0, bookingTotal - paidAfterThisPayment),
+    serviceSummary: String(payment.service_summary),
+    vendorName: String(payment.vendor_name),
+    customerName: String(payment.customer_name),
+    weddingDate: payment.wedding_date ? String(payment.wedding_date).slice(0,10) : null,
+    weddingLocation: String(payment.wedding_location),
+  };
 }
 
 
