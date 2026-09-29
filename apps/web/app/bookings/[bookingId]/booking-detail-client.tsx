@@ -159,7 +159,7 @@ export default function BookingDetailClient({
       state: "complete",
       icon: "booking",
     },
-    ...successfulPayments.map((payment) => ({
+    ...successfulPayments.map<PaymentTimelineItem>((payment) => ({
       key: payment.id,
       title: payment.purpose === "deposit"
         ? "Deposit paid"
