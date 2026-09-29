@@ -230,7 +230,7 @@ async function insertPaymentEventOnce(
   const rows = await getSql()`
     INSERT INTO payment_events(id,payment_order_id,event_type,event_key,payload)
     VALUES(${crypto.randomUUID()},${paymentOrderId},${eventType},${eventKey},${JSON.stringify(payload)}::jsonb)
-    ON CONFLICT (event_key) DO NOTHING
+    ON CONFLICT DO NOTHING
     RETURNING id
   `;
   return Boolean(rows[0]);
