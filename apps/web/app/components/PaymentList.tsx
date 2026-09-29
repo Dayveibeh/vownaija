@@ -52,7 +52,7 @@ export function PaymentList({
             <div className="phase3-payment-icon">{payment.status === "paid" ? <CheckCircle2 /> : <CreditCard />}</div>
             <div className="phase3-payment-copy">
               <div><strong>{payment.serviceSummary}</strong><b className={payment.status}>{payment.status}</b></div>
-              <p>{isVendor ? payment.customerName : payment.vendorName}</p>
+              <p>{isVendor ? payment.customerName : payment.vendorName} · {payment.purpose === "deposit" ? "Deposit" : payment.purpose === "balance" ? "Balance" : "Full payment"}</p>
               <span><MapPin size={13} /> {payment.weddingLocation}</span>
               <span><CalendarDays size={13} /> {dateLabel(payment.weddingDate)}</span>
             </div>
