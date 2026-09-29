@@ -2,11 +2,11 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getUserProfile } from "@/lib/accounts";
-import { initiatePaymentRefund, resolvePaymentDispute } from "@/lib/payments";
+import { initiatePaymentRefund, reconcileAdminPayment, resolvePaymentDispute } from "@/lib/payments";
 
 const schema = z.object({
   paymentOrderId: z.string().trim().min(1),
-  action: z.enum(["resolve_dispute", "refund"]),
+  action: z.enum(["resolve_dispute", "refund", "reconcile"]),
   reason: z.string().trim().max(1200).optional(),
 });
 
@@ -32,6 +32,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, action: parsed.data.action, ...result });
     }
 
+    if (parsed.data.action === "reconcile") {
+      const result = await reconcileAdminPayment(parsed.data.paymentOrderId, userId);
+      return NextResponse.json({ ok: true, action: parsed.data.action, ...result });
+    }
+
     const result = await initiatePaymentRefund(
       parsed.data.paymentOrderId,
       userId,
@@ -50,6 +55,8 @@ export async function POST(request: Request) {
       REFUND_ALREADY_IN_PROGRESS: "A refund is already being processed for this payment.",
       PAYSTACK_NOT_CONFIGURED: "Paystack is not configured on this deployment.",
       LIVE_REFUNDS_DISABLED: "Live refunds are disabled until production refund controls are explicitly enabled.",
+      PAYSTACK_VERIFY_FAILED: "Paystack could not verify this transaction.",
+      PAYMENT_MISMATCH: "Paystack returned transaction details that do not match Smitten's record.",
     };
     if (known[code]) return NextResponse.json({ message: known[code] }, { status: 409 });
 
