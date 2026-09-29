@@ -296,6 +296,40 @@ export async function ensureDatabaseSchema() {
         )
       `;
 
+      await sql`ALTER TABLE payment_events ADD COLUMN IF NOT EXISTS event_key text`;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS provider_webhook_events (
+          event_key text PRIMARY KEY,
+          provider text NOT NULL DEFAULT 'paystack',
+          event_type text NOT NULL,
+          provider_reference text,
+          payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+          status text NOT NULL DEFAULT 'processing' CHECK (status IN ('processing','processed','failed')),
+          error_message text,
+          received_at timestamptz NOT NULL DEFAULT now(),
+          processed_at timestamptz,
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS payment_reconciliations (
+          id text PRIMARY KEY,
+          payment_order_id text NOT NULL REFERENCES payment_orders(id) ON DELETE CASCADE,
+          checked_by_clerk_user_id text REFERENCES smitten_users(clerk_user_id) ON DELETE SET NULL,
+          result text NOT NULL CHECK (result IN ('matched','repaired','needs_attention')),
+          local_status_before text NOT NULL,
+          local_funds_status_before text NOT NULL,
+          provider_status text NOT NULL,
+          provider_amount numeric(14,2),
+          provider_currency text,
+          note text,
+          provider_payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+          created_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
       await sql`
         CREATE TABLE IF NOT EXISTS vendor_payout_profiles (
           vendor_owner_clerk_user_id text PRIMARY KEY REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
@@ -400,6 +434,10 @@ export async function ensureDatabaseSchema() {
       await sql`CREATE INDEX IF NOT EXISTS payment_orders_vendor_idx ON payment_orders(vendor_owner_clerk_user_id)`;
       await sql`CREATE INDEX IF NOT EXISTS payment_orders_status_idx ON payment_orders(status)`;
       await sql`CREATE INDEX IF NOT EXISTS payment_events_order_idx ON payment_events(payment_order_id)`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS payment_events_event_key_unique ON payment_events(event_key) WHERE event_key IS NOT NULL`;
+      await sql`CREATE INDEX IF NOT EXISTS provider_webhook_events_reference_idx ON provider_webhook_events(provider_reference)`;
+      await sql`CREATE INDEX IF NOT EXISTS provider_webhook_events_status_idx ON provider_webhook_events(status)`;
+      await sql`CREATE INDEX IF NOT EXISTS payment_reconciliations_order_idx ON payment_reconciliations(payment_order_id,created_at DESC)`;
       await sql`CREATE INDEX IF NOT EXISTS payout_releases_vendor_idx ON payout_releases(vendor_owner_clerk_user_id)`;
       await sql`CREATE INDEX IF NOT EXISTS payout_releases_status_idx ON payout_releases(status)`;
       await sql`CREATE INDEX IF NOT EXISTS notifications_user_created_idx ON notifications(clerk_user_id,created_at DESC)`;
