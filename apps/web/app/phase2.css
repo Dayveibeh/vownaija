@@ -3861,3 +3861,43 @@ button.user-avatar {
     flex: 1;
   }
 }
+
+
+/* Admin finance session controls */
+.admin-finance-session-actions {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-finance-session-actions > button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid #e3dbd5;
+  border-radius: 999px;
+  background: #fff;
+  color: #5e5551;
+  font: inherit;
+  font-size: 8px;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.admin-finance-session-actions > button:hover {
+  border-color: #cfc4bd;
+  color: #2f2927;
+}
+
+@media (max-width: 620px) {
+  .admin-finance-session-actions .session-account-copy {
+    display: none;
+  }
+
+  .admin-finance-session-actions > button {
+    padding: 0 10px;
+  }
+}
