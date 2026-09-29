@@ -12,7 +12,7 @@ function roleFromMetadata(metadata: Record<string, unknown> | undefined): Accoun
   const smitten = metadata?.smitten;
   if (smitten && typeof smitten === "object" && "role" in smitten) {
     const role = (smitten as { role?: unknown }).role;
-    if (role === "vendor" || role === "admin") return role;
+    if (role === "vendor") return role;
   }
   return "couple";
 }
