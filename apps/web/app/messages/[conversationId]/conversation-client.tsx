@@ -43,6 +43,9 @@ export default function ConversationClient({
   const [validUntil, setValidUntil] = useState("");
   const [discount, setDiscount] = useState(0);
   const [fees, setFees] = useState(0);
+  const [paymentPlan, setPaymentPlan] = useState<"full" | "deposit">("full");
+  const [depositType, setDepositType] = useState<"percentage" | "fixed">("percentage");
+  const [depositValue, setDepositValue] = useState(50);
   const [lineItems, setLineItems] = useState<LineItem[]>([
     { title: initialConversation.packageTitle || initialConversation.requestedService || "Wedding service", description: "", quantity: 1, unitPrice: 0 },
   ]);
@@ -61,6 +64,11 @@ export default function ConversationClient({
     [lineItems],
   );
   const quoteTotal = Math.max(0, subtotal - Math.max(0, Number(discount) || 0) + Math.max(0, Number(fees) || 0));
+  const depositPreview = paymentPlan === "deposit"
+    ? depositType === "fixed"
+      ? Math.min(quoteTotal, Math.max(0, Number(depositValue) || 0))
+      : Math.min(quoteTotal, Math.round(quoteTotal * Math.max(0, Number(depositValue) || 0) / 100))
+    : quoteTotal;
 
   const meta = useMemo(() => [
     conversation.weddingDate ? { icon: CalendarDays, text: dateLabel(conversation.weddingDate) } : null,
@@ -132,6 +140,10 @@ export default function ConversationClient({
       setQuoteError("Add a quote title and at least one priced service.");
       return;
     }
+    if (paymentPlan === "deposit" && (depositPreview <= 0 || depositPreview >= quoteTotal)) {
+      setQuoteError("The deposit must be greater than zero and lower than the full quote total.");
+      return;
+    }
     setQuoteSaving(true);
     try {
       const response = await fetch(`/api/conversations/${conversation.id}/quotes`, {
@@ -143,6 +155,9 @@ export default function ConversationClient({
           validUntil: validUntil || null,
           discountAmount: Number(discount) || 0,
           additionalFees: Number(fees) || 0,
+          paymentPlan,
+          depositType: paymentPlan === "deposit" ? depositType : null,
+          depositValue: paymentPlan === "deposit" ? Number(depositValue) || 0 : 0,
           items: lineItems.map((item) => ({
             title: item.title,
             description: item.description || null,
@@ -155,6 +170,7 @@ export default function ConversationClient({
       if (!response.ok) throw new Error(result?.message || "We couldn’t send the quote.");
       setQuoteOpen(false);
       setQuoteNotes(""); setDiscount(0); setFees(0); setValidUntil("");
+      setPaymentPlan("full"); setDepositType("percentage"); setDepositValue(50);
       setLineItems([{ title: conversation.packageTitle || conversation.requestedService || "Wedding service", description: "", quantity: 1, unitPrice: 0 }]);
       await refresh();
     } catch (quoteSendError) {
@@ -230,6 +246,11 @@ export default function ConversationClient({
                   {item.quote.additionalFees > 0 && <span>Additional fees <strong>{formatNaira(item.quote.additionalFees)}</strong></span>}
                   <span className="total">Total <strong>{formatNaira(item.quote.total)}</strong></span>
                 </div>
+                <div className="conversation-quote-payment-terms">
+                  <small>Payment terms</small>
+                  <strong>{item.quote.paymentPlan === "deposit" ? `${formatNaira(item.quote.depositAmount)} deposit to secure booking` : "Full payment"}</strong>
+                  {item.quote.paymentPlan === "deposit" && <span>{formatNaira(Math.max(0, item.quote.total - item.quote.depositAmount))} balance after deposit</span>}
+                </div>
                 {item.quote.notes && <p className="conversation-quote-notes">{item.quote.notes}</p>}
                 <footer>
                   <span>{item.quote.validUntil ? <><Clock3 size={13} /> Valid until {dateLabel(item.quote.validUntil)}</> : "No expiry date"}</span>
@@ -263,6 +284,38 @@ export default function ConversationClient({
               </article>)}
             </div>
             <div className="quote-builder-adjustments"><label>Discount (₦)<input type="number" min="0" step="1" value={discount || ""} onChange={(event) => setDiscount(Number(event.target.value))} placeholder="0" /></label><label>Additional fees (₦)<input type="number" min="0" step="1" value={fees || ""} onChange={(event) => setFees(Number(event.target.value))} placeholder="0" /></label><label>Valid until<input type="date" value={validUntil} onChange={(event) => setValidUntil(event.target.value)} /></label></div>
+            <section className="quote-builder-payment-terms">
+              <div><strong>Payment terms</strong><small>Choose what the couple pays first after accepting this quote.</small></div>
+              <div className="quote-payment-term-grid">
+                <label>Payment plan
+                  <select value={paymentPlan} onChange={(event) => setPaymentPlan(event.target.value as "full" | "deposit")}>
+                    <option value="full">Full payment</option>
+                    <option value="deposit">Deposit + balance</option>
+                  </select>
+                </label>
+                {paymentPlan === "deposit" && <label>Deposit type
+                  <select value={depositType} onChange={(event) => setDepositType(event.target.value as "percentage" | "fixed")}>
+                    <option value="percentage">Percentage</option>
+                    <option value="fixed">Fixed amount</option>
+                  </select>
+                </label>}
+                {paymentPlan === "deposit" && <label>{depositType === "percentage" ? "Deposit (%)" : "Deposit (₦)"}
+                  <input
+                    type="number"
+                    min="1"
+                    max={depositType === "percentage" ? "99" : undefined}
+                    step="1"
+                    value={depositValue || ""}
+                    onChange={(event) => setDepositValue(Number(event.target.value))}
+                    placeholder={depositType === "percentage" ? "50" : "350000"}
+                  />
+                </label>}
+              </div>
+              <div className="quote-payment-preview">
+                <span><small>Due to secure booking</small><strong>{formatNaira(depositPreview)}</strong></span>
+                {paymentPlan === "deposit" && <span><small>Balance after deposit</small><strong>{formatNaira(Math.max(0, quoteTotal - depositPreview))}</strong></span>}
+              </div>
+            </section>
             <label className="quote-builder-field">Note to the couple<textarea rows={3} value={quoteNotes} onChange={(event) => setQuoteNotes(event.target.value)} placeholder="Optional payment schedule, inclusions or helpful context…" /></label>
             <div className="quote-builder-summary"><span>Subtotal <strong>{formatNaira(subtotal)}</strong></span>{discount > 0 && <span>Discount <strong>−{formatNaira(discount)}</strong></span>}{fees > 0 && <span>Additional fees <strong>{formatNaira(fees)}</strong></span>}<span className="total">Quote total <strong>{formatNaira(quoteTotal)}</strong></span></div>
             {quoteError && <p className="quote-builder-error">{quoteError}</p>}
