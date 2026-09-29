@@ -345,6 +345,22 @@ export async function ensureDatabaseSchema() {
       `;
 
       await sql`
+        CREATE TABLE IF NOT EXISTS notifications (
+          id text PRIMARY KEY,
+          clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
+          type text NOT NULL,
+          title text NOT NULL,
+          body text NOT NULL,
+          href text,
+          unique_key text NOT NULL UNIQUE,
+          read_at timestamptz,
+          email_status text NOT NULL DEFAULT 'skipped' CHECK (email_status IN ('skipped','pending','sent','failed')),
+          email_sent_at timestamptz,
+          created_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
+
+      await sql`
         CREATE TABLE IF NOT EXISTS favourites (
           clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
           vendor_id text NOT NULL REFERENCES marketplace_vendors(id) ON DELETE CASCADE,
@@ -386,6 +402,8 @@ export async function ensureDatabaseSchema() {
       await sql`CREATE INDEX IF NOT EXISTS payment_events_order_idx ON payment_events(payment_order_id)`;
       await sql`CREATE INDEX IF NOT EXISTS payout_releases_vendor_idx ON payout_releases(vendor_owner_clerk_user_id)`;
       await sql`CREATE INDEX IF NOT EXISTS payout_releases_status_idx ON payout_releases(status)`;
+      await sql`CREATE INDEX IF NOT EXISTS notifications_user_created_idx ON notifications(clerk_user_id,created_at DESC)`;
+      await sql`CREATE INDEX IF NOT EXISTS notifications_user_unread_idx ON notifications(clerk_user_id,read_at)`;
       await sql`CREATE INDEX IF NOT EXISTS payment_cases_payment_idx ON payment_cases(payment_order_id)`;
       await sql`CREATE INDEX IF NOT EXISTS payment_cases_booking_idx ON payment_cases(booking_id)`;
       await sql`CREATE INDEX IF NOT EXISTS payment_cases_status_idx ON payment_cases(status)`;
