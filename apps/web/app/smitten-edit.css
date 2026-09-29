@@ -1366,3 +1366,181 @@ h2 em {
     min-height: 118px !important;
   }
 }
+
+
+/* Editorial discovery tags */
+.smitten-vibe-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 18px 0 0;
+}
+
+.smitten-vibe-line small {
+  margin-right: 5px;
+  color: #9a8c87;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.smitten-vibe-line span {
+  padding: 7px 10px;
+  border: 1px solid #e2d7cf;
+  border-radius: 999px;
+  color: #655a57;
+  background: rgba(255,255,255,.56);
+  font-size: 8px;
+  font-weight: 650;
+}
+
+.smitten-vibe-line span:nth-of-type(1) { background: #f8e7e4; border-color: #efd4ce; }
+.smitten-vibe-line span:nth-of-type(2) { background: #f5edf4; border-color: #e8d8e6; }
+.smitten-vibe-line span:nth-of-type(3) { background: #edf2e9; border-color: #dce5d4; }
+.smitten-vibe-line span:nth-of-type(4) { background: #f9f1d9; border-color: #eadfbc; }
+
+/* Auth feels like the same product, not a separate template */
+.couple-auth-shell {
+  background: var(--sm-paper) !important;
+}
+
+.couple-auth-visual {
+  border-radius: 0 38px 38px 0 !important;
+  box-shadow: 20px 0 70px rgba(54,39,42,.12);
+}
+
+.couple-auth-main {
+  background:
+    radial-gradient(circle at 90% 8%,rgba(184,170,203,.14),transparent 25%),
+    radial-gradient(circle at 9% 85%,rgba(238,141,121,.10),transparent 27%),
+    var(--sm-paper) !important;
+}
+
+.couple-auth-card {
+  padding: 28px 30px 30px;
+  border: 1px solid #e3d8d1;
+  border-radius: 28px;
+  background: rgba(255,253,251,.84);
+  box-shadow: 0 26px 80px rgba(62,45,47,.08);
+  backdrop-filter: blur(18px);
+}
+
+.couple-auth-card h2 {
+  font-family: var(--sm-serif) !important;
+  font-size: clamp(37px,4vw,50px) !important;
+  font-weight: 500 !important;
+  letter-spacing: -.055em !important;
+}
+
+.auth-tabs {
+  margin-top: 5px !important;
+  padding: 5px;
+  border: 1px solid #e5dbd4 !important;
+  border-radius: 999px;
+  background: #f3ece6;
+}
+
+.auth-tabs button {
+  min-height: 38px;
+  border-radius: 999px;
+}
+
+.auth-tabs button.active {
+  color: #fff !important;
+  background: var(--sm-berry) !important;
+  box-shadow: 0 8px 18px rgba(122,52,72,.18);
+}
+
+.auth-tabs button.active::after {
+  display: none;
+}
+
+.auth-icon {
+  color: var(--sm-berry) !important;
+  background: #f7e6e7 !important;
+}
+
+.auth-field > div,
+.couple-auth-card form > label > div {
+  min-height: 54px !important;
+  border-radius: 15px !important;
+  background: rgba(255,255,255,.82) !important;
+}
+
+.auth-field > div:focus-within,
+.couple-auth-card form > label > div:focus-within {
+  border-color: #b98996 !important;
+  box-shadow: 0 0 0 4px rgba(122,52,72,.08);
+}
+
+.auth-submit {
+  min-height: 52px !important;
+  border-radius: 999px !important;
+  background: var(--sm-berry) !important;
+  box-shadow: 0 13px 28px rgba(122,52,72,.2) !important;
+}
+
+/* Make quote/payment/document areas feel like part of the studio */
+.quote-detail-topbar,
+.booking-detail-page .quote-detail-topbar {
+  border-bottom-color: rgba(221,210,203,.78) !important;
+  background: rgba(247,242,236,.88) !important;
+  backdrop-filter: blur(18px);
+}
+
+.quote-document,
+.booking-document,
+.booking-summary-card,
+.phase3-payout-card,
+.phase3-payment-card {
+  border-color: #e2d8d1 !important;
+  border-radius: 26px !important;
+  box-shadow: 0 16px 48px rgba(63,47,48,.06) !important;
+}
+
+.payment-state-pill,
+.admin-finance-copy > div:first-child > b {
+  border-radius: 999px !important;
+}
+
+/* Mobile studio dock becomes more app-like */
+@media (max-width: 760px) {
+  .smitten-vibe-line {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 3px;
+    scrollbar-width: none;
+  }
+
+  .smitten-vibe-line::-webkit-scrollbar {
+    display: none;
+  }
+
+  .smitten-vibe-line small,
+  .smitten-vibe-line span {
+    flex: 0 0 auto;
+  }
+
+  .couple-auth-card {
+    padding: 24px 18px 26px;
+    border-radius: 22px;
+  }
+
+  .couple-mobile-nav {
+    left: 12px !important;
+    right: 12px !important;
+    bottom: max(12px,env(safe-area-inset-bottom)) !important;
+    border: 1px solid rgba(217,204,197,.9) !important;
+    border-radius: 24px !important;
+    background: rgba(255,253,251,.9) !important;
+    box-shadow: 0 20px 60px rgba(48,34,38,.18) !important;
+    backdrop-filter: blur(22px) saturate(1.2) !important;
+  }
+
+  .couple-mobile-nav > button:first-child {
+    color: #fff !important;
+    background: var(--sm-berry) !important;
+  }
+}
