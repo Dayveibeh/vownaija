@@ -157,7 +157,21 @@ export default function CoupleDashboardClient({ profile }: { profile: { fullName
         </header>
 
         <div className="couple-dashboard-content" id="couple-overview">
-          <div className="couple-dash-heading"><div><p>Thursday, 13 August</p><h1>Good afternoon, {firstName}</h1><span>You’re making lovely progress. Here’s what’s next for your wedding.</span></div><Link href="/" className="button button-primary">Find vendors <Search size={16} /></Link></div>
+          <div className="couple-dash-heading">
+            <div>
+              <p>Your wedding studio</p>
+              <h1>Good afternoon, {firstName}</h1>
+              <span>You’re making lovely progress. Here’s what’s next for your wedding.</span>
+            </div>
+            <div className="couple-heading-actions">
+              <div className="couple-planning-pulse" aria-label="Wedding planning snapshot">
+                <span><strong>{saved.length}</strong><small>saved</small></span>
+                <span><strong>{quoteCount}</strong><small>quotes</small></span>
+                <span><strong>{bookingCount}</strong><small>booked</small></span>
+              </div>
+              <Link href="/" className="button button-primary">Find vendors <Search size={16} /></Link>
+            </div>
+          </div>
 
           <section className="couple-ai-banner"><div className="couple-ai-icon"><Sparkles /></div><div><p>Smitten AI recommendations</p><h2>Your personalised vendor shortlist is ready</h2><span>We found 4 strong matches for your Lagos wedding and ₦1m–₦3m vendor budget.</span></div><Link href="/couples/match" onClick={() => setMobileTab("matches")}>View my matches <ArrowRight /></Link><div className="mini-matches"><span>AE</span><span>LL</span><span>DC</span><span>+1</span></div></section>
 
