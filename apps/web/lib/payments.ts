@@ -1014,9 +1014,13 @@ export async function listAdminFinancePayments(): Promise<AdminFinancePaymentVie
       ORDER BY created_at DESC
       LIMIT 1
     ) prc ON true
-    WHERE p.status<>'cancelled'
     ORDER BY
-      CASE WHEN pc.status IN ('open','processing','needs_attention') THEN 0 ELSE 1 END,
+      CASE
+        WHEN pc.status IN ('open','processing','needs_attention') THEN 0
+        WHEN prc.result='needs_attention' THEN 1
+        WHEN p.status IN ('pending','failed','cancelled') THEN 2
+        ELSE 3
+      END,
       p.created_at DESC
     LIMIT 200
   `;
