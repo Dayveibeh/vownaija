@@ -215,8 +215,8 @@ export default function Home() {
       <section className="hero">
         <div className="hero-copy">
           <p className="eyebrow"><span /> Your wedding, your way</p>
-          <h1>Find the people who’ll make it <em>unforgettable.</em></h1>
-          <p className="hero-intro">Discover trusted wedding vendors across Nigeria, compare real reviews, and get quotes that fit your celebration.</p>
+          <h1>Find people who <em>get your vision.</em></h1>
+          <p className="hero-intro">A beautifully curated way to discover wedding people across Nigeria, compare what matters, and build a celebration that feels unmistakably yours.</p>
 
           <form className="search-panel" onSubmit={runSearch}>
             <label>
@@ -261,6 +261,11 @@ export default function Home() {
             </label>
             <button className="search-button" type="submit" aria-label="Search vendors"><Search size={21} /> <span>Search</span></button>
           </form>
+
+          <div className="smitten-vibe-line" aria-label="Popular wedding styles">
+            <small>Wedding energy</small>
+            <span>Soft luxury</span><span>Trad glam</span><span>Afro-modern</span><span>Garden</span><span>Big party</span>
+          </div>
 
           <div className="hero-proof">
             <div className="avatar-stack" aria-hidden="true"><span>AO</span><span>TF</span><span>NK</span><span>+2k</span></div>
