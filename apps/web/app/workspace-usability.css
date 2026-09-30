@@ -331,6 +331,9 @@ body .dashboard-shell .activity-bars :is(span, strong) {
   font-size: 15px;
 }
 body .dashboard-shell .activity-bars > div {
+  grid-template-columns: 6.5em minmax(0, 1fr) minmax(2ch, max-content);
+  column-gap: 16px;
+  font-size: 15px;
   min-height: 40px;
 }
 body .dashboard-shell .activity-bars {
