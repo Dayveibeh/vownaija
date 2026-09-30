@@ -25,7 +25,10 @@
     "mobile:install": "npm --prefix apps/mobile install",
     "mobile": "npm --prefix apps/mobile run start",
     "mobile:ios": "npm --prefix apps/mobile run ios",
-    "typecheck:mobile": "npm --prefix apps/mobile run typecheck"
+    "typecheck:mobile": "npm --prefix apps/mobile run typecheck",
+    "whatsapp:worker": "npm --workspace @smitten/web run whatsapp:worker",
+    "test:whatsapp": "npm --workspace @smitten/web run test:whatsapp",
+    "typecheck:whatsapp": "npm --workspace @smitten/web run typecheck:whatsapp"
   },
   "type": "module",
   "displayName": "Smitten"

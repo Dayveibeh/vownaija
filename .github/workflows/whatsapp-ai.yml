@@ -1,0 +1,22 @@
+name: WhatsApp AI checks
+
+on:
+  pull_request:
+  push:
+    branches: [main, phase4/whatsapp-ai]
+
+permissions:
+  contents: read
+
+jobs:
+  whatsapp-ai:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --include=dev
+      - run: npm run typecheck:whatsapp
+      - run: npm run test:whatsapp
