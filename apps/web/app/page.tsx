@@ -31,12 +31,28 @@ import {
 } from "@smitten/shared";
 
 const categories = [
-  { name: "Venues", icon: Gem },
-  { name: "Photographers", icon: Camera },
-  { name: "Planners & décor", icon: ClipboardCheck },
-  { name: "Catering", icon: Utensils },
-  { name: "Music & DJs", icon: Music2 },
-  { name: "Cakes", icon: CakeSlice },
+  { name: "Venues", icon: Gem, note: "A setting to fall in love with" },
+  {
+    name: "Photographers",
+    icon: Camera,
+    note: "Every moment, beautifully kept",
+  },
+  {
+    name: "Planners & décor",
+    icon: ClipboardCheck,
+    note: "Your vision, brought to life",
+  },
+  {
+    name: "Catering",
+    icon: Utensils,
+    note: "Something for everyone to savour",
+  },
+  {
+    name: "Music & DJs",
+    icon: Music2,
+    note: "From the first dance to the last",
+  },
+  { name: "Cakes", icon: CakeSlice, note: "A sweet centrepiece for your day" },
 ];
 
 const coupleImage = "/editorial-couple.jpg";
@@ -278,27 +294,6 @@ export default function Home() {
               sizes="(max-width: 760px) 85vw, 46vw"
               unoptimized
             />
-            <span className="ed-photo-label">THE BEGINNING OF EVERYTHING.</span>
-          </div>
-          <div className="ed-photo-detail">
-            <Image
-              src={receptionImage}
-              alt="Floral arrangements and tables at a Nigerian wedding reception"
-              fill
-              sizes="(max-width: 760px) 38vw, 19vw"
-              unoptimized
-            />
-          </div>
-          <div className="ed-photo-card">
-            <span>
-              <Heart size={16} /> YOUR DAY, COMING TOGETHER
-            </span>
-            <p>
-              The place. The people.
-              <br />
-              <em>The feeling.</em>
-            </p>
-            <small>All in one beautiful plan.</small>
           </div>
           <span className="ed-art-caption">
             A CELEBRATION THAT FEELS LIKE YOU · SMITTEN
@@ -376,7 +371,9 @@ export default function Home() {
       <section className="ed-section ed-discovery" id="categories">
         <div className="ed-section-head">
           <div>
-            <p className="ed-label">01 / THE PEOPLE WHO MAKE THE DAY</p>
+            <p className="ed-label ed-section-label">
+              THE PEOPLE WHO MAKE THE DAY
+            </p>
             <h2>
               Big dreams.
               <br />
@@ -389,9 +386,11 @@ export default function Home() {
           </p>
         </div>
         <div className="ed-categories">
-          {categories.map(({ name, icon: Icon }, index) => (
+          {categories.map(({ name, icon: Icon, note }) => (
             <button
               key={name}
+              aria-label={`Browse ${name}`}
+              aria-pressed={category === (categoryAliases[name] ?? name)}
               onClick={() => {
                 setCategory(categoryAliases[name] ?? name);
                 document
@@ -399,12 +398,13 @@ export default function Home() {
                   ?.scrollIntoView({ behavior: "smooth" });
               }}
             >
-              <span className="ed-category-top">
-                <small>0{index + 1}</small>
-                <Icon size={24} strokeWidth={1.3} />
+              <span className="ed-category-icon" aria-hidden="true">
+                <Icon size={25} strokeWidth={1.4} />
               </span>
-              <strong>{name}</strong>
-              <span className="ed-category-link">Explore</span>
+              <span className="ed-category-copy">
+                <strong>{name}</strong>
+                <small>{note}</small>
+              </span>
             </button>
           ))}
         </div>
@@ -554,7 +554,7 @@ export default function Home() {
 
       <section className="ed-experience" id="experience">
         <div className="ed-experience-copy">
-          <p className="ed-label">02 / THE SMITTEN EXPERIENCE</p>
+          <p className="ed-label ed-section-label">THE SMITTEN EXPERIENCE</p>
           <h2>
             One place,
             <br />
@@ -571,9 +571,9 @@ export default function Home() {
             Make it your wedding
           </Link>
           <div className="ed-feature-index">
-            <span>01 &nbsp; DISCOVER</span>
-            <span>02 &nbsp; SHORTLIST</span>
-            <span>03 &nbsp; PLAN</span>
+            <span>DISCOVER</span>
+            <span>SHORTLIST</span>
+            <span>PLAN</span>
           </div>
         </div>
         <div
@@ -694,19 +694,24 @@ export default function Home() {
           {[
             {
               title: "Find your kind of people",
+              icon: Search,
               text: "Browse by service, city and budget. Save the vendors you love.",
             },
             {
               title: "Make a little room for magic",
+              icon: Sparkles,
               text: "Tell our matchmaker what matters to you and discover your shortlist.",
             },
             {
               title: "Bring your day together",
+              icon: Heart,
               text: "Request quotes, compare the details and manage your vendor conversations.",
             },
-          ].map(({ title, text }, index) => (
+          ].map(({ title, text, icon: Icon }) => (
             <article key={title}>
-              <span>0{index + 1}</span>
+              <span className="ed-step-marker" aria-hidden="true">
+                <Icon size={18} strokeWidth={1.5} />
+              </span>
               <div>
                 <h3>{title}</h3>
                 <p>{text}</p>
@@ -727,7 +732,9 @@ export default function Home() {
           />
         </div>
         <div className="ed-dark-copy">
-          <p className="ed-label">03 / A LITTLE GUIDANCE. A LOT OF YOU.</p>
+          <p className="ed-label ed-section-label">
+            A LITTLE GUIDANCE. A LOT OF YOU.
+          </p>
           <h2>
             Your style.
             <br />
@@ -761,9 +768,11 @@ export default function Home() {
           </p>
         </div>
         <div>
-          {locations.map((city, index) => (
+          {locations.map((city) => (
             <button
               key={city}
+              aria-label={`Browse wedding vendors in ${city}`}
+              aria-pressed={location === city}
               onClick={() => {
                 setLocation(city);
                 setCategory("All vendors");
@@ -773,9 +782,8 @@ export default function Home() {
                   ?.scrollIntoView({ behavior: "smooth" });
               }}
             >
-              <span>0{index + 1}</span>
+              <MapPin size={20} strokeWidth={1.4} aria-hidden="true" />
               {city}
-              <MapPin size={18} />
             </button>
           ))}
         </div>
