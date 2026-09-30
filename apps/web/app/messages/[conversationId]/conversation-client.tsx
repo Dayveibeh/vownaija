@@ -9,8 +9,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { formatNaira } from "@smitten/shared";
 import type { ConversationDetail } from "@/lib/messaging";
 import type { QuoteView } from "@/lib/quotes";
-import { Brand } from "../../components/Brand";
-import { SessionAccountNav } from "../../components/SessionAccountNav";
+import { WorkspaceHeader } from "../../components/WorkspaceHeader";
 
 function timeLabel(value: string) {
   return new Intl.DateTimeFormat("en-NG", { hour: "numeric", minute: "2-digit" }).format(new Date(value));
@@ -200,14 +199,10 @@ export default function ConversationClient({
 
   return (
     <main className="conversation-page">
-      <header className="conversation-topbar">
-        <Brand />
-        <Link href={backHref} className="conversation-back"><ArrowLeft size={16} /> Inbox</Link>
-        <SessionAccountNav variant="compact" />
-      </header>
+      <WorkspaceHeader role={role} />
 
       <section className="conversation-shell">
-        <aside className="conversation-summary">
+        <aside className="conversation-summary"><Link className="workspace-back-link" href={backHref}><ArrowLeft size={16} /> Back to messages</Link>
           <p className="eyebrow"><span /> Wedding enquiry</p>
           <h1>{otherName}</h1>
           <div className="conversation-meta">{meta.map(({ icon: Icon, text }) => <span key={text}><Icon size={16} /> {text}</span>)}</div>

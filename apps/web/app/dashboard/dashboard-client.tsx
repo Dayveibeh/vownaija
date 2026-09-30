@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { WorkspaceHeader } from "../components/WorkspaceHeader";
 import { useClerk } from "@clerk/nextjs";
 import {
   ArrowRight,
   BarChart3,
   Bell,
-  Bot,
   CalendarCheck2,
   Check,
   ChevronDown,
@@ -17,7 +18,6 @@ import {
   LayoutDashboard,
   LogOut,
   Mail,
-  Menu,
   MessageSquare,
   MoreHorizontal,
   Pencil,
@@ -163,7 +163,24 @@ export default function DashboardClient({
   profile: { fullName: string; email: string; businessName: string };
 }) {
   const { signOut } = useClerk();
-  const [tab, setTab] = useState<Tab>("Overview");
+  const view = useSearchParams().get("view");
+  const [tab, setTab] = useState<Tab>(
+    view === "portfolio"
+      ? "Portfolio"
+      : view === "reviews"
+        ? "Reviews"
+        : "Overview",
+  );
+
+  useEffect(() => {
+    setTab(
+      view === "portfolio"
+        ? "Portfolio"
+        : view === "reviews"
+          ? "Reviews"
+          : "Overview",
+    );
+  }, [view]);
   const [mobileNav, setMobileNav] = useState(false);
   const [quotes, setQuotes] = useState(initialQuotes);
   const [quoteOpen, setQuoteOpen] = useState(false);
@@ -175,11 +192,6 @@ export default function DashboardClient({
     { description: "Décor production and installation", amount: 1850000 },
     { description: "On-the-day coordination", amount: 450000 },
   ]);
-  const [aiOpen, setAiOpen] = useState(false);
-  const [aiMessages, setAiMessages] = useState([
-    "Hi Adaeze — I can help you draft replies, improve quotes or plan your week. What are we working on?",
-  ]);
-  const [aiInput, setAiInput] = useState("");
   const [selectedMessage, setSelectedMessage] = useState(0);
   const [emailText, setEmailText] = useState(
     "Hi Amara,\n\nThank you for your message. We can absolutely swap the floral arch for a soft fabric installation and keep the same colour direction. I’ll update your quote and send it across this afternoon.\n\nWarmly,\nAdaeze",
@@ -330,17 +342,6 @@ export default function DashboardClient({
     showToast(sendNow ? "Quote sent to the client" : "Quote saved as a draft");
   }
 
-  function askAi(prompt?: string) {
-    const question = prompt || aiInput.trim();
-    if (!question) return;
-    setAiMessages((current) => [
-      ...current,
-      question,
-      "Here’s a polished response you can use: “Thanks for sharing the update. I’ve noted the venue access time and will revise the production schedule so every supplier is aligned. I’ll send the final timeline by 4pm today.”",
-    ]);
-    setAiInput("");
-  }
-
   return (
     <main className="dashboard-shell">
       <aside
@@ -427,72 +428,66 @@ export default function DashboardClient({
       </aside>
 
       <section className="dashboard-main">
-        <header className="dashboard-topbar">
-          <button className="dash-menu" onClick={() => setMobileNav(true)}>
-            <Menu />
-          </button>
-          <div className="dash-search">
-            <Search size={17} />
-            <input placeholder="Search clients, quotes, messages…" />
-            <kbd>⌘ K</kbd>
-          </div>
-          <div>
-            <button className="ai-top-button" onClick={() => setAiOpen(true)}>
-              <Sparkles size={16} /> Ask Smitten AI
-            </button>
-            <Link
-              className="notification-button"
-              href="/dashboard/messages"
-              aria-label="Open messages"
-            >
-              <Bell size={19} />
-              <span />
-            </Link>
-            <div className="dashboard-account-wrap">
-              <button
-                className="user-avatar"
-                onClick={() => setAccountMenuOpen((open) => !open)}
-                aria-label="Open account menu"
-                aria-expanded={accountMenuOpen}
+        <WorkspaceHeader
+          role="vendor"
+          className="dashboard-topbar"
+          activeSection={view || tab.toLowerCase()}
+          accountControls={
+            <>
+              <Link
+                className="notification-button"
+                href="/dashboard/messages"
+                aria-label="Open messages"
               >
-                {initials}
-              </button>
-              {accountMenuOpen && (
-                <div className="dashboard-account-menu">
-                  <div>
-                    <span>{initials}</span>
-                    <p>
-                      <strong>{profile.fullName}</strong>
-                      <small>{profile.email}</small>
-                    </p>
-                  </div>
-                  {publicVendorId && (
-                    <Link
-                      href={`/vendor/${publicVendorId}`}
-                      onClick={() => setAccountMenuOpen(false)}
+                <Bell size={19} />
+                <span />
+              </Link>
+              <div className="dashboard-account-wrap">
+                <button
+                  className="user-avatar"
+                  onClick={() => setAccountMenuOpen((open) => !open)}
+                  aria-label="Open account menu"
+                  aria-expanded={accountMenuOpen}
+                >
+                  {initials}
+                </button>
+                {accountMenuOpen && (
+                  <div className="dashboard-account-menu">
+                    <div>
+                      <span>{initials}</span>
+                      <p>
+                        <strong>{profile.fullName}</strong>
+                        <small>{profile.email}</small>
+                      </p>
+                    </div>
+                    {publicVendorId && (
+                      <Link
+                        href={`/vendor/${publicVendorId}`}
+                        onClick={() => setAccountMenuOpen(false)}
+                      >
+                        <UserRound size={16} /> Public profile
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => {
+                        setAccountMenuOpen(false);
+                        showToast("Business settings opened");
+                      }}
                     >
-                      <UserRound size={16} /> Public profile
-                    </Link>
-                  )}
-                  <button
-                    onClick={() => {
-                      setAccountMenuOpen(false);
-                      showToast("Business settings opened");
-                    }}
-                  >
-                    <Settings size={16} /> Settings
-                  </button>
-                  <button
-                    className="logout"
-                    onClick={() => signOut({ redirectUrl: "/" })}
-                  >
-                    <LogOut size={16} /> Log out
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
+                      <Settings size={16} /> Settings
+                    </button>
+                    <button
+                      className="logout"
+                      onClick={() => signOut({ redirectUrl: "/" })}
+                    >
+                      <LogOut size={16} /> Log out
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          }
+        />
 
         <div className="dashboard-content">
           {tab === "Overview" && (
@@ -531,73 +526,6 @@ export default function DashboardClient({
           {tab === "Reviews" && <Reviews showToast={showToast} />}
         </div>
       </section>
-
-      <button
-        className="floating-ai"
-        onClick={() => setAiOpen(true)}
-        aria-label="Open AI assistant"
-      >
-        <Sparkles size={20} />
-        <span>Smitten AI</span>
-      </button>
-      {aiOpen && (
-        <aside className="ai-panel">
-          <header>
-            <div>
-              <span>
-                <Bot size={19} />
-              </span>
-              <div>
-                <strong>Smitten AI</strong>
-                <small>Business co-pilot</small>
-              </div>
-            </div>
-            <button onClick={() => setAiOpen(false)}>
-              <X />
-            </button>
-          </header>
-          <div className="ai-thread">
-            {aiMessages.map((message, index) => (
-              <div
-                key={`${index}-${message.slice(0, 8)}`}
-                className={index % 2 ? "ai-user-message" : "ai-bot-message"}
-              >
-                {index % 2 === 0 && (
-                  <span>
-                    <Sparkles size={14} />
-                  </span>
-                )}
-                <p>{message}</p>
-              </div>
-            ))}
-          </div>
-          <div className="ai-suggestions">
-            <button
-              onClick={() => askAi("Draft a warm reply to my newest enquiry")}
-            >
-              Reply to an enquiry
-            </button>
-            <button
-              onClick={() => askAi("Suggest improvements to my latest quote")}
-            >
-              Improve a quote
-            </button>
-          </div>
-          <div className="ai-input">
-            <input
-              value={aiInput}
-              onChange={(event) => setAiInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") askAi();
-              }}
-              placeholder="Ask anything about your business…"
-            />
-            <button onClick={() => askAi()}>
-              <Send size={17} />
-            </button>
-          </div>
-        </aside>
-      )}
 
       {quoteOpen && (
         <div
@@ -920,35 +848,6 @@ function Overview({
             )}
           </div>
         </section>
-        <section className="dash-card profile-strength">
-          <div className="dash-card-title">
-            <div>
-              <h2>Profile strength</h2>
-              <p>Keep your storefront ready for couples</p>
-            </div>
-            <strong>82%</strong>
-          </div>
-          <div className="strength-bar">
-            <span />
-          </div>
-          <ul>
-            <li className="done">
-              <Check /> Business details
-            </li>
-            <li className="done">
-              <Check /> Portfolio uploaded
-            </li>
-            <li>
-              <Plus /> Add 2 more packages
-            </li>
-            <li>
-              <Plus /> Connect TikTok
-            </li>
-          </ul>
-          <button onClick={() => setTab("Portfolio")}>
-            Complete profile <ArrowRight size={15} />
-          </button>
-        </section>
       </div>
       <div className="overview-grid bottom-overview">
         <section className="dash-card">
@@ -994,19 +893,6 @@ function Overview({
               <strong>{quoteStats.accepted}</strong>
             </div>
           </div>
-        </section>
-        <section className="dash-card ai-insight-card">
-          <span>
-            <Sparkles />
-          </span>
-          <p>Smitten assistant</p>
-          <h3>
-            Open an enquiry before creating a quote so every proposal stays
-            linked to the right couple.
-          </h3>
-          <Link href="/dashboard/enquiries">
-            Open enquiries <ArrowRight size={15} />
-          </Link>
         </section>
       </div>
     </>

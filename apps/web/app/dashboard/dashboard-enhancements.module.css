@@ -1,6 +1,6 @@
 .accountMenu {
   position: fixed;
-  top: 62px;
+  top: 72px;
   right: 22px;
   z-index: 140;
   width: 290px;
@@ -65,7 +65,7 @@
 .utilityPanel {
   position:fixed;
   left:268px;
-  top:76px;
+  top:116px;
   right:0;
   bottom:0;
   z-index:55;
@@ -145,12 +145,12 @@
 .securityRow button { min-height:38px; display:flex; align-items:center; gap:7px; padding:0 13px; color:#a23f38; background:#fff; border:1px solid #e8cbc7; border-radius:9px; font-size:9px; font-weight:800; cursor:pointer; }
 
 @media (max-width:1050px) {
-  .utilityPanel { left:0; }
+  .utilityPanel { left:0; top:112px; }
   .insightStats { grid-template-columns:1fr 1fr; }
 }
 @media (max-width:760px) {
   .accountMenu { right:12px; top:58px; width:min(290px,calc(100vw - 24px)); }
-  .utilityPanel { top:76px; }
+  .utilityPanel { top:112px; }
   .utilityInner { padding:22px 4vw 60px; }
   .utilityHeader { padding:24px; border-radius:18px; }
   .utilityHeader h1 { font-size:34px; }

@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
-  ArrowLeft,
   Bell,
   Check,
   CheckCheck,
@@ -15,8 +13,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { NotificationView } from "@/lib/notifications";
-import { Brand } from "../components/Brand";
-import { SessionAccountNav } from "../components/SessionAccountNav";
+import { WorkspaceHeader } from "../components/WorkspaceHeader";
 
 function timeLabel(value: string) {
   const date = new Date(value);
@@ -42,8 +39,10 @@ function NotificationIcon({ type }: { type: string }) {
 
 export default function NotificationsClient({
   initialNotifications,
+  role,
 }: {
   initialNotifications: NotificationView[];
+  role: "couple" | "vendor" | "admin";
 }) {
   const router = useRouter();
   const [notifications, setNotifications] = useState(initialNotifications);
@@ -83,11 +82,7 @@ export default function NotificationsClient({
 
   return (
     <main className="notifications-page">
-      <header className="quote-detail-topbar">
-        <Brand />
-        <Link href="/"><ArrowLeft size={16} /> Smitten</Link>
-        <SessionAccountNav variant="compact" />
-      </header>
+      <WorkspaceHeader role={role} />
 
       <section className="notifications-shell">
         <header className="notifications-heading">

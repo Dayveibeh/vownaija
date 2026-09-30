@@ -4,8 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronRight, Heart, MapPin, Sparkles, Star, UsersRound, WalletCards, WandSparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { recommendCoupleVendors, serviceOptions, styleOptions, weddingLocations } from "../vendor-data";
-import { Brand } from "../../components/Brand";
-import { SessionAccountNav } from "../../components/SessionAccountNav";
+import { WorkspaceHeader } from "../../components/WorkspaceHeader";
 
 function budgetCeiling(budget: string) {
   if (budget === "Under ₦1m") return 999999;
@@ -116,11 +115,8 @@ export default function CoupleMatchPage() {
 
   return (
     <main className="match-shell">
-      <header className="match-header">
-        <Brand />
-        {step > 0 && step < 4 && <div className="match-progress"><span>Step {step} of 3</span><i><b style={{ width: `${(step / 3) * 100}%` }} /></i></div>}
-        <SessionAccountNav variant="compact" />
-      </header>
+      <WorkspaceHeader role="couple" activeSection="matches" />
+      {step > 0 && step < 4 && <div className="workspace-match-progress"><div className="match-progress"><span>Step {step} of 3</span><i><b style={{ width: `${(step / 3) * 100}%` }} /></i></div></div>}
 
       {step === 0 && <section className="match-welcome">
         <div className="match-spark"><WandSparkles size={38} /><i /><i /><i /></div>

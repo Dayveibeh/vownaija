@@ -13,6 +13,7 @@ import "./couple-mobile-contrast.css";
 import "./session-nav.css";
 import "./phase2.css";
 import "./editorial-workspaces.css";
+import "./workspace-usability.css";
 
 const geist = Geist({ variable: "--font-geist", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });

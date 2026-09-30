@@ -6,8 +6,8 @@ import { formatNaira } from "@smitten/shared";
 import type { BookingView, QuoteView } from "@/lib/quotes";
 import type { BookingPaymentSummary } from "@/lib/payments";
 import { useState } from "react";
-import { Brand } from "../../components/Brand";
-import { SessionAccountNav } from "../../components/SessionAccountNav";
+import { WorkspaceHeader } from "../../components/WorkspaceHeader";
+import { CounterpartyName } from "../../components/CounterpartyName";
 
 function dateLabel(value: string | null) {
   if (!value) return "Date to be confirmed";
@@ -254,17 +254,13 @@ export default function BookingDetailClient({
 
   return (
     <main className="booking-detail-page">
-      <header className="quote-detail-topbar">
-        <Brand />
-        <Link href={backHref}><ArrowLeft size={16} /> Back to bookings</Link>
-        <SessionAccountNav variant="compact" />
-      </header>
+      <WorkspaceHeader role={role} />
 
       <section className="booking-detail-shell">
-        <aside className="booking-summary-card">
+        <aside className="booking-summary-card"><Link className="workspace-back-link" href={backHref}><ArrowLeft size={16} /> Back to bookings</Link>
           <p className="eyebrow"><span /> Confirmed booking</p>
           <h1>{booking.serviceSummary}</h1>
-          <p>{counterparty}</p>
+          <CounterpartyName name={counterparty} role={role} />
 
           <div className="booking-status-panel">
             <CalendarCheck2 />

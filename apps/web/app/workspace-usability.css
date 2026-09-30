@@ -1,0 +1,451 @@
+/* Clear navigation and readable customer information across the workspace. */
+body .workspace-topbar {
+  --workspace-header-height: 116px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  min-height: 116px;
+  margin: 0;
+  padding: 0;
+  color: #352a2a;
+  border: 0;
+  border-bottom: 1px solid #dfd6cc;
+  background: #faf8f4;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+body .workspace-topbar-row {
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  padding: 12px clamp(16px, 3vw, 40px);
+}
+body .workspace-topbar-row .brand-logo-shell {
+  background: #3c202a;
+  border-color: #3c202a;
+}
+body .workspace-topbar-middle {
+  min-width: 0;
+}
+body .workspace-topbar-label {
+  color: #786662;
+  font-size: 14px;
+  font-weight: 500;
+}
+body .workspace-topbar-account {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: 12px;
+}
+body .workspace-topbar-account .couple-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+body .workspace-topbar-account .couple-top-actions > a {
+  font-size: 13px;
+}
+body .workspace-topbar-account .couple-account-trigger {
+  font-size: 12px;
+}
+body .workspace-search {
+  display: flex;
+  width: min(100%, 460px);
+  min-height: 42px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid #dfd6cc;
+  border-radius: 12px;
+  background: #f2ece4;
+}
+body .workspace-search svg {
+  width: 18px;
+  flex-shrink: 0;
+}
+body .workspace-search input {
+  width: 100%;
+  min-width: 0;
+  font-size: 14px;
+  border: 0;
+  background: transparent;
+}
+body .workspace-navigation {
+  padding: 0 clamp(16px, 3vw, 40px);
+}
+body .workspace-navigation-toggle,
+body .workspace-navigation-mobile-more {
+  display: none;
+}
+body .workspace-navigation-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 48px;
+}
+body .workspace-navigation-links a,
+body .workspace-navigation-more summary {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  color: #65514e;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.4;
+  text-decoration: none;
+  cursor: pointer;
+}
+body .workspace-navigation-links a:hover,
+body .workspace-navigation-more summary:hover {
+  background: #eee8df;
+}
+body .workspace-navigation-links a[aria-current="page"] {
+  color: #542633;
+  background: #f1e5e7;
+  font-weight: 700;
+}
+body .workspace-navigation-more {
+  position: relative;
+}
+body .workspace-navigation-more summary {
+  list-style: none;
+}
+body .workspace-navigation-more summary::-webkit-details-marker {
+  display: none;
+}
+body .workspace-navigation-more > div {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 110;
+  display: grid;
+  width: 210px;
+  gap: 3px;
+  padding: 8px;
+  border: 1px solid #dfd6cc;
+  border-radius: 14px;
+  background: #fffdf9;
+  box-shadow: 0 16px 40px #3c202a12;
+}
+body .workspace-topbar :focus-visible {
+  outline: 2px solid #713b49;
+  outline-offset: 3px;
+}
+body .workspace-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  color: #713b49;
+  font-size: 14px;
+  font-weight: 600;
+}
+body .workspace-match-progress {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* The person's name is a primary field, never a faint caption. */
+body .workspace-person-name {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  margin: 8px 0;
+}
+body .workspace-person-name > span {
+  color: #786662;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+body .workspace-person-name > strong {
+  color: #352a2a;
+  font-family: var(--font-geist), Arial, sans-serif;
+  font-size: 24px;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+body .commerce-card {
+  gap: 16px;
+  padding: 26px;
+}
+body .commerce-card h2 {
+  font-size: 24px;
+  line-height: 1.25;
+}
+body .commerce-card .workspace-person-name {
+  margin: 0;
+}
+body .commerce-card > header small,
+body .commerce-status {
+  font-size: 12px;
+}
+body .commerce-card > footer {
+  background: transparent;
+  padding: 12px 0 0;
+}
+body .phase2-conversation-card > footer {
+  background: transparent;
+}
+body .commerce-card > footer,
+body .commerce-booking-meta span {
+  color: #65514e;
+  font-size: 13px;
+  line-height: 1.5;
+}
+body .commerce-booking-meta span {
+  padding: 8px 10px;
+}
+body .commerce-amount {
+  font-size: 32px;
+  overflow-wrap: anywhere;
+}
+body .phase2-person strong {
+  font-size: 20px;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+body .phase2-person small {
+  font-size: 14px;
+  line-height: 1.5;
+}
+body .phase2-enquiry-meta span,
+body .phase2-conversation-card > footer {
+  font-size: 13px;
+}
+body .phase2-conversation-card > p {
+  font-size: 15px;
+  line-height: 1.65;
+}
+body .phase3-payment-copy > p {
+  font-size: 14px;
+  color: #65514e;
+}
+body .phase3-payment-copy > span {
+  font-size: 13px;
+}
+body .phase3-payment-copy .workspace-person-name > strong {
+  font-size: 22px;
+}
+body .phase2-list-heading > div:first-child > p:last-child {
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* The remaining dashboard cards have the full content width. */
+body .dashboard-shell .dash-page-heading::before,
+body .dashboard-shell .dash-page-heading::after {
+  display: none;
+}
+body .dashboard-shell .overview-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+body .dashboard-shell .dash-page-heading h1 {
+  font-size: clamp(34px, 3.2vw, 46px);
+}
+body .dashboard-shell .dash-page-heading > div > span {
+  font-size: 15px;
+}
+body .dashboard-shell .dashboard-sidebar nav :is(button, a),
+body .dashboard-shell .sidebar-bottom :is(button, a) {
+  font-size: 14px;
+  min-height: 46px;
+}
+body .dashboard-shell .vendor-switcher strong {
+  font-size: 14px;
+  line-height: 1.4;
+}
+body .dashboard-shell .vendor-switcher small {
+  font-size: 12px;
+}
+body .dashboard-shell .stat-grid p {
+  font-size: 14px;
+}
+body .dashboard-shell .stat-grid small {
+  font-size: 12px;
+  line-height: 1.5;
+}
+body .dashboard-shell .stat-grid strong {
+  font-size: 34px;
+}
+body .dashboard-shell .stat-grid article {
+  min-height: 150px;
+  padding: 22px;
+}
+body .dashboard-shell .dash-card-title h2 {
+  font-size: 26px;
+}
+body .dashboard-shell .dash-card-title p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+body .dashboard-shell .dash-card-title :is(a, button) {
+  min-height: 44px;
+  font-size: 14px;
+}
+body .dashboard-shell .live-enquiry-row {
+  min-height: 96px;
+  grid-template-columns: 48px minmax(0, 1fr) auto 50px 20px;
+  gap: 18px;
+  padding: 18px 24px;
+}
+body .dashboard-shell .live-enquiry-row > div strong {
+  color: #352a2a;
+  font-size: 20px;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+body .dashboard-shell .live-enquiry-row > div small,
+body .dashboard-shell .live-enquiry-row > small {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #786662;
+}
+body .dashboard-shell .live-enquiry-row > span:not(.lead-avatar) {
+  font-size: 14px;
+}
+body .dashboard-shell .dashboard-empty-row strong {
+  font-size: 18px;
+}
+body .dashboard-shell .dashboard-empty-row small {
+  font-size: 14px;
+  line-height: 1.5;
+}
+body .dashboard-shell .activity-bars :is(span, strong) {
+  font-size: 15px;
+}
+body .dashboard-shell .activity-bars > div {
+  min-height: 40px;
+}
+body .dashboard-shell .activity-bars {
+  padding: 22px 24px;
+}
+
+@media (max-width: 1050px) {
+  body .dashboard-sidebar,
+  body .couple-sidebar {
+    display: none;
+  }
+  body .workspace-navigation-toggle {
+    display: flex;
+    width: 100%;
+    min-height: 44px;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    color: #542633;
+    border: 0;
+    background: transparent;
+    font-size: 14px;
+    font-weight: 650;
+    cursor: pointer;
+  }
+  body .workspace-navigation-toggle > svg:last-child {
+    margin-left: auto;
+  }
+  body .workspace-navigation-links {
+    display: none;
+  }
+  body .workspace-navigation.is-open .workspace-navigation-links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 50dvh;
+    overflow-y: auto;
+    gap: 6px;
+    padding: 8px 0 16px;
+  }
+  body .workspace-navigation-mobile-more {
+    display: contents;
+  }
+  body .workspace-navigation-more {
+    display: none;
+  }
+  body .workspace-topbar {
+    min-height: 112px;
+  }
+}
+@media (max-width: 760px) {
+  body .workspace-topbar-row {
+    gap: 12px;
+  }
+  body .workspace-topbar-middle {
+    display: none;
+  }
+  body .workspace-topbar-account {
+    grid-column: 3;
+  }
+  body .workspace-topbar-account .session-account-copy,
+  body .workspace-topbar-account .couple-top-actions > a:first-child {
+    display: none;
+  }
+  body .workspace-person-name > strong {
+    font-size: 22px;
+  }
+  body .commerce-card {
+    padding: 20px;
+  }
+  body .dashboard-shell .dash-card-title {
+    align-items: flex-start;
+    gap: 14px;
+    padding: 18px;
+  }
+  body .dashboard-shell .dash-card-title h2 {
+    font-size: 24px;
+  }
+  body .dashboard-shell .dash-card-title p {
+    font-size: 13px;
+  }
+  body .dashboard-shell .live-enquiry-row {
+    grid-template-columns: 40px minmax(0, 1fr) 34px;
+    gap: 8px 12px;
+    padding: 18px;
+  }
+  body .dashboard-shell .live-enquiry-row > .lead-avatar {
+    grid-column: 1;
+    grid-row: 1 / 3;
+  }
+  body .dashboard-shell .live-enquiry-row > div {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  body .dashboard-shell .live-enquiry-row > div strong {
+    font-size: 18px;
+  }
+  body .dashboard-shell .live-enquiry-row > div small {
+    font-size: 13px;
+  }
+  body .dashboard-shell .live-enquiry-row > span:not(.lead-avatar) {
+    display: block;
+    grid-column: 2;
+    grid-row: 2;
+    font-size: 13px;
+    white-space: normal;
+  }
+  body .dashboard-shell .live-enquiry-row > small {
+    display: block;
+    grid-column: 3;
+    grid-row: 1;
+    font-size: 12px;
+  }
+  body .dashboard-shell .live-enquiry-row > svg {
+    grid-column: 3;
+    grid-row: 2;
+  }
+}

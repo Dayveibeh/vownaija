@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { WorkspaceHeader } from "../../components/WorkspaceHeader";
 import { useClerk } from "@clerk/nextjs";
 import {
   ArrowRight,
@@ -15,7 +17,6 @@ import {
   LogOut,
   Mail,
   MapPin,
-  Menu,
   MessageSquare,
   Search,
   Settings,
@@ -44,8 +45,14 @@ export default function CoupleDashboardClient({
   profile: { fullName: string; email: string };
 }) {
   const { signOut } = useClerk();
+  const view = useSearchParams().get("view");
   const [mobileNav, setMobileNav] = useState(false);
-  const [accountOpen, setAccountOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(view === "settings");
+
+  useEffect(() => {
+    setAccountOpen(view === "settings");
+    setMobileTab(view === "settings" ? "account" : "home");
+  }, [view]);
   const [mobileTab, setMobileTab] = useState<MobileTab>("home");
   const [saved, setSaved] = useState<string[]>([]);
   const [conversationCount, setConversationCount] = useState(0);
@@ -307,51 +314,47 @@ export default function CoupleDashboardClient({
       )}
 
       <section className="couple-dashboard-main">
-        <header className="couple-dashboard-top">
-          <button
-            className="couple-menu"
-            onClick={() => setMobileNav(true)}
-            aria-label="Open navigation"
-          >
-            <Menu />
-          </button>
-          <div className="couple-mobile-brand">
-            <Brand />
-          </div>
-          <label>
-            <Search />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && query.trim())
-                  window.location.href = `/?q=${encodeURIComponent(query.trim())}#featured`;
-              }}
-              placeholder="Search vendors, quotes or messages…"
-            />
-          </label>
-          <div className="couple-top-actions">
-            <Link href="/">Browse marketplace</Link>
-            <Link
-              className="couple-notification-button"
-              href="/couples/messages"
-              aria-label="Open messages"
-            >
-              <Bell />
-              {unreadMessages > 0 && <span />}
-            </Link>
-            <div className="couple-account-wrap">
-              <button
-                className="couple-account-trigger"
-                onClick={() => (accountOpen ? closeAccount() : openAccount())}
-                aria-expanded={accountOpen}
-                aria-label="Open account menu"
+        <WorkspaceHeader
+          role="couple"
+          className="couple-dashboard-top"
+          search={
+            <label className="workspace-search">
+              <Search />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && query.trim())
+                    window.location.href = `/?q=${encodeURIComponent(query.trim())}#featured`;
+                }}
+                placeholder="Search vendors, quotes or messages…"
+              />
+            </label>
+          }
+          accountControls={
+            <div className="couple-top-actions">
+              <Link href="/">Browse marketplace</Link>
+              <Link
+                className="couple-notification-button"
+                href="/couples/messages"
+                aria-label="Open messages"
               >
-                {initials}
-              </button>
+                <Bell />
+                {unreadMessages > 0 && <span />}
+              </Link>
+              <div className="couple-account-wrap">
+                <button
+                  className="couple-account-trigger"
+                  onClick={() => (accountOpen ? closeAccount() : openAccount())}
+                  aria-expanded={accountOpen}
+                  aria-label="Open account menu"
+                >
+                  {initials}
+                </button>
+              </div>
             </div>
-          </div>
-        </header>
+          }
+        />
 
         <div className="couple-dashboard-content" id="couple-overview">
           <div className="couple-dash-heading">

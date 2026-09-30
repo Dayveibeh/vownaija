@@ -5,8 +5,8 @@ import { ArrowLeft, CalendarDays, Check, Clock3, Download, FileText, MapPin, Mes
 import { formatNaira } from "@smitten/shared";
 import { useState } from "react";
 import type { QuoteView } from "@/lib/quotes";
-import { Brand } from "../../components/Brand";
-import { SessionAccountNav } from "../../components/SessionAccountNav";
+import { WorkspaceHeader } from "../../components/WorkspaceHeader";
+import { CounterpartyName } from "../../components/CounterpartyName";
 
 function dateLabel(value: string | null) {
   if (!value) return "Not specified";
@@ -47,17 +47,13 @@ export default function QuoteDetailClient({
 
   return (
     <main className="quote-detail-page">
-      <header className="quote-detail-topbar">
-        <Brand />
-        <Link href={backHref}><ArrowLeft size={16} /> Back to quotes</Link>
-        <SessionAccountNav variant="compact" />
-      </header>
+      <WorkspaceHeader role={role} />
 
       <section className="quote-detail-shell">
-        <aside className="quote-detail-meta">
+        <aside className="quote-detail-meta"><Link className="workspace-back-link" href={backHref}><ArrowLeft size={16} /> Back to quotes</Link>
           <p className="eyebrow"><span /> Quote details</p>
           <h1>{quote.title}</h1>
-          <p>{isCustomer ? quote.vendorName : quote.customerName}</p>
+          <CounterpartyName name={isCustomer ? quote.vendorName : quote.customerName} role={role} />
 
           <div className="quote-detail-meta-card">
             <span><FileText size={16} /><small>Quote</small><strong>#{quote.id.slice(0, 8).toUpperCase()}</strong></span>
