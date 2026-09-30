@@ -449,3 +449,13 @@ body .dashboard-shell .activity-bars {
     grid-row: 2;
   }
 }
+
+/* Customer workspace navigation lives in the shared top bar. */
+body .couple-dashboard-shell {
+  grid-template-columns: minmax(0, 1fr);
+}
+body .couple-dashboard-content {
+  width: 100%;
+  max-width: 1480px;
+  margin-inline: auto;
+}

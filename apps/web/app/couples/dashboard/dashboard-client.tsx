@@ -7,8 +7,6 @@ import { useClerk } from "@clerk/nextjs";
 import {
   ArrowRight,
   Bell,
-  CalendarCheck2,
-  CalendarDays,
   ChevronRight,
   CircleDollarSign,
   FileText,
@@ -17,14 +15,11 @@ import {
   LogOut,
   Mail,
   MapPin,
-  MessageSquare,
   Search,
   Settings,
   Sparkles,
   Star,
   UserRound,
-  UsersRound,
-  WalletCards,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -34,7 +29,6 @@ import {
   type CoupleVendor,
   type MarketplaceVendorListResponse,
 } from "@smitten/shared";
-import { Brand } from "../../components/Brand";
 
 type MobileTab = "home" | "matches" | "saved" | "account";
 type DashboardVendor = CoupleVendor & { acceptingEnquiries: boolean };
@@ -46,7 +40,6 @@ export default function CoupleDashboardClient({
 }) {
   const { signOut } = useClerk();
   const view = useSearchParams().get("view");
-  const [mobileNav, setMobileNav] = useState(false);
   const [accountOpen, setAccountOpen] = useState(view === "settings");
 
   useEffect(() => {
@@ -200,12 +193,10 @@ export default function CoupleDashboardClient({
 
   function showNotice(message: string) {
     setNotice(message);
-    setMobileNav(false);
   }
 
   function goTo(id: string, message?: string, tab?: MobileTab) {
     setAccountOpen(false);
-    setMobileNav(false);
     if (tab) setMobileTab(tab);
     window.requestAnimationFrame(() =>
       document
@@ -216,7 +207,6 @@ export default function CoupleDashboardClient({
   }
 
   function openAccount() {
-    setMobileNav(false);
     setMobileTab("account");
     setAccountOpen(true);
   }
@@ -228,91 +218,6 @@ export default function CoupleDashboardClient({
 
   return (
     <main className="couple-dashboard-shell">
-      <aside className={mobileNav ? "couple-sidebar open" : "couple-sidebar"}>
-        <div className="couple-sidebar-brand">
-          <Brand />
-          <button onClick={() => setMobileNav(false)}>
-            <X />
-          </button>
-        </div>
-        <div className="wedding-countdown">
-          <span>
-            <CalendarDays />
-          </span>
-          <p>
-            <strong>{firstName}’s wedding</strong>
-            <small>Your planning workspace</small>
-          </p>
-          <b>A little closer to your day</b>
-        </div>
-        <nav>
-          <small>My wedding</small>
-          <button
-            className="active"
-            onClick={() => goTo("couple-overview", "Overview opened", "home")}
-          >
-            <LayoutDashboard /> Overview
-          </button>
-          <Link href="/couples/match" onClick={() => setMobileTab("matches")}>
-            <Sparkles /> AI matches <span>New</span>
-          </Link>
-          <button
-            onClick={() =>
-              goTo("couple-shortlist", "Saved vendors opened", "saved")
-            }
-          >
-            <Heart /> Saved vendors <b>{saved.length}</b>
-          </button>
-          <Link href="/couples/quotes">
-            <FileText /> Quotes {quoteCount > 0 && <b>{quoteCount}</b>}
-          </Link>
-          <Link href="/couples/bookings">
-            <CalendarCheck2 /> Bookings{" "}
-            {bookingCount > 0 && <b>{bookingCount}</b>}
-          </Link>
-          <Link href="/couples/payments">
-            <WalletCards /> Payments
-          </Link>
-          <Link href="/couples/messages">
-            <MessageSquare /> Messages{" "}
-            {unreadMessages > 0 && <b>{unreadMessages}</b>}
-          </Link>
-          <small>Planning</small>
-          <button onClick={() => goTo("couple-budget", "Budget opened")}>
-            <WalletCards /> Budget
-          </button>
-          <button
-            onClick={() => goTo("couple-planning", "Guest planning opened")}
-          >
-            <UsersRound /> Guest list
-          </button>
-          <button onClick={openAccount}>
-            <Settings /> Wedding settings
-          </button>
-        </nav>
-        <div className="couple-sidebar-bottom">
-          <span>{initials}</span>
-          <p>
-            <strong>{profile.fullName}</strong>
-            <small>{profile.email}</small>
-          </p>
-          <button
-            onClick={() => signOut({ redirectUrl: "/" })}
-            aria-label="Sign out"
-            title="Sign out"
-          >
-            <LogOut size={17} />
-          </button>
-        </div>
-      </aside>
-      {mobileNav && (
-        <button
-          className="couple-sidebar-scrim"
-          aria-label="Close navigation"
-          onClick={() => setMobileNav(false)}
-        />
-      )}
-
       <section className="couple-dashboard-main">
         <WorkspaceHeader
           role="couple"
@@ -373,29 +278,6 @@ export default function CoupleDashboardClient({
               Find vendors <Search size={16} />
             </Link>
           </div>
-
-          <section className="couple-ai-banner">
-            <div className="couple-ai-icon">
-              <Sparkles />
-            </div>
-            <div>
-              <p>Smitten AI recommendations</p>
-              <h2>Find the people who get your vision</h2>
-              <span>
-                Share your style, location and budget for a shortlist built
-                around you.
-              </span>
-            </div>
-            <Link href="/couples/match" onClick={() => setMobileTab("matches")}>
-              Find my matches <ArrowRight />
-            </Link>
-            <div className="mini-matches">
-              <span>AE</span>
-              <span>LL</span>
-              <span>DC</span>
-              <span>+1</span>
-            </div>
-          </section>
 
           <div className="couple-stat-grid">
             <article>
@@ -586,49 +468,6 @@ export default function CoupleDashboardClient({
               </section>
             </aside>
           </div>
-
-          <section
-            className="couple-dash-card activity-card"
-            id="couple-activity"
-          >
-            <div className="couple-card-heading">
-              <div>
-                <h2>What vendor updates look like</h2>
-                <p>Example activity · Your real messages are in your inbox</p>
-              </div>
-              <Link href="/couples/messages">View messages</Link>
-            </div>
-            <div>
-              <span className="activity-avatar coral">AE</span>
-              <p>
-                <strong>Aurora Events sent you a quote</strong>
-                <small>Full Celebration Package · ₦850,000</small>
-              </p>
-              <time>12 mins ago</time>
-              <Link
-                href="/vendor/aurora-events-ng"
-                aria-label="View Aurora Events activity"
-              >
-                <ChevronRight />
-              </Link>
-            </div>
-            <div>
-              <span className="activity-avatar green">LL</span>
-              <p>
-                <strong>Lagos Lens Co. replied to your enquiry</strong>
-                <small>
-                  “Your date is available — we’d love to hear more…”
-                </small>
-              </p>
-              <time>1 hour ago</time>
-              <Link
-                href="/couples/sign-up?vendor=Lagos%20Lens%20Co."
-                aria-label="View Lagos Lens message"
-              >
-                <ChevronRight />
-              </Link>
-            </div>
-          </section>
         </div>
       </section>
 
