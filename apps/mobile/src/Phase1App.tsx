@@ -5,6 +5,7 @@ import { ClerkProvider } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { coupleVendors } from "@smitten/shared";
 import App from "../App";
+import { colors, fonts } from "./theme";
 import { loadMarketplaceVendors } from "./api/marketplace";
 
 declare const process: {
@@ -21,8 +22,13 @@ export default function Phase1App() {
       <View style={styles.loading}>
         <StatusBar style="dark" />
         <Text style={styles.brand}>Smitten</Text>
-        <Text style={styles.loadingText}>Mobile sign-in is not configured yet.</Text>
-        <Text style={styles.helperText}>Add EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY using the same Clerk project as the Smitten website.</Text>
+        <Text style={styles.loadingText}>
+          Mobile sign-in is not configured yet.
+        </Text>
+        <Text style={styles.helperText}>
+          Add EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY using the same Clerk project as
+          the Smitten website.
+        </Text>
       </View>
     );
   }
@@ -81,16 +87,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 12,
     paddingHorizontal: 32,
-    backgroundColor: "#F8F4EF",
+    backgroundColor: colors.cream,
   },
   brand: {
     fontSize: 34,
+    fontFamily: fonts.editorial,
     fontWeight: "700",
-    color: "#181516",
+    color: colors.plum,
   },
   loadingText: {
     fontSize: 14,
-    color: "#6F6460",
+    color: colors.muted,
     textAlign: "center",
   },
   helperText: {

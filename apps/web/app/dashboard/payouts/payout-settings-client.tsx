@@ -1,11 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft, Building2, CheckCircle2, Landmark, LockKeyhole, ShieldCheck, Trash2 } from "lucide-react";
+import { Building2, CheckCircle2, Landmark, LockKeyhole, ShieldCheck, Trash2 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import type { PaystackBank, VendorPayoutProfileView } from "@/lib/payments";
-import { Brand } from "../../components/Brand";
-import { SessionAccountNav } from "../../components/SessionAccountNav";
+import { WorkspaceHeader } from "../../components/WorkspaceHeader";
 
 export default function PayoutSettingsClient({
   initialProfile,
@@ -106,11 +104,7 @@ export default function PayoutSettingsClient({
 
   return (
     <main className="phase3-payout-page">
-      <header className="quote-detail-topbar">
-        <Brand />
-        <Link href="/dashboard"><ArrowLeft size={16} /> Vendor dashboard</Link>
-        <SessionAccountNav variant="compact" />
-      </header>
+      <WorkspaceHeader role={"vendor"} />
 
       <section className="phase3-payout-shell">
         <aside className="phase3-payout-intro">

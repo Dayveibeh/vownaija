@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, Clock3, CreditCard, MapPin, ShieldCheck } from "lucide-react";
+import { ArrowRight, CalendarDays, CheckCircle2, Clock3, CreditCard, MapPin, ShieldCheck } from "lucide-react";
 import { formatNaira } from "@smitten/shared";
 import type { AccountPaymentView } from "@/lib/payments";
-import { Brand } from "./Brand";
-import { SessionAccountNav } from "./SessionAccountNav";
+import { CounterpartyName } from "./CounterpartyName";
+import { WorkspaceHeader } from "./WorkspaceHeader";
 
 function dateLabel(value: string | null) {
   if (!value) return "Date to be confirmed";
@@ -18,16 +18,11 @@ export function PaymentList({
   role: "couple" | "vendor" | "admin";
 }) {
   const isVendor = role !== "couple";
-  const backHref = isVendor ? "/dashboard" : "/couples/dashboard";
   const paidTotal = payments.filter((item) => item.status === "paid").reduce((sum, item) => sum + item.amount, 0);
 
   return (
     <main className="phase3-payments-page">
-      <header className="phase2-list-topbar">
-        <Brand />
-        <Link href={backHref}><ArrowLeft size={16} /> Dashboard</Link>
-        <SessionAccountNav variant="compact" />
-      </header>
+      <WorkspaceHeader role={role} />
 
       <section className="phase2-list-wrap">
         <div className="phase2-list-heading">
@@ -52,7 +47,7 @@ export function PaymentList({
             <div className="phase3-payment-icon">{payment.status === "paid" ? <CheckCircle2 /> : <CreditCard />}</div>
             <div className="phase3-payment-copy">
               <div><strong>{payment.serviceSummary}</strong><b className={payment.status}>{payment.status}</b></div>
-              <p>{isVendor ? payment.customerName : payment.vendorName} · {payment.purpose === "deposit" ? "Deposit" : payment.purpose === "balance" ? "Balance" : "Full payment"}</p>
+              <CounterpartyName name={isVendor ? payment.customerName : payment.vendorName} role={role} /><p>{payment.purpose === "deposit" ? "Deposit" : payment.purpose === "balance" ? "Balance" : "Full payment"}</p>
               <span><MapPin size={13} /> {payment.weddingLocation}</span>
               <span><CalendarDays size={13} /> {dateLabel(payment.weddingDate)}</span>
             </div>

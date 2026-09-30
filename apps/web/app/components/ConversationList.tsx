@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, CalendarDays, Mail, MapPin, MessageSquare } from "lucide-react";
+import { ArrowRight, CalendarDays, Mail, MapPin, MessageSquare } from "lucide-react";
 import type { ConversationSummary } from "@/lib/messaging";
-import { Brand } from "./Brand";
-import { SessionAccountNav } from "./SessionAccountNav";
+import { WorkspaceHeader } from "./WorkspaceHeader";
 
 function relativeTime(value: string) {
   const diff = Date.now() - new Date(value).getTime();
@@ -25,7 +24,6 @@ export function ConversationList({
   mode?: "messages" | "enquiries";
 }) {
   const isVendor = role !== "couple";
-  const backHref = isVendor ? "/dashboard" : "/couples/dashboard";
   const title = mode === "enquiries" ? "Enquiries" : "Messages";
   const intro = mode === "enquiries"
     ? "Real couples who have asked about your services. Open an enquiry to reply and keep the conversation moving."
@@ -33,7 +31,7 @@ export function ConversationList({
 
   return (
     <main className="phase2-list-page">
-      <header className="phase2-list-topbar"><Brand /><Link href={backHref}><ArrowLeft size={16} /> Dashboard</Link><SessionAccountNav variant="compact" /></header>
+      <WorkspaceHeader role={role} />
       <section className="phase2-list-wrap">
         <div className="phase2-list-heading"><div><p className="eyebrow"><span /> {isVendor ? "Vendor workspace" : "My wedding"}</p><h1>{title}</h1><p>{intro}</p></div><div className="phase2-list-count"><MessageSquare /><strong>{conversations.length}</strong><span>{conversations.length === 1 ? "conversation" : "conversations"}</span></div></div>
 

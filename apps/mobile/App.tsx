@@ -30,7 +30,8 @@ const appFont = fonts.regular;
 const mediumFont = fonts.medium;
 const headingFont = fonts.semibold;
 const boldFont = fonts.bold;
-const heroImage = "https://static.wixstatic.com/media/fdf893_120788a0b4fa499fb373d950cc86501e~mv2.jpg/v1/fill/w_980%2Ch_980%2Cal_c%2Cq_85%2Cusm_0.66_1.00_0.01%2Cenc_avif%2Cquality_auto/fdf893_120788a0b4fa499fb373d950cc86501e~mv2.jpg";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const heroImage = require("./assets/editorial-couple.jpg");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const smittenWordmark = require("./assets/smitten-wordmark.png");
 
@@ -242,7 +243,6 @@ function SmittenApp() {
 
 function HomeScreen({ darkMode, unreadNotifications, saved, matches, location, query, category, onQuery, onCategory, onSave, onView, openNotifications, openLocation, openMatch, openAuth, openDiscover }: { darkMode: boolean; unreadNotifications: number; saved: string[]; matches: (CoupleVendor & { score: number })[] | null; location: string; query: string; category: string; onQuery: (value: string) => void; onCategory: (value: string) => void; onSave: (name: string) => void; onView: (vendor: CoupleVendor) => void; openNotifications: () => void; openLocation: () => void; openMatch: () => void; openAuth: () => void; openDiscover: () => void }) {
   const [searchFocused, setSearchFocused] = useState(false);
-  const scrollY = useRef(new Animated.Value(0)).current;
   const heroReveal = useRef(new Animated.Value(0)).current;
   const controlsReveal = useRef(new Animated.Value(0)).current;
   const contentReveal = useRef(new Animated.Value(0)).current;
@@ -258,16 +258,10 @@ function HomeScreen({ darkMode, unreadNotifications, saved, matches, location, q
     Animated.stagger(90, [reveal(heroReveal), reveal(controlsReveal), reveal(contentReveal)]).start();
   }, [contentReveal, controlsReveal, heroReveal]);
 
-  const heroImageMotion = {
-    transform: [
-      { translateY: scrollY.interpolate({ inputRange: [-120, 0, 320], outputRange: [-24, 0, 88], extrapolate: "clamp" }) },
-      { scale: scrollY.interpolate({ inputRange: [-120, 0], outputRange: [1.12, 1], extrapolate: "clamp" }) },
-    ],
-  };
 
   return (
     <SafeAreaView style={[styles.safeScreen, darkMode && styles.darkScreen]} edges={["top"]}>
-      <Animated.ScrollView style={[styles.scroll, darkMode && styles.darkScreen]} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never" onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })} scrollEventThrottle={16}>
+      <Animated.ScrollView style={[styles.scroll, darkMode && styles.darkScreen]} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never">
         <View style={styles.header}>
           <View style={styles.homeIdentity}>
             <Brand />
@@ -286,17 +280,59 @@ function HomeScreen({ darkMode, unreadNotifications, saved, matches, location, q
           </View>
         </View>
       <Animated.View style={{ opacity: heroReveal, transform: [{ translateY: heroReveal.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }] }}>
-      <MotionPressable onPress={openMatch} accessibilityRole="button" accessibilityLabel="Start your Smitten match" containerStyle={styles.matchHero} style={styles.motionCardContent} pressedScale={0.99}>
-        <Animated.Image source={{ uri: heroImage }} style={[styles.matchHeroImage, heroImageMotion]} resizeMode="cover" alt="Nigerian couple celebrating their wedding" />
-        <LinearGradient colors={["rgba(23,20,18,0.03)", "rgba(23,20,18,0.28)", "rgba(23,20,18,0.9)"]} locations={[0.15, 0.5, 1]} style={styles.matchHeroGradient} />
-        <View style={styles.matchHeroCopy}>
-          <View style={styles.matchHeroBottom}>
-            <Text style={styles.heroTitle}>Your dream team, beautifully matched.</Text>
-            <Text style={styles.heroText}>Tell us the mood, place and budget. We’ll find vendors who fit.</Text>
-            <View style={styles.heroAction}><AppSymbol name="sparkles" fallback="sparkles-outline" size={14} color={colors.white} weight="medium" /><Text style={styles.heroActionText}>Start matching</Text></View>
-          </View>
-        </View>
-      </MotionPressable>
+          <MotionPressable
+            onPress={openMatch}
+            accessibilityRole="button"
+            accessibilityLabel="Start your Smitten match"
+            containerStyle={[
+              styles.matchHero,
+              darkMode && styles.matchHeroDark,
+            ]}
+            style={styles.editorialHeroContent}
+            pressedScale={0.99}
+          >
+            <View style={styles.matchHeroCopy}>
+              <Text style={[styles.heroKicker, darkMode && styles.kickerDark]}>◆ MADE FOR YOUR DAY</Text>
+              <Text
+                style={[styles.heroTitle, darkMode && styles.pageTitleDark]}
+              >
+                Your dream team,{"\n"}
+                <Text style={[styles.heroEmphasis, darkMode && styles.kickerDark]}>beautifully matched.</Text>
+              </Text>
+              <Text
+                style={[styles.heroText, darkMode && styles.pageSubtitleDark]}
+              >
+                Tell us the mood, place and budget. We’ll find vendors who fit.
+              </Text>
+              <View style={styles.heroAction}>
+                <AppSymbol
+                  name="sparkles"
+                  fallback="sparkles-outline"
+                  size={16}
+                  color={colors.white}
+                  weight="medium"
+                />
+                <Text style={styles.heroActionText}>Start matching</Text>
+                <AppSymbol
+                  name="arrow.right"
+                  fallback="arrow-forward"
+                  size={16}
+                  color={colors.white}
+                />
+              </View>
+            </View>
+            <Image
+              source={heroImage}
+              style={styles.matchHeroImage}
+              resizeMode="cover"
+              alt="Nigerian couple celebrating their wedding"
+            />
+            <Text
+              style={[styles.heroCaption, darkMode && styles.pageSubtitleDark]}
+            >
+              For your day, and everything that makes it yours.
+            </Text>
+          </MotionPressable>
       </Animated.View>
       <Animated.View style={{ opacity: controlsReveal, transform: [{ translateY: controlsReveal.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
       <BlurView intensity={88} tint="light" style={[styles.searchBar, searchFocused && styles.inputFocused]}>
@@ -715,7 +751,7 @@ function SettingsToggle({ symbol, fallback, title, subtitle, value, darkMode, di
     <View style={[styles.settingsAction, disabled && styles.settingsActionDisabled]}>
       <View style={[styles.settingsIcon, darkMode && styles.settingsIconDark]}><AppSymbol name={symbol} fallback={fallback} size={20} color={darkMode ? colors.white : colors.plum} type="monochrome" weight="regular" /></View>
       <View style={styles.settingsCopy}><Text style={[styles.settingsTitle, darkMode && styles.modalTitleDark]}>{title}</Text><Text style={[styles.settingsSubtitle, darkMode && styles.modalBodyDark]}>{subtitle}</Text></View>
-      <Switch value={value} onValueChange={onChange} disabled={disabled} accessibilityLabel={title} trackColor={{ false: darkMode ? "#454842" : "#D7DCCF", true: "#7F8969" }} thumbColor={colors.white} ios_backgroundColor={darkMode ? "#454842" : "#D7DCCF"} />
+      <Switch value={value} onValueChange={onChange} disabled={disabled} accessibilityLabel={title} trackColor={{ false: darkMode ? "#454842" : "#D7DCCF", true: colors.coral }} thumbColor={colors.white} ios_backgroundColor={darkMode ? "#454842" : "#D7DCCF"} />
     </View>
   );
 }
@@ -757,7 +793,7 @@ function ProfileMetric({ tone, label, value }: { tone: "mint" | "blue" | "peach"
 
 function Brand() { return <View style={styles.brand}><View style={styles.brandLogoShell}><Image source={smittenWordmark} style={styles.brandLogo} resizeMode="contain" accessibilityLabel="Smitten" alt="Smitten" /></View></View>; }
 function PageHeader({ title, subtitle, darkMode = false }: { title: string; subtitle: string; darkMode?: boolean }) { return <View style={styles.pageHeader}><Text style={[styles.pageTitle, darkMode && styles.pageTitleDark]}>{title}</Text><Text style={[styles.pageSubtitle, darkMode && styles.pageSubtitleDark]}>{subtitle}</Text></View>; }
-function SectionTitle({ kicker, title, compact = false, darkMode = false }: { kicker: string; title: string; compact?: boolean; darkMode?: boolean }) { return <View style={[styles.sectionHeading, compact && styles.sectionHeadingCompact]}><Text style={styles.sectionKicker}>{kicker}</Text><Text style={[styles.sectionTitle, compact && styles.sectionTitleCompact, darkMode && styles.sectionTitleDark]}>{title}</Text></View>; }
+function SectionTitle({ kicker, title, compact = false, darkMode = false }: { kicker: string; title: string; compact?: boolean; darkMode?: boolean }) { return <View style={[styles.sectionHeading, compact && styles.sectionHeadingCompact]}><Text style={[styles.sectionKicker, darkMode && styles.kickerDark]}>◆ {kicker}</Text><Text style={[styles.sectionTitle, compact && styles.sectionTitleCompact, darkMode && styles.sectionTitleDark]}>{title}</Text></View>; }
 function TrustItem({ symbol, fallback, text }: SymbolPair & { text: string }) { return <View style={styles.trustItem}><AppSymbol name={symbol} fallback={fallback} size={18} color={colors.coral} type="monochrome" weight="regular" /><Text style={styles.trustText}>{text}</Text></View>; }
 function ChecklistItem({ label, checked = false, onPress }: { label: string; checked?: boolean; onPress: () => void }) { return <Pressable onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked }} style={styles.checkRow}><View style={[styles.checkCircle, checked && styles.checkCircleDone]}>{checked ? <AppSymbol name="checkmark" fallback="checkmark" size={12} color={colors.white} weight="bold" /> : null}</View><Text style={[styles.checkLabel, checked && styles.checkLabelDone]}>{label}</Text><AppSymbol name="chevron.right" fallback="chevron-forward" size={13} color={colors.muted} weight="semibold" /></Pressable>; }
 function ProfileLink({ symbol, fallback, text, onPress }: SymbolPair & { text: string; onPress: () => void }) { return <Pressable onPress={onPress} accessibilityRole="button" style={styles.profileLink}><View style={styles.profileLinkIcon}><AppSymbol name={symbol} fallback={fallback} size={20} color={colors.plum} type="monochrome" weight="regular" /></View><Text style={styles.profileLinkText}>{text}</Text><AppSymbol name="chevron.right" fallback="chevron-forward" size={13} color={colors.muted} weight="regular" /></Pressable>; }
@@ -820,30 +856,103 @@ const styles = StyleSheet.create({
   brandLogo: { width: "100%", height: "100%" },
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
   darkIconButton: { backgroundColor: "rgba(36,32,30,0.9)", borderColor: "rgba(255,255,255,0.08)" },
-  notificationBadge: { minWidth: 16, height: 16, paddingHorizontal: 3, position: "absolute", right: -3, top: -3, borderRadius: 8, backgroundColor: "#E86F68", alignItems: "center", justifyContent: "center" },
+  notificationBadge: { minWidth: 16, height: 16, paddingHorizontal: 3, position: "absolute", right: -3, top: -3, borderRadius: 8, backgroundColor: colors.coral, alignItems: "center", justifyContent: "center" },
   notificationBadgeText: { color: colors.white, fontFamily: boldFont, fontWeight: "700", fontSize: 8, lineHeight: 11 },
-  matchHero: { height: 388, marginHorizontal: 16, overflow: "hidden", position: "relative", borderRadius: 24, backgroundColor: colors.plumDark, ...cardShadow },
+  matchHero: { marginHorizontal: 20, backgroundColor: colors.cream },
+  editorialHeroContent: { width: "100%" },
+  kickerDark: { color: "#D9B5C0" },
+  matchHeroDark: { backgroundColor: "#1B1816" },
   motionCardContent: { flex: 1 },
-  matchHeroImage: { position: "absolute", width: "100%", height: "100%" },
-  matchHeroGradient: { position: "absolute", inset: 0 },
-  matchHeroCopy: { flex: 1, zIndex: 2, padding: 24, justifyContent: "flex-end" },
-  matchHeroBottom: { maxWidth: 320 },
-  heroTitle: { maxWidth: 320, color: colors.white, fontFamily: headingFont, fontWeight: "600", fontSize: 36, lineHeight: 40, letterSpacing: -1.05 },
-  heroText: { maxWidth: 290, color: "rgba(255,255,255,0.8)", fontFamily: appFont, fontWeight: "400", fontSize: 13, lineHeight: 20, marginTop: 10 },
-  heroAction: { minHeight: 34, alignSelf: "flex-start", marginTop: 18, paddingHorizontal: 12, borderRadius: 11, backgroundColor: "rgba(255,255,255,0.15)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)", flexDirection: "row", alignItems: "center", gap: 7 },
-  heroActionText: { color: colors.white, fontFamily: mediumFont, fontWeight: "500", fontSize: 11 },
-  searchBar: { minHeight: 62, marginHorizontal: 20, marginTop: -25, zIndex: 3, paddingLeft: 18, paddingRight: 8, overflow: "hidden", borderRadius: 18, borderWidth: 1, borderColor: "rgba(18,19,16,0.07)", backgroundColor: "rgba(254,254,252,0.93)", flexDirection: "row", alignItems: "center", gap: 10, shadowColor: colors.ink, shadowOpacity: 0.09, shadowRadius: 20, shadowOffset: { width: 0, height: 9 }, elevation: 7 },
+  matchHeroCopy: { paddingTop: 18, paddingBottom: 24 },
+  heroKicker: {
+    color: colors.coral,
+    fontFamily: headingFont,
+    fontWeight: "600",
+    fontSize: 10,
+    letterSpacing: 1.2,
+    marginBottom: 13,
+  },
+  heroTitle: {
+    color: colors.ink,
+    fontFamily: headingFont,
+    fontWeight: "500",
+    fontSize: 36,
+    lineHeight: 42,
+    letterSpacing: -1.2,
+  },
+  heroEmphasis: {
+    color: colors.coral,
+    fontFamily: fonts.editorial,
+    fontWeight: "400",
+    fontStyle: "italic",
+  },
+  heroText: {
+    maxWidth: 330,
+    color: colors.muted,
+    fontFamily: appFont,
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: 14,
+  },
+  heroAction: {
+    minHeight: 48,
+    alignSelf: "flex-start",
+    marginTop: 20,
+    paddingHorizontal: 20,
+    borderRadius: 24,
+    backgroundColor: colors.coral,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+  },
+  heroActionText: {
+    color: colors.white,
+    fontFamily: mediumFont,
+    fontWeight: "600",
+    fontSize: 13,
+  },
+  matchHeroImage: {
+    width: "100%",
+    height: 290,
+    borderTopLeftRadius: 170,
+    borderTopRightRadius: 170,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+  },
+  heroCaption: {
+    color: colors.muted,
+    fontFamily: appFont,
+    fontSize: 11,
+    lineHeight: 17,
+    marginTop: 12,
+    textAlign: "center",
+  },
+  searchBar: {
+    minHeight: 62,
+    marginHorizontal: 20,
+    marginTop: 24,
+    paddingLeft: 18,
+    paddingRight: 8,
+    overflow: "hidden",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   searchInput: { flex: 1, color: colors.ink, fontFamily: appFont, fontWeight: "400", fontSize: 13, paddingVertical: 12 },
   searchFilter: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.input, alignItems: "center", justifyContent: "center" },
-  inputFocused: { borderWidth: 1, borderColor: colors.green, backgroundColor: colors.white },
+  inputFocused: { borderWidth: 1, borderColor: colors.coral, backgroundColor: colors.white },
   sectionHeading: { marginHorizontal: 20, marginTop: 29, marginBottom: 16 },
   sectionHeadingCompact: { marginBottom: 0 },
-  sectionKicker: { color: colors.green, fontFamily: headingFont, fontWeight: "600", fontSize: 9, letterSpacing: 1.25 },
+  sectionKicker: { color: colors.coral, fontFamily: headingFont, fontWeight: "600", fontSize: 9, letterSpacing: 1.25 },
   sectionTitle: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 30, lineHeight: 36, letterSpacing: -0.72, marginTop: 5 },
   sectionTitleCompact: { fontSize: 28, lineHeight: 34 },
   categoryScroll: { paddingHorizontal: 20, paddingTop: 17, paddingBottom: 8, gap: 8 },
   categoryCard: { minHeight: 44, overflow: "hidden", borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
-  categoryCardActive: { backgroundColor: colors.mint, borderColor: "rgba(109,118,89,0.32)" },
+  categoryCardActive: { backgroundColor: colors.blush, borderColor: colors.coral },
   categoryPillContent: { flex: 1, paddingHorizontal: 14, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 8 },
   categoryText: { color: colors.ink, fontFamily: mediumFont, fontWeight: "500", fontSize: 11, lineHeight: 14 },
   categoryTextActive: { color: colors.ink, fontFamily: headingFont, fontWeight: "600" },
@@ -886,7 +995,7 @@ const styles = StyleSheet.create({
   tabBarDark: { borderColor: "rgba(255,255,255,0.12)", backgroundColor: "rgba(14,16,13,0.96)" },
   tabButtonMotion: { flex: 1, height: 58 },
   tabButton: { width: "100%", height: 58, minWidth: 0, borderRadius: 17, alignItems: "center", justifyContent: "center", gap: 2 },
-  tabButtonActive: { backgroundColor: colors.mint },
+  tabButtonActive: { backgroundColor: colors.blush },
   tabButtonPressed: { opacity: 0.72 },
   tabIcon: { width: 25, height: 25, alignItems: "center", justifyContent: "center" },
   tabIconActive: { transform: [{ translateY: -1 }] },
@@ -897,7 +1006,7 @@ const styles = StyleSheet.create({
   tabDot: { display: "none" },
   tabDotActive: { backgroundColor: colors.green },
   tabDotActiveDark: { backgroundColor: colors.green },
-  countBadge: { minWidth: 16, height: 16, paddingHorizontal: 3, position: "absolute", zIndex: 2, right: -8, top: -5, borderRadius: 8, backgroundColor: "#EB6F68", alignItems: "center", justifyContent: "center" },
+  countBadge: { minWidth: 16, height: 16, paddingHorizontal: 3, position: "absolute", zIndex: 2, right: -8, top: -5, borderRadius: 8, backgroundColor: colors.coral, alignItems: "center", justifyContent: "center" },
   countText: { color: colors.white, fontFamily: boldFont, fontWeight: "700", fontSize: 8 },
   pageHeader: { paddingTop: 34, paddingBottom: 26 },
   pageTitle: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 40, lineHeight: 46, letterSpacing: -1.05 },
@@ -980,7 +1089,7 @@ const styles = StyleSheet.create({
   closeButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, alignItems: "center", justifyContent: "center" },
   closeButtonDark: { backgroundColor: colors.surfaceDark, borderColor: "#2A2B33" },
   authContent: { paddingHorizontal: 22, paddingTop: 36, paddingBottom: 48 },
-  authKicker: { color: colors.green, fontFamily: headingFont, fontWeight: "600", fontSize: 9, letterSpacing: 1.3 },
+  authKicker: { color: colors.coral, fontFamily: headingFont, fontWeight: "600", fontSize: 9, letterSpacing: 1.3 },
   authTitle: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 35, lineHeight: 41, letterSpacing: -0.9, marginTop: 9 },
   authSubtitle: { maxWidth: 335, color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 13, lineHeight: 20, marginTop: 8, marginBottom: 24 },
   authSegment: { height: 50, padding: 4, borderRadius: 15, backgroundColor: colors.input, flexDirection: "row", gap: 4, marginBottom: 9 },
@@ -990,7 +1099,7 @@ const styles = StyleSheet.create({
   authSegmentTextActive: { color: colors.ink, fontFamily: headingFont, fontWeight: "600" },
   roleRow: { flexDirection: "row", gap: 9, marginBottom: 9 },
   roleCard: { flex: 1, minHeight: 52, paddingHorizontal: 13, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, flexDirection: "row", alignItems: "center", gap: 8 },
-  roleCardSelected: { borderColor: colors.green, backgroundColor: colors.mint },
+  roleCardSelected: { borderColor: colors.coral, backgroundColor: colors.blush },
   roleLabel: { flex: 1, color: colors.ink, fontFamily: mediumFont, fontWeight: "500", fontSize: 11, lineHeight: 15 },
   roleCheck: { marginLeft: "auto" },
   inputLabel: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 9, letterSpacing: 1.05, marginTop: 15, marginBottom: 8 },
@@ -1008,7 +1117,7 @@ const styles = StyleSheet.create({
   modalTop: { minHeight: 90, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 13, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   modalHeading: { flexDirection: "row", alignItems: "center", gap: 12 },
   modalHeadingIcon: { width: 46, height: 46, borderRadius: 18, backgroundColor: colors.plum, alignItems: "center", justifyContent: "center" },
-  modalKicker: { color: colors.green, fontFamily: headingFont, fontWeight: "600", fontSize: 9, letterSpacing: 1.2 },
+  modalKicker: { color: colors.coral, fontFamily: headingFont, fontWeight: "600", fontSize: 9, letterSpacing: 1.2 },
   modalTitle: { color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 28, lineHeight: 34, letterSpacing: -0.56, marginTop: 2 },
   modalTitleDark: { color: "#F8F9F2" },
   modalBodyDark: { color: "#AAA8B0" },
@@ -1029,7 +1138,7 @@ const styles = StyleSheet.create({
   notificationTitle: { flex: 1, color: colors.ink, fontFamily: headingFont, fontWeight: "600", fontSize: 13 },
   notificationBody: { color: colors.muted, fontFamily: appFont, fontWeight: "400", fontSize: 11, lineHeight: 17, marginTop: 4 },
   notificationTime: { color: colors.green, fontFamily: headingFont, fontWeight: "600", fontSize: 9, marginTop: 8 },
-  unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#E86F68" },
+  unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.coral },
   settingsContent: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },
   settingsSectionLabel: { color: colors.green, fontFamily: headingFont, fontWeight: "600", fontSize: 9, letterSpacing: 1.2, marginTop: 17, marginBottom: 8 },
   settingsGroup: { overflow: "hidden", borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
