@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { syncCurrentUserProfile } from "@/lib/accounts";
+import { getUserProfile, syncCurrentUserProfile } from "@/lib/accounts";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,7 @@ export async function GET() {
   }
 
   try {
-    const profile = await syncCurrentUserProfile("couple");
+    const profile = (await getUserProfile(userId)) ?? await syncCurrentUserProfile("couple");
     return NextResponse.json({
       signedIn: true,
       profile: {

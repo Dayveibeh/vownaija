@@ -28,9 +28,10 @@ import {
   coupleVendorFromMarketplaceRecord,
   type CoupleVendor,
   type MarketplaceVendorListResponse,
+  type MarketplaceVendorRecord,
 } from "@smitten/shared";
 
-type MobileTab = "home" | "matches" | "saved" | "account";
+type MobileTab = "home" | "saved" | "account";
 type DashboardVendor = CoupleVendor & { acceptingEnquiries: boolean };
 
 export default function CoupleDashboardClient({
@@ -40,20 +41,18 @@ export default function CoupleDashboardClient({
 }) {
   const { signOut } = useClerk();
   const view = useSearchParams().get("view");
-  const [accountOpen, setAccountOpen] = useState(view === "settings");
-
-  useEffect(() => {
-    setAccountOpen(view === "settings");
-    setMobileTab(view === "settings" ? "account" : "home");
-  }, [view]);
-  const [mobileTab, setMobileTab] = useState<MobileTab>("home");
+  const accountOpen = view === "settings";
+  const mobileTab: MobileTab = accountOpen ? "account" : view === "saved" ? "saved" : "home";
   const [saved, setSaved] = useState<string[]>([]);
+  const [favouriteVendors, setFavouriteVendors] = useState<DashboardVendor[]>([]);
+  const [loadingFavourites, setLoadingFavourites] = useState(true);
+  const [favouritesError, setFavouritesError] = useState("");
+  const [favouritesReload, setFavouritesReload] = useState(0);
   const [conversationCount, setConversationCount] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [liveVendors, setLiveVendors] = useState<DashboardVendor[]>([]);
   const [quoteCount, setQuoteCount] = useState(0);
   const [quoteValue, setQuoteValue] = useState(0);
-  const [bookingCount, setBookingCount] = useState(0);
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
   const firstName = profile.fullName.split(/\s+/)[0] || "there";
@@ -68,18 +67,33 @@ export default function CoupleDashboardClient({
   useEffect(() => {
     let cancelled = false;
     void fetch("/api/favourites", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
+      .then((response) => {
+        if (!response.ok) throw new Error("Favourites could not be loaded");
+        return response.json();
+      })
       .then((result) => {
         if (cancelled || !Array.isArray(result?.favourites)) return;
+        setFavouritesError("");
         setSaved(
           result.favourites.map((item: { vendorId: string }) => item.vendorId),
         );
+        setFavouriteVendors(result.favourites.map((item: {
+          vendor: MarketplaceVendorRecord & { ownerClerkUserId?: string | null };
+        }) => ({
+          ...coupleVendorFromMarketplaceRecord(item.vendor),
+          acceptingEnquiries: Boolean(item.vendor.ownerClerkUserId),
+        })));
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setFavouritesError("We couldn’t load your saved vendors. Please try again.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingFavourites(false);
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [favouritesReload]);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,15 +118,9 @@ export default function CoupleDashboardClient({
 
   useEffect(() => {
     let cancelled = false;
-    void Promise.all([
-      fetch("/api/quotes", { cache: "no-store" }).then((response) =>
-        response.ok ? response.json() : null,
-      ),
-      fetch("/api/bookings", { cache: "no-store" }).then((response) =>
-        response.ok ? response.json() : null,
-      ),
-    ])
-      .then(([quoteResult, bookingResult]) => {
+    void fetch("/api/quotes", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((quoteResult) => {
         if (cancelled) return;
         if (Array.isArray(quoteResult?.quotes)) {
           setQuoteCount(quoteResult.quotes.length);
@@ -124,8 +132,6 @@ export default function CoupleDashboardClient({
             ),
           );
         }
-        if (Array.isArray(bookingResult?.bookings))
-          setBookingCount(bookingResult.bookings.length);
       })
       .catch(() => undefined);
     return () => {
@@ -196,8 +202,13 @@ export default function CoupleDashboardClient({
   }
 
   function goTo(id: string, message?: string, tab?: MobileTab) {
-    setAccountOpen(false);
-    if (tab) setMobileTab(tab);
+    if (tab) {
+      const url = new URL(window.location.href);
+      if (tab === "saved") url.searchParams.set("view", "saved");
+      else url.searchParams.delete("view");
+      url.hash = id;
+      window.history.replaceState(null, "", url);
+    }
     window.requestAnimationFrame(() =>
       document
         .getElementById(id)
@@ -207,20 +218,32 @@ export default function CoupleDashboardClient({
   }
 
   function openAccount() {
-    setMobileTab("account");
-    setAccountOpen(true);
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", "settings");
+    window.history.replaceState(null, "", url);
   }
 
   function closeAccount() {
-    setAccountOpen(false);
-    setMobileTab("home");
+    const url = new URL(window.location.href);
+    url.searchParams.delete("view");
+    window.history.replaceState(null, "", url);
   }
+
+  const recommendedVendors = liveVendors.length
+    ? liveVendors
+    : coupleVendors.map((vendor) => ({ ...vendor, acceptingEnquiries: false }));
+  const vendorById = new Map([...favouriteVendors, ...recommendedVendors].map((vendor) => [vendor.id, vendor]));
+  const showingSaved = mobileTab === "saved";
+  const visibleVendors = showingSaved
+    ? saved.flatMap((id) => vendorById.has(id) ? [vendorById.get(id)!] : [])
+    : recommendedVendors.slice(0, 3);
 
   return (
     <main className="couple-dashboard-shell">
       <section className="couple-dashboard-main">
         <WorkspaceHeader
           role="couple"
+          activeSection={accountOpen ? "settings" : showingSaved ? "saved" : "overview"}
           className="couple-dashboard-top"
           search={
             <label className="workspace-search">
@@ -281,16 +304,18 @@ export default function CoupleDashboardClient({
 
           <div className="couple-stat-grid">
             <article>
+              <button type="button" className="couple-stat-action" aria-label="View saved vendors" onClick={() => goTo("couple-shortlist", undefined, "saved")} />
               <span className="coral">
                 <Heart />
               </span>
               <div>
                 <p>Saved vendors</p>
-                <strong>{saved.length}</strong>
+                <strong>{loadingFavourites ? "…" : saved.length}</strong>
                 <small>Across your shortlist</small>
               </div>
             </article>
             <article>
+              <Link className="couple-stat-action" href="/couples/quotes" aria-label="View quotes received" />
               <span className="plum">
                 <FileText />
               </span>
@@ -305,6 +330,7 @@ export default function CoupleDashboardClient({
               </div>
             </article>
             <article>
+              <button type="button" className="couple-stat-action" aria-label="View sample budget snapshot" onClick={() => goTo("couple-budget")} />
               <span className="green">
                 <CircleDollarSign />
               </span>
@@ -315,6 +341,7 @@ export default function CoupleDashboardClient({
               </div>
             </article>
             <article>
+              <Link className="couple-stat-action" href="/couples/messages" aria-label="View unread messages" />
               <span className="gold">
                 <Mail />
               </span>
@@ -337,28 +364,33 @@ export default function CoupleDashboardClient({
             >
               <div className="couple-card-heading">
                 <div>
-                  <h2>Vendors ready to hear from you</h2>
-                  <p>Live Smitten vendors are shown first</p>
+                  <h2>{showingSaved ? "Your saved vendors" : "Vendors ready to hear from you"}</h2>
+                  <p>{showingSaved ? "Your favourites, together in one place" : "Live Smitten vendors are shown first"}</p>
                 </div>
                 <Link href="/#featured">
                   Browse all <ArrowRight />
                 </Link>
               </div>
+              {showingSaved && (loadingFavourites || favouritesError || visibleVendors.length === 0) && (
+                <div className="couple-shortlist-status" role="status">
+                  <p>{loadingFavourites ? "Loading your saved vendors…" : favouritesError || "You haven’t saved any vendors yet. Tap a vendor’s heart to start your shortlist."}</p>
+                  {favouritesError && !loadingFavourites && (
+                    <button type="button" className="button button-dark button-small" onClick={() => {
+                      setLoadingFavourites(true);
+                      setFavouritesReload((value) => value + 1);
+                    }}>Try again</button>
+                  )}
+                </div>
+              )}
               <div className="shortlist-row">
-                {(liveVendors.length
-                  ? liveVendors
-                  : coupleVendors.map((vendor) => ({
-                      ...vendor,
-                      acceptingEnquiries: false,
-                    }))
-                )
-                  .slice(0, 3)
-                  .map((vendor, index) => (
+                {visibleVendors.map((vendor, index) => (
                     <article key={vendor.id}>
                       <div>
                         <img
                           src={vendor.image}
                           alt={`${vendor.name} portfolio`}
+                          loading="lazy"
+                          decoding="async"
                         />
                         <span>
                           {vendor.acceptingEnquiries
@@ -409,9 +441,6 @@ export default function CoupleDashboardClient({
                     <h2>Budget snapshot</h2>
                     <p>Sample vendor budget</p>
                   </div>
-                  <button onClick={() => showNotice("Budget details opened")}>
-                    View
-                  </button>
                 </div>
                 <div className="budget-ring">
                   <div>
@@ -533,9 +562,7 @@ export default function CoupleDashboardClient({
           <span>Home</span>
         </button>
         <Link
-          className={mobileTab === "matches" ? "active" : ""}
           href="/couples/match"
-          onClick={() => setMobileTab("matches")}
         >
           <Sparkles />
           <span>Matches</span>
