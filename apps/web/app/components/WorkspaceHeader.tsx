@@ -31,7 +31,7 @@ const coupleLinks: Destination[] = [
   {
     key: "saved",
     label: "Saved vendors",
-    href: "/couples/dashboard#couple-shortlist",
+    href: "/couples/dashboard?view=saved#couple-shortlist",
   },
   { key: "quotes", label: "Quotes", href: "/couples/quotes" },
   { key: "bookings", label: "Bookings", href: "/couples/bookings" },

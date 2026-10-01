@@ -25,15 +25,28 @@ const money = (v: unknown) => Number(v ?? 0);
 const dateOnly = (v: unknown) => v ? String(v).slice(0, 10) : null;
 const iso = (v: unknown) => v ? new Date(String(v)).toISOString() : null;
 
-async function mapQuote(row: Record<string, unknown>): Promise<QuoteView> {
+async function mapQuotes(rows: Record<string, unknown>[]): Promise<QuoteView[]> {
+  if (!rows.length) return [];
   const sql = getSql();
-  const items = await sql`
-    SELECT id,title,description,quantity,unit_price,line_total
-    FROM quote_items WHERE quote_id=${String(row.id)}
-    ORDER BY display_order, created_at
-  `;
-  const bookingRows = await sql`SELECT id FROM bookings WHERE quote_id=${String(row.id)} LIMIT 1`;
-  return {
+  // Only load details for quotes already selected by the account access check.
+  const quoteIds = rows.map((row) => String(row.id));
+  const [items, bookings] = await Promise.all([
+    sql`
+      SELECT id,quote_id,title,description,quantity,unit_price,line_total
+      FROM quote_items WHERE quote_id=ANY(${quoteIds}::text[])
+      ORDER BY display_order, created_at
+    `,
+    sql`SELECT id,quote_id FROM bookings WHERE quote_id=ANY(${quoteIds}::text[])`,
+  ]);
+  const itemsByQuote = new Map<string, typeof items>();
+  for (const item of items) {
+    const id = String(item.quote_id);
+    const group = itemsByQuote.get(id) ?? [];
+    group.push(item);
+    itemsByQuote.set(id, group);
+  }
+  const bookingByQuote = new Map(bookings.map((booking) => [String(booking.quote_id), String(booking.id)]));
+  return rows.map((row) => ({
     id:String(row.id), conversationId:String(row.conversation_id), enquiryId:String(row.enquiry_id),
     vendorId:String(row.vendor_id), vendorName:String(row.vendor_name), customerName:String(row.customer_name),
     title:String(row.title), notes:row.notes ? String(row.notes) : null,
@@ -43,10 +56,10 @@ async function mapQuote(row: Record<string, unknown>): Promise<QuoteView> {
     depositType:row.deposit_type ? String(row.deposit_type) as QuoteView["depositType"] : null,
     depositValue:money(row.deposit_value),
     depositAmount:money(row.deposit_amount ?? row.total),
-    status:String(row.status) as QuoteView["status"], bookingId: bookingRows[0] ? String(bookingRows[0].id) : null, sentAt:iso(row.sent_at) ?? new Date().toISOString(),
+    status:String(row.status) as QuoteView["status"], bookingId: bookingByQuote.get(String(row.id)) ?? null, sentAt:iso(row.sent_at) ?? new Date().toISOString(),
     viewedAt:iso(row.viewed_at), respondedAt:iso(row.responded_at),
-    items:items.map(i=>({id:String(i.id),title:String(i.title),description:i.description?String(i.description):null,quantity:Number(i.quantity),unitPrice:money(i.unit_price),lineTotal:money(i.line_total)})),
-  };
+    items:(itemsByQuote.get(String(row.id)) ?? []).map(i=>({id:String(i.id),title:String(i.title),description:i.description?String(i.description):null,quantity:Number(i.quantity),unitPrice:money(i.unit_price),lineTotal:money(i.line_total)})),
+  }));
 }
 
 function mapBooking(row: Record<string, unknown>): BookingView {
@@ -89,7 +102,7 @@ export async function loadConversationQuotes(conversationId:string,userId:string
     JOIN enquiries e ON e.id=q.enquiry_id JOIN smitten_users u ON u.clerk_user_id=q.customer_clerk_user_id
     WHERE q.conversation_id=${conversationId} ORDER BY q.sent_at
   `;
-  const out:QuoteView[]=[]; for(const row of rows) out.push(await mapQuote(row as Record<string,unknown>)); return out;
+  return mapQuotes(rows as Record<string, unknown>[]);
 }
 
 export async function createConversationQuote(conversationId:string,vendorUserId:string,input:{
@@ -168,7 +181,7 @@ export async function listAccountQuotes(userId:string,role:"couple"|"vendor"|"ad
     FROM quotes q JOIN marketplace_vendors mv ON mv.id=q.vendor_id JOIN enquiries e ON e.id=q.enquiry_id JOIN smitten_users u ON u.clerk_user_id=q.customer_clerk_user_id
     WHERE ((${role}='couple' AND q.customer_clerk_user_id=${userId}) OR (${role}<>'couple' AND q.vendor_owner_clerk_user_id=${userId}))
     ORDER BY q.sent_at DESC
-  `; const out:QuoteView[]=[]; for(const row of rows) out.push(await mapQuote(row as Record<string,unknown>)); return out;
+  `; return mapQuotes(rows as Record<string, unknown>[]);
 }
 
 export async function listAccountBookings(userId:string,role:"couple"|"vendor"|"admin") {
@@ -206,7 +219,7 @@ export async function getQuoteForAccount(
     LIMIT 1
   `;
   if (!rows[0]) return null;
-  return mapQuote(rows[0] as Record<string, unknown>);
+  return (await mapQuotes([rows[0] as Record<string, unknown>]))[0];
 }
 
 

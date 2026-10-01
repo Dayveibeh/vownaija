@@ -1,7 +1,7 @@
 import { and, eq, gte, ilike, lte, or, type SQL } from "drizzle-orm";
 import { coupleVendors, vendorProfileDetails } from "@smitten/shared";
 import { ensureDatabaseSchema, getDb, getSql } from "@/db";
-import { marketplaceVendors, vendorProfiles } from "@/db/schema";
+import { marketplaceVendors } from "@/db/schema";
 
 export type VendorFilters = {
   category?: string;
@@ -11,8 +11,9 @@ export type VendorFilters = {
   query?: string;
 };
 
-export async function ensureMarketplaceSeed() {
-  await ensureDatabaseSchema();
+let sampleSeedPromise: Promise<void> | null = null;
+
+async function seedSampleVendors() {
   const sql = getSql();
 
   for (const vendor of coupleVendors) {
@@ -95,29 +96,46 @@ export async function ensureMarketplaceSeed() {
     }
   }
 
-  const onboardedVendors = await getDb().select().from(vendorProfiles);
-  for (const profile of onboardedVendors) {
-    const [existing] = await getDb().select({ id: marketplaceVendors.id })
-      .from(marketplaceVendors)
-      .where(eq(marketplaceVendors.ownerClerkUserId, profile.clerkUserId))
-      .limit(1);
+}
 
-    const slug = profile.businessName
+export async function ensureMarketplaceSeed() {
+  await ensureDatabaseSchema();
+  // Share startup work across requests; catalogue reads must not rewrite samples.
+  if (!sampleSeedPromise) {
+    sampleSeedPromise = seedSampleVendors().catch((error) => {
+      sampleSeedPromise = null;
+      throw error;
+    });
+  }
+  await sampleSeedPromise;
+
+  const sql = getSql();
+  const onboardedVendors = await sql`
+    SELECT vp.*, mv.id AS marketplace_id
+    FROM vendor_profiles vp
+    LEFT JOIN marketplace_vendors mv ON mv.owner_clerk_user_id = vp.clerk_user_id
+    WHERE mv.id IS NULL OR vp.updated_at > mv.updated_at
+  `;
+  for (const profile of onboardedVendors) {
+    const clerkUserId = String(profile.clerk_user_id);
+    const businessName = String(profile.business_name);
+
+    const slug = businessName
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "")
       .slice(0, 52) || "vendor";
-    const vendorId = existing?.id ?? `${slug}-${profile.clerkUserId.slice(-6).toLowerCase()}`;
-    const startingPrice = profile.startingPrice ? String(profile.startingPrice) : "0";
+    const vendorId = profile.marketplace_id ? String(profile.marketplace_id) : `${slug}-${clerkUserId.slice(-6).toLowerCase()}`;
+    const startingPrice = profile.starting_price ? String(profile.starting_price) : "0";
     const fallbackImage = "https://ikejabird.com/wp-content/uploads/2025/10/2022-02-01-1.jpg";
 
     await getDb().insert(marketplaceVendors).values({
       id: vendorId,
-      ownerClerkUserId: profile.clerkUserId,
-      businessName: profile.businessName,
-      category: profile.primaryService,
-      location: profile.location,
-      state: profile.state,
+      ownerClerkUserId: clerkUserId,
+      businessName,
+      category: String(profile.primary_service),
+      location: String(profile.location),
+      state: profile.state ? String(profile.state) : null,
       startingPrice,
       currencyCode: "NGN",
       tier: "Premium",
@@ -126,27 +144,27 @@ export async function ensureMarketplaceSeed() {
       imageUrl: fallbackImage,
       styles: [],
       matchReason: "A newly verified Smitten vendor ready to hear about your celebration.",
-      about: profile.about ?? "Tell this vendor about your wedding to receive a personalised response.",
-      travelDistance: profile.travelDistance,
+      about: profile.about ? String(profile.about) : "Tell this vendor about your wedding to receive a personalised response.",
+      travelDistance: String(profile.travel_distance),
       gallery: [fallbackImage],
-      highlights: ["Verified Smitten vendor", profile.yearsInBusiness, profile.travelDistance],
-      instagram: profile.instagram,
+      highlights: ["Verified Smitten vendor", String(profile.years_in_business), String(profile.travel_distance)],
+      instagram: profile.instagram ? String(profile.instagram) : null,
       responseTime: "Usually replies within 1 business day",
       availability: "Contact vendor to confirm availability",
-      active: profile.onboardingComplete,
+      active: Boolean(profile.onboarding_complete),
     }).onConflictDoUpdate({
       target: marketplaceVendors.id,
       set: {
-        ownerClerkUserId: profile.clerkUserId,
-        businessName: profile.businessName,
-        category: profile.primaryService,
-        location: profile.location,
-        state: profile.state,
+        ownerClerkUserId: clerkUserId,
+        businessName,
+        category: String(profile.primary_service),
+        location: String(profile.location),
+        state: profile.state ? String(profile.state) : null,
         startingPrice,
-        about: profile.about ?? "Tell this vendor about your wedding to receive a personalised response.",
-        travelDistance: profile.travelDistance,
-        instagram: profile.instagram,
-        active: profile.onboardingComplete,
+        about: profile.about ? String(profile.about) : "Tell this vendor about your wedding to receive a personalised response.",
+        travelDistance: String(profile.travel_distance),
+        instagram: profile.instagram ? String(profile.instagram) : null,
+        active: Boolean(profile.onboarding_complete),
         updatedAt: new Date(),
       },
     });

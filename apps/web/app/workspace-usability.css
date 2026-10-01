@@ -462,3 +462,93 @@ body .couple-dashboard-content {
   max-width: 1480px;
   margin-inline: auto;
 }
+
+/* Make the summary cards real, keyboard-accessible destinations. */
+.couple-stat-grid article {
+  position: relative;
+}
+.couple-stat-action {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.couple-stat-grid article:focus-within {
+  border-color: var(--coral);
+}
+.couple-shortlist-status {
+  padding: 24px;
+  color: #70605e;
+  line-height: 1.6;
+}
+.couple-dashboard-content :is(#couple-shortlist, #couple-budget, #couple-planning) {
+  scroll-margin-top: 180px;
+}
+
+.workspace-loading {
+  min-height: 100dvh;
+  max-width: 1280px;
+  margin-inline: auto;
+  padding: 32px 24px;
+  color: #713b49;
+}
+.workspace-loading > p {
+  margin-block: 32px;
+  font-size: 16px;
+}
+.workspace-loading-heading,
+.workspace-loading-cards > div {
+  background: #ebe1d6;
+  border-radius: 16px;
+}
+.workspace-loading-heading {
+  width: min(70%, 480px);
+  height: 64px;
+  margin-bottom: 32px;
+}
+.workspace-loading-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.workspace-loading-cards > div {
+  height: 140px;
+}
+
+@media (max-width: 760px) {
+  .workspace-loading-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  /* Dock the bar; keep the home-indicator inset inside its background. */
+  body .couple-mobile-nav {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: auto;
+    min-height: calc(70px + env(safe-area-inset-bottom, 0px));
+    padding: 6px max(10px, env(safe-area-inset-right, 0px))
+      calc(6px + env(safe-area-inset-bottom, 0px))
+      max(10px, env(safe-area-inset-left, 0px));
+    border: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+    background: #fffdf9;
+    box-shadow: 0 -3px 16px #352a2a0a;
+    backdrop-filter: none;
+  }
+  body .couple-dashboard-main {
+    padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+  }
+  body .couple-account-sheet {
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 104px - env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+  }
+  .couple-dashboard-shell .dashboard-toast {
+    bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+  }
+}
