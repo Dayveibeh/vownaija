@@ -26,7 +26,7 @@ A Nigerian wedding-vendor marketplace for discovering trusted vendors by service
 
 This repository contains the interactive MVP. The live demo is available at [vownaija.vercel.app](https://vownaija.vercel.app).
 
-The current workflows use representative data. Production deployment will require external authentication, persistent database and object storage, transactional email, and a live AI service.
+Phase 3 payments and the workspace refinements are accepted, with PR #13 merged into `main`. The application uses Clerk, Neon and Paystack alongside representative catalog data. Phase 4 adds SmittenAI on WhatsApp: sourced Smitten and web recommendations, follow-up chat and saved shortlist links. It stays disabled until the Meta business account and AI credentials are configured. See [the Phase 4 setup guide](WHATSAPP_AI.md) for activation and the two-service Coolify deployment on the existing VPS. Marketplace readiness and pilot launch are Phase 5.
 
 ## Development
 

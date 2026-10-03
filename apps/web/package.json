@@ -14,17 +14,22 @@
     "start": "next start",
     "start:sites": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "whatsapp:worker": "TSX_TSCONFIG_PATH=tsconfig.json node --import tsx scripts/whatsapp-worker.ts",
+    "test:whatsapp": "TSX_TSCONFIG_PATH=tsconfig.json node --import tsx --test tests/whatsapp-ai.test.ts",
+    "typecheck:whatsapp": "tsc --noEmit -p tsconfig.whatsapp.json"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.7.7",
     "@neondatabase/serverless": "^1.1.0",
     "@smitten/shared": "*",
+    "ai": "^7.0.123",
     "drizzle-orm": "0.45.2",
     "lucide-react": "^0.468.0",
     "next": "16.2.6",
     "react": "19.2.6",
     "react-dom": "19.2.6",
+    "tsx": "^4.23.15",
     "zod": "^4.4.3"
   },
   "devDependencies": {

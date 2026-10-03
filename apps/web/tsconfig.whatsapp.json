@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": ["lib/ai/**/*.ts", "scripts/whatsapp-worker.ts", "tests/whatsapp-ai.test.ts"],
+  "exclude": ["node_modules", "build", "examples", "worker"]
+}
