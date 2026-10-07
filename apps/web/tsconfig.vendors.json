@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": [
+    "db/**/*.ts",
+    "lib/**/*.ts",
+    "app/onboarding/actions.ts",
+    "app/api/vendors/**/*.ts",
+    "scripts/**/*.ts",
+    "tests/vendor-api.test.ts"
+  ],
+  "exclude": ["node_modules", "examples", "worker", "dist"]
+}

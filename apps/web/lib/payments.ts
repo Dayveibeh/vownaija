@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { ensureDatabaseSchema, getSql } from "@/db";
+import { getSql } from "@/db";
 import {
   notifyDisputeOpened,
   notifyDisputeResolved,
@@ -244,7 +244,6 @@ export async function claimPaystackWebhookEvent(
   providerReference: string | null,
   payload: Record<string, unknown>,
 ) {
-  await ensureDatabaseSchema();
   const sql = getSql();
   const eventKey = crypto.createHash("sha256").update(rawBody).digest("hex");
 
@@ -275,7 +274,6 @@ export async function claimPaystackWebhookEvent(
 }
 
 export async function finishPaystackWebhookEvent(eventKey: string, errorMessage?: string | null) {
-  await ensureDatabaseSchema();
   await getSql()`
     UPDATE provider_webhook_events
     SET status=${errorMessage ? "failed" : "processed"},
@@ -291,7 +289,6 @@ export async function getBookingPaymentSummary(
   userId: string,
   role: "couple" | "vendor" | "admin",
 ): Promise<BookingPaymentSummary | null> {
-  await ensureDatabaseSchema();
   const sql = getSql();
   await expireStalePaymentAttempts();
 
@@ -421,7 +418,6 @@ export async function initializeBookingPayment(
   customerUserId: string,
   callbackOrigin: string,
 ) {
-  await ensureDatabaseSchema();
   const sql = getSql();
 
   const rows = await sql`
@@ -524,7 +520,6 @@ export async function initializeBookingPayment(
 }
 
 export async function reconcilePaystackPayment(reference: string) {
-  await ensureDatabaseSchema();
   const sql = getSql();
   const rows = await sql`SELECT * FROM payment_orders WHERE provider_reference=${reference} LIMIT 1`;
   const order = rows[0];
@@ -602,7 +597,6 @@ async function markPaymentReleased(paymentOrderId: string, releasedAt = new Date
 }
 
 export async function releaseBookingPayment(bookingId: string, customerUserId: string) {
-  await ensureDatabaseSchema();
   if (!isPaystackConfigured()) throw new Error("PAYSTACK_NOT_CONFIGURED");
   if (!isPayoutReleaseEnabled()) throw new Error("LIVE_PAYOUTS_DISABLED");
 
@@ -841,7 +835,6 @@ export async function reconcilePaystackTransferEvent(
     transferred_at?: string | null;
   },
 ) {
-  await ensureDatabaseSchema();
   const reference = data.reference?.trim();
   if (!reference) throw new Error("TRANSFER_REFERENCE_MISSING");
 
@@ -908,7 +901,6 @@ export async function reconcilePaystackTransferEvent(
 
 
 export async function openPaymentDispute(bookingId: string, customerUserId: string, reason: string) {
-  await ensureDatabaseSchema();
   const sql = getSql();
   const normalizedReason = reason.trim();
   if (normalizedReason.length < 10) throw new Error("DISPUTE_REASON_REQUIRED");
@@ -981,7 +973,6 @@ export type AdminFinancePaymentView = AccountPaymentView & {
 };
 
 export async function listAdminFinancePayments(): Promise<AdminFinancePaymentView[]> {
-  await ensureDatabaseSchema();
   await expireStalePaymentAttempts();
   const rows = await getSql()`
     SELECT
@@ -1048,7 +1039,6 @@ export async function listAdminFinancePayments(): Promise<AdminFinancePaymentVie
 }
 
 export async function reconcileAdminPayment(paymentOrderId: string, adminUserId: string) {
-  await ensureDatabaseSchema();
   if (!isPaystackConfigured()) throw new Error("PAYSTACK_NOT_CONFIGURED");
 
   const sql = getSql();
@@ -1165,7 +1155,6 @@ export async function reconcileAdminPayment(paymentOrderId: string, adminUserId:
 }
 
 export async function resolvePaymentDispute(paymentOrderId: string, adminUserId: string) {
-  await ensureDatabaseSchema();
   const sql = getSql();
 
   const caseRows = await sql`
@@ -1206,7 +1195,6 @@ export async function resolvePaymentDispute(paymentOrderId: string, adminUserId:
 }
 
 export async function initiatePaymentRefund(paymentOrderId: string, adminUserId: string, reason: string) {
-  await ensureDatabaseSchema();
   if (!isPaystackConfigured()) throw new Error("PAYSTACK_NOT_CONFIGURED");
   if (!isRefundEnabled()) throw new Error("LIVE_REFUNDS_DISABLED");
 
@@ -1319,7 +1307,6 @@ export async function reconcilePaystackRefundEvent(
     status?: string;
   },
 ) {
-  await ensureDatabaseSchema();
   const transactionReference = data.transaction_reference?.trim();
   if (!transactionReference) throw new Error("REFUND_TRANSACTION_REFERENCE_MISSING");
 
@@ -1417,7 +1404,6 @@ export async function getPaymentReceiptData(
   userId: string,
   role: "couple" | "vendor" | "admin",
 ): Promise<PaymentReceiptData | null> {
-  await ensureDatabaseSchema();
   const sql = getSql();
 
   const rows = await sql`
@@ -1488,7 +1474,6 @@ export async function listAccountPayments(
   userId: string,
   role: "couple" | "vendor" | "admin",
 ): Promise<AccountPaymentView[]> {
-  await ensureDatabaseSchema();
   await expireStalePaymentAttempts();
   const rows = await getSql()`
     SELECT
@@ -1537,7 +1522,6 @@ export async function listPaystackBanks(): Promise<PaystackBank[]> {
 }
 
 export async function getVendorPayoutProfile(vendorUserId: string): Promise<VendorPayoutProfileView> {
-  await ensureDatabaseSchema();
   const rows = await getSql()`
     SELECT provider,recipient_code,account_name,bank_name,account_last4,status
     FROM vendor_payout_profiles
@@ -1560,7 +1544,6 @@ export async function configureVendorPayoutProfile(
   vendorUserId: string,
   input: { bankCode: string; bankName: string; accountNumber: string },
 ) {
-  await ensureDatabaseSchema();
   if (!isPaystackConfigured()) throw new Error("PAYSTACK_NOT_CONFIGURED");
 
   const accountNumber = input.accountNumber.replace(/\s+/g, "");
@@ -1644,7 +1627,6 @@ export async function configureVendorPayoutProfile(
 }
 
 export async function removeVendorPayoutProfile(vendorUserId: string) {
-  await ensureDatabaseSchema();
   const sql = getSql();
   const rows = await sql`
     SELECT recipient_code

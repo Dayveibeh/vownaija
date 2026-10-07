@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { ensureDatabaseSchema, getDb } from "@/db";
+import { getDb } from "@/db";
 import { customerProfiles } from "@/db/schema";
 
 const preferenceSchema = z.object({
@@ -42,7 +42,6 @@ export async function GET() {
   if (!userId) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
 
   try {
-    await ensureDatabaseSchema();
     const [profile] = await getDb().select().from(customerProfiles)
       .where(eq(customerProfiles.clerkUserId, userId))
       .limit(1);
@@ -74,7 +73,6 @@ export async function PUT(request: Request) {
   const weddingDate = values.weddingDate ? `${values.weddingDate}-01` : null;
 
   try {
-    await ensureDatabaseSchema();
     const [profile] = await getDb().insert(customerProfiles).values({
       clerkUserId: userId,
       weddingDate,
@@ -131,7 +129,6 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    await ensureDatabaseSchema();
     const values = parsed.data;
     const [existing] = await getDb().select().from(customerProfiles)
       .where(eq(customerProfiles.clerkUserId, userId))

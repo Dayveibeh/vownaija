@@ -25,7 +25,11 @@
     "mobile:install": "npm --prefix apps/mobile install",
     "mobile": "npm --prefix apps/mobile run start",
     "mobile:ios": "npm --prefix apps/mobile run ios",
-    "typecheck:mobile": "npm --prefix apps/mobile run typecheck"
+    "typecheck:mobile": "npm --prefix apps/mobile run typecheck",
+    "db:setup": "npm --workspace @smitten/web run db:setup",
+    "test:vendors": "npm --workspace @smitten/web run test:vendors",
+    "benchmark:vendors": "npm --workspace @smitten/web run benchmark:vendors",
+    "typecheck:vendors": "npm --workspace @smitten/web run typecheck:vendors"
   },
   "type": "module",
   "displayName": "Smitten"

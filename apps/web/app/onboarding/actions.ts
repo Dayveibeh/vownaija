@@ -2,9 +2,8 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { ensureDatabaseSchema, getDb } from "@/db";
-import { vendorProfiles } from "@/db/schema";
 import { requireUserRole } from "@/lib/accounts";
+import { saveVendorProfileAndListing } from "@/lib/vendor-listings";
 
 const vendorProfileSchema = z.object({
   businessName: z.string().trim().min(2, "Enter your business name").max(120),
@@ -42,14 +41,10 @@ export async function saveVendorProfile(input: VendorOnboardingInput): Promise<V
   const startingPrice = numericPrice ? numericPrice : null;
 
   try {
-    await ensureDatabaseSchema();
-    await getDb().insert(vendorProfiles).values({
+    await saveVendorProfileAndListing({
       clerkUserId: userId,
       ...parsed.data,
       startingPrice,
-    }).onConflictDoUpdate({
-      target: vendorProfiles.clerkUserId,
-      set: { ...parsed.data, startingPrice, onboardingComplete: true, updatedAt: new Date() },
     });
     return { ok: true };
   } catch {
