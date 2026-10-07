@@ -29,7 +29,8 @@
     "db:setup": "npm --workspace @smitten/web run db:setup",
     "test:vendors": "npm --workspace @smitten/web run test:vendors",
     "benchmark:vendors": "npm --workspace @smitten/web run benchmark:vendors",
-    "typecheck:vendors": "npm --workspace @smitten/web run typecheck:vendors"
+    "typecheck:vendors": "npm --workspace @smitten/web run typecheck:vendors",
+    "test:customers": "npm --workspace @smitten/web run test:customers"
   },
   "type": "module",
   "displayName": "Smitten"

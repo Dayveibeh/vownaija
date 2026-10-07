@@ -36,6 +36,8 @@ export default function VendorProfileClient({
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(initialPackageId);
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
+  const [favouritesLoaded, setFavouritesLoaded] = useState(false);
+  const [savingFavourite, setSavingFavourite] = useState(false);
   const [saved, setSaved] = useState(false);
   const [notice, setNotice] = useState("");
 
@@ -57,7 +59,7 @@ export default function VendorProfileClient({
         if (!Array.isArray(result?.favourites)) return;
         setSaved(result.favourites.some((item: { vendorId: string }) => item.vendorId === vendor.id));
       })
-      .catch(() => undefined);
+      .catch(() => undefined).finally(() => setFavouritesLoaded(true));
   }, [vendor.id]);
 
   useEffect(() => {
@@ -75,6 +77,8 @@ export default function VendorProfileClient({
   }, [notice]);
 
   async function toggleSaved() {
+    if (savingFavourite || !favouritesLoaded) return;
+    setSavingFavourite(true);
     const next = !saved;
     setSaved(next);
     try {
@@ -92,7 +96,7 @@ export default function VendorProfileClient({
     } catch {
       setSaved(!next);
       setNotice("We couldn’t update your saved vendors. Please try again.");
-    }
+    } finally { setSavingFavourite(false); }
   }
 
   function openEnquiry(packageId: string | null = null) {
@@ -188,7 +192,7 @@ export default function VendorProfileClient({
               <span><Star size={15} fill="currentColor" /> <strong>{vendor.reviewCount ? Number(vendor.rating).toFixed(1) : "New vendor"}</strong>{vendor.reviewCount > 0 && ` · ${vendor.reviewCount} reviews`}</span>
             </div>
             <div className="profile-actions">
-              <button className={saved ? "saved" : ""} onClick={() => void toggleSaved()}><Heart size={17} fill={saved ? "currentColor" : "none"} /> {saved ? "Saved" : "Save"}</button>
+              <button className={saved ? "saved" : ""} disabled={savingFavourite || !favouritesLoaded} onClick={() => void toggleSaved()}><Heart size={17} fill={saved ? "currentColor" : "none"} /> {saved ? "Saved" : "Save"}</button>
               <button onClick={() => { navigator.clipboard.writeText(window.location.href).then(() => setNotice("Profile link copied")).catch(() => setNotice("Share this page from your browser menu")); }}><Share2 size={17} /> Share</button>
               {vendor.instagram ? <a href={vendor.instagram} target="_blank" rel="noreferrer"><Instagram size={17} /> Instagram</a> : null}
             </div>

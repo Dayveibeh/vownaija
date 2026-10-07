@@ -41,11 +41,12 @@ const coupleLinks: Destination[] = [
   { key: "messages", label: "Messages", href: "/couples/messages" },
 ];
 const coupleMore: Destination[] = [
-  { key: "budget", label: "Budget", href: "/couples/dashboard#couple-budget" },
+  { key: "details", label: "Wedding details", href: "/couples/planning#details" },
+  { key: "budget", label: "Budget", href: "/couples/planning#budget" },
   {
     key: "planning",
     label: "Planning",
-    href: "/couples/dashboard#couple-planning",
+    href: "/couples/planning#checklist",
   },
   {
     key: "settings",

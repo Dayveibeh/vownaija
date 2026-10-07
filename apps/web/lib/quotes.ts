@@ -130,17 +130,21 @@ export async function createConversationQuote(conversationId:string,vendorUserId
       ? Math.min(total,depositValue)
       : Math.min(total,Math.round(total*depositValue/100));
   if(paymentPlan==="deposit" && (depositAmount<=0 || depositAmount>=total)) throw new Error("INVALID_DEPOSIT");
-  const rev=await sql`SELECT COALESCE(MAX(revision),0)::int revision FROM quotes WHERE conversation_id=${conversationId}`;
   const id=crypto.randomUUID(), now=new Date();
-  await sql`
-    INSERT INTO quotes(id,conversation_id,enquiry_id,vendor_id,vendor_owner_clerk_user_id,customer_clerk_user_id,title,notes,subtotal,discount_amount,additional_fees,total,currency_code,payment_plan,deposit_type,deposit_value,deposit_amount,valid_until,revision,status,sent_at,created_at,updated_at)
-    VALUES(${id},${conversationId},${String(c.enquiry_id)},${String(c.vendor_id)},${vendorUserId},${String(c.customer_clerk_user_id)},${input.title.trim()},${input.notes?.trim()||null},${subtotal},${discount},${fees},${total},'NGN',${paymentPlan},${depositType},${depositValue},${depositAmount},${input.validUntil||null},${Number(rev[0]?.revision??0)+1},'sent',${now},${now},${now})
-  `;
-  for(let n=0;n<items.length;n++){const i=items[n]; await sql`
-    INSERT INTO quote_items(id,quote_id,title,description,quantity,unit_price,line_total,display_order)
-    VALUES(${crypto.randomUUID()},${id},${i.title},${i.description},${i.quantity},${i.unitPrice},${i.quantity*i.unitPrice},${n})
-  `;}
-  await sql`UPDATE conversations SET last_message_at=${now},vendor_last_read_at=${now},updated_at=${now} WHERE id=${conversationId}`;
+  await sql.transaction([
+    sql`SELECT id FROM conversations WHERE id=${conversationId} FOR UPDATE`,
+    sql`
+      INSERT INTO quotes(id,conversation_id,enquiry_id,vendor_id,vendor_owner_clerk_user_id,customer_clerk_user_id,title,notes,subtotal,discount_amount,additional_fees,total,currency_code,payment_plan,deposit_type,deposit_value,deposit_amount,valid_until,revision,status,sent_at,created_at,updated_at)
+      SELECT ${id},${conversationId},${String(c.enquiry_id)},${String(c.vendor_id)},${vendorUserId},${String(c.customer_clerk_user_id)},${input.title.trim()},${input.notes?.trim()||null},${subtotal},${discount},${fees},${total},'NGN',${paymentPlan},${depositType},${depositValue},${depositAmount},${input.validUntil||null},
+        (SELECT COALESCE(MAX(revision),0)+1 FROM quotes WHERE conversation_id=${conversationId}),'sent',${now},${now},${now}
+      WHERE NOT EXISTS(SELECT 1 FROM bookings WHERE conversation_id=${conversationId})
+    `,
+    ...items.map((i,n) => sql`
+      INSERT INTO quote_items(id,quote_id,title,description,quantity,unit_price,line_total,display_order)
+      VALUES(${crypto.randomUUID()},${id},${i.title},${i.description},${i.quantity},${i.unitPrice},${i.quantity*i.unitPrice},${n})
+    `),
+    sql`UPDATE conversations SET last_message_at=${now},vendor_last_read_at=${now},updated_at=${now} WHERE id=${conversationId}`,
+  ]);
   return (await loadConversationQuotes(conversationId,vendorUserId,"vendor")).find(q=>q.id===id)!;
 }
 
@@ -156,22 +160,37 @@ export async function respondToQuote(quoteId:string,customerUserId:string,action
   if(!["sent","viewed"].includes(String(q.status))) throw new Error("QUOTE_ALREADY_RESPONDED");
   if(action==="accept" && q.valid_until && dateOnly(q.valid_until)! < new Date().toISOString().slice(0,10)){await sql`UPDATE quotes SET status='expired',updated_at=now() WHERE id=${quoteId}`;throw new Error("QUOTE_EXPIRED");}
   const now=new Date();
-  if(action==="decline"){
-    await sql`UPDATE quotes SET status='declined',responded_at=${now},updated_at=${now} WHERE id=${quoteId} AND status IN ('sent','viewed')`;
-    await sql`UPDATE conversations SET last_message_at=${now},customer_last_read_at=${now},updated_at=${now} WHERE id=${String(q.conversation_id)}`;
+  if(action==="decline") {
+    const result = await sql.transaction([
+      sql`UPDATE quotes SET status='declined',responded_at=${now},updated_at=${now} WHERE id=${quoteId} AND customer_clerk_user_id=${customerUserId} AND status IN ('sent','viewed') RETURNING id`,
+      sql`UPDATE conversations SET last_message_at=${now},customer_last_read_at=${now},updated_at=${now} WHERE id=${String(q.conversation_id)}`,
+    ]);
+    if (!result[0][0]) throw new Error("QUOTE_ALREADY_RESPONDED");
     return {booking:null};
   }
   const existing=await sql`SELECT id FROM bookings WHERE conversation_id=${String(q.conversation_id)} LIMIT 1`; if(existing[0]) throw new Error("CONVERSATION_BOOKED");
-  const updated=await sql`UPDATE quotes SET status='accepted',responded_at=${now},updated_at=${now} WHERE id=${quoteId} AND status IN ('sent','viewed') RETURNING id`; if(!updated[0]) throw new Error("QUOTE_ALREADY_RESPONDED");
   const bookingId=crypto.randomUUID();
-  await sql`
-    INSERT INTO bookings(id,quote_id,conversation_id,enquiry_id,vendor_id,vendor_owner_clerk_user_id,customer_clerk_user_id,wedding_date,wedding_location,service_summary,total,currency_code,payment_plan,deposit_amount,status,confirmed_at,created_at,updated_at)
-    VALUES(${bookingId},${quoteId},${String(q.conversation_id)},${String(q.enquiry_id)},${String(q.vendor_id)},${String(q.vendor_owner_clerk_user_id)},${customerUserId},${dateOnly(q.wedding_date)},${String(q.wedding_location)},${String(q.title)},${money(q.total)},'NGN',${String(q.payment_plan??"full")},${money(q.deposit_amount??q.total)},'confirmed',${now},${now},${now})
-  `;
-  await sql`UPDATE quotes SET status='declined',responded_at=COALESCE(responded_at,${now}),updated_at=${now} WHERE conversation_id=${String(q.conversation_id)} AND id<>${quoteId} AND status IN ('sent','viewed')`;
-  await sql`UPDATE enquiries SET status='closed',updated_at=${now} WHERE id=${String(q.enquiry_id)}`;
-  await sql`UPDATE conversations SET last_message_at=${now},customer_last_read_at=${now},updated_at=${now} WHERE id=${String(q.conversation_id)}`;
-  return {booking:mapBooking({...q,id:bookingId,quote_id:quoteId,status:"confirmed",service_summary:q.title,confirmed_at:now} as Record<string,unknown>)};
+  const results = await sql.transaction([
+    sql`SELECT id FROM conversations WHERE id=${String(q.conversation_id)} FOR UPDATE`,
+    sql`
+      WITH accepted AS (
+        UPDATE quotes SET status='accepted',responded_at=${now},updated_at=${now}
+        WHERE id=${quoteId} AND customer_clerk_user_id=${customerUserId} AND status IN ('sent','viewed')
+          AND (valid_until IS NULL OR valid_until >= ${now.toISOString().slice(0,10)}::date)
+          AND NOT EXISTS(SELECT 1 FROM bookings WHERE conversation_id=${String(q.conversation_id)})
+        RETURNING *
+      )
+      INSERT INTO bookings(id,quote_id,conversation_id,enquiry_id,vendor_id,vendor_owner_clerk_user_id,customer_clerk_user_id,wedding_date,wedding_location,service_summary,total,currency_code,payment_plan,deposit_amount,status,confirmed_at,created_at,updated_at)
+      SELECT ${bookingId},id,conversation_id,enquiry_id,vendor_id,vendor_owner_clerk_user_id,customer_clerk_user_id,${dateOnly(q.wedding_date)},${String(q.wedding_location)},title,total,'NGN',payment_plan,COALESCE(deposit_amount,total),'confirmed',${now},${now},${now}
+      FROM accepted RETURNING *
+    `,
+    sql`UPDATE quotes SET status='declined',responded_at=COALESCE(responded_at,${now}),updated_at=${now} WHERE conversation_id=${String(q.conversation_id)} AND id<>${quoteId} AND status IN ('sent','viewed') AND EXISTS(SELECT 1 FROM bookings WHERE id=${bookingId})`,
+    sql`UPDATE enquiries SET status='closed',updated_at=${now} WHERE id=${String(q.enquiry_id)} AND EXISTS(SELECT 1 FROM bookings WHERE id=${bookingId})`,
+    sql`UPDATE conversations SET last_message_at=${now},customer_last_read_at=${now},updated_at=${now} WHERE id=${String(q.conversation_id)} AND EXISTS(SELECT 1 FROM bookings WHERE id=${bookingId})`,
+  ]);
+  if (!results[1][0]) throw new Error("QUOTE_ALREADY_RESPONDED");
+  return {booking:mapBooking({...results[1][0], vendor_name:q.vendor_name,customer_name:q.customer_name} as Record<string,unknown>)};
+
 }
 
 export async function listAccountQuotes(userId:string,role:"couple"|"vendor"|"admin") {

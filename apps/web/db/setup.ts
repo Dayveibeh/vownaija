@@ -39,6 +39,18 @@ export async function setupDatabaseSchema() {
           updated_at timestamptz NOT NULL DEFAULT now()
         )
     `,
+    sql`CREATE TABLE IF NOT EXISTS customer_budget_items (
+      id text PRIMARY KEY, clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
+      title text NOT NULL, amount numeric(14,2) NOT NULL CHECK (amount >= 0),
+      created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+    )`,
+    sql`CREATE INDEX IF NOT EXISTS customer_budget_items_user_idx ON customer_budget_items(clerk_user_id)`,
+    sql`CREATE TABLE IF NOT EXISTS customer_checklist_items (
+      id text PRIMARY KEY, clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,
+      title text NOT NULL, due_date date, completed boolean NOT NULL DEFAULT false,
+      created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+    )`,
+    sql`CREATE INDEX IF NOT EXISTS customer_checklist_items_user_idx ON customer_checklist_items(clerk_user_id)`,
     sql`
         CREATE TABLE IF NOT EXISTS vendor_profiles (
           clerk_user_id text PRIMARY KEY REFERENCES smitten_users(clerk_user_id) ON DELETE CASCADE,

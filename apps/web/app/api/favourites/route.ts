@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { favourites, marketplaceVendors } from "@/db/schema";
+import { rejectCrossOriginWrite } from "@/lib/vendor-api-auth";
 import { isClerkConfigured } from "@/lib/accounts";
 
 function authUnavailable() {
@@ -30,7 +31,7 @@ export async function GET() {
       .innerJoin(marketplaceVendors, eq(favourites.vendorId, marketplaceVendors.id))
       .where(eq(favourites.clerkUserId, userId));
 
-    return NextResponse.json({ currency: "NGN", favourites: rows });
+    return NextResponse.json({ currency: "NGN", favourites: rows }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Failed to load favourites", error);
     return NextResponse.json({ message: "Unable to load saved vendors right now." }, { status: 500 });
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
   const userId = await authenticatedUserId();
   if (!userId) return authUnavailable();
 
+  const rejected = rejectCrossOriginWrite(request); if (rejected) return rejected;
   const vendorId = await vendorIdFromRequest(request);
   if (!vendorId) return NextResponse.json({ message: "Vendor is required." }, { status: 400 });
 
@@ -75,6 +77,7 @@ export async function DELETE(request: Request) {
   const userId = await authenticatedUserId();
   if (!userId) return authUnavailable();
 
+  const rejected = rejectCrossOriginWrite(request); if (rejected) return rejected;
   const vendorId = await vendorIdFromRequest(request);
   if (!vendorId) return NextResponse.json({ message: "Vendor is required." }, { status: 400 });
 

@@ -84,7 +84,7 @@ test("fresh deployment creates all tables and batches schema and sample setup", 
   const rows = await postgres.query<{ count: number }>(
     "SELECT count(*)::int FROM information_schema.tables WHERE table_schema='public'",
   );
-  assert.equal(rows.rows[0].count, 20);
+  assert.equal(rows.rows[0].count, 22);
   assert.equal((await listMarketplaceVendors()).length, 6);
 });
 
