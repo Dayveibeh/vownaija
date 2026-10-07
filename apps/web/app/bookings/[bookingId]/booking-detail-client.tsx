@@ -1,5 +1,7 @@
 "use client";
 
+import BookingReviewPanel from "./booking-review-panel";
+import type { BookingReviewState } from "@/lib/reviews";
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, CalendarCheck2, CheckCircle2, CreditCard, Download, FileText, HandCoins, LockKeyhole, MapPin, MessageSquare, ShieldCheck, WalletCards } from "lucide-react";
 import { formatNaira } from "@smitten/shared";
@@ -36,11 +38,13 @@ type PaymentTimelineItem = {
 
 export default function BookingDetailClient({
   booking,
+  reviewState,
   quote,
   role,
   paymentSummary: initialPaymentSummary,
 }: {
   booking: BookingView;
+  reviewState: BookingReviewState | null;
   quote: QuoteView;
   role: "couple" | "vendor" | "admin";
   paymentSummary: BookingPaymentSummary;
@@ -520,6 +524,8 @@ export default function BookingDetailClient({
               </details>}
             </section>}
           </section>
+
+          {isCustomer && reviewState && <BookingReviewPanel bookingId={booking.id} initialState={reviewState} />}
 
           <section className="booking-accepted-quote">
             <div className="booking-section-heading">

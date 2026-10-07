@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, index, integer, jsonb, numeric, pgTable, primaryKey, text, timestamp, date } from "drizzle-orm/pg-core";
+import { boolean, check, index, uniqueIndex, integer, jsonb, numeric, pgTable, primaryKey, text, timestamp, date } from "drizzle-orm/pg-core";
 
 export const users = pgTable("smitten_users", {
   clerkUserId: text("clerk_user_id").primaryKey(),
@@ -94,6 +94,7 @@ export const marketplaceVendors = pgTable("marketplace_vendors", {
   responseTime: text("response_time").default("Usually replies within 1 business day").notNull(),
   availability: text("availability").default("Contact vendor to confirm availability").notNull(),
   active: boolean("active").default(true).notNull(),
+  moderationStatus: text("moderation_status", { enum: ["listed", "hidden"] }).default("listed").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
@@ -232,6 +233,7 @@ export const bookings = pgTable("bookings", {
   paymentPlan: text("payment_plan", { enum: ["full", "deposit"] }).default("full").notNull(),
   depositAmount: numeric("deposit_amount", { precision: 14, scale: 2 }),
   status: text("status", { enum: ["confirmed", "completed", "cancelled"] }).default("confirmed").notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
   confirmedAt: timestamp("confirmed_at", { withTimezone: true }).defaultNow().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -240,6 +242,24 @@ export const bookings = pgTable("bookings", {
   index("bookings_customer_idx").on(table.customerClerkUserId),
   index("bookings_status_idx").on(table.status),
 ]);
+
+export const bookingReviews = pgTable("booking_reviews", {
+  id: text("id").primaryKey(),
+  bookingId: text("booking_id").notNull().references(() => bookings.id, { onDelete: "restrict" }),
+  vendorId: text("vendor_id").notNull().references(() => marketplaceVendors.id, { onDelete: "restrict" }),
+  customerClerkUserId: text("customer_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "restrict" }),
+  revision: integer("revision").default(1).notNull(),
+  rating: integer("rating").notNull(), title: text("title").notNull(), body: text("body").notNull(),
+  status: text("status", { enum: ["pending", "published", "hidden"] }).default("pending").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("booking_reviews_booking_idx").on(table.bookingId), index("booking_reviews_vendor_idx").on(table.vendorId), check("booking_reviews_rating_check", sql`${table.rating} between 1 and 5`)]);
+
+export const marketplaceAdminEvents = pgTable("marketplace_admin_events", {
+  id: text("id").primaryKey(), actorClerkUserId: text("actor_clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "restrict" }),
+  targetId: text("target_id").notNull(), action: text("action").notNull(), reason: text("reason").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
 
 export const paymentOrders = pgTable("payment_orders", {
   id: text("id").primaryKey(),

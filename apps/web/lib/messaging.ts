@@ -62,7 +62,7 @@ export async function createEnquiry(customerClerkUserId: string, input: EnquiryI
   const vendorRows = await sql`
     SELECT id, business_name, owner_clerk_user_id
     FROM marketplace_vendors
-    WHERE id = ${input.vendorId} AND active = true
+    WHERE id = ${input.vendorId} AND active = true AND moderation_status = 'listed'
     LIMIT 1
   `;
   const vendor = vendorRows[0];

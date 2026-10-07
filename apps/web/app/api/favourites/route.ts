@@ -29,7 +29,7 @@ export async function GET() {
       })
       .from(favourites)
       .innerJoin(marketplaceVendors, eq(favourites.vendorId, marketplaceVendors.id))
-      .where(eq(favourites.clerkUserId, userId));
+      .where(and(eq(favourites.clerkUserId, userId), eq(marketplaceVendors.active, true), eq(marketplaceVendors.moderationStatus, "listed")));
 
     return NextResponse.json({ currency: "NGN", favourites: rows }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
 
     const [vendor] = await getDb().select({ id: marketplaceVendors.id })
       .from(marketplaceVendors)
-      .where(and(eq(marketplaceVendors.id, vendorId), eq(marketplaceVendors.active, true)))
+      .where(and(eq(marketplaceVendors.id, vendorId), eq(marketplaceVendors.active, true), eq(marketplaceVendors.moderationStatus, "listed")))
       .limit(1);
     if (!vendor) return NextResponse.json({ message: "Vendor not found." }, { status: 404 });
 

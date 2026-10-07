@@ -154,3 +154,24 @@ After merging and redeploying the existing web resource from `main`, verify on s
 5. Leave the signed-in site untouched for ten minutes. Confirm the two-minute warning and sign-out. Interact before expiry to confirm the timer resets; refreshing alone must not reset it.
 
 Authenticated browser checks on the deployed site remain necessary after deployment.
+
+### Booking reviews and marketplace administration (Phase 5)
+
+Customers confirm delivery from their booking page, on or after the booking date in Nigeria (or after delivery when no date is recorded). Only the booking customer can confirm; cancelled bookings are excluded. Completion records `bookings.completed_at` without initializing payments or releasing payouts.
+
+Completed bookings support one review each: 1–5 stars, a title and feedback. Reviews and edits await admin approval. Published feedback appears on the vendor profile with the customer's first name and a **Booking verified** label. Private booking and account IDs stay private. Vendors access feedback through **More → Reviews** (`/dashboard/reviews`). Published reviews alone determine the public rating; the old sample dashboard reviews and placeholder catalogue ratings are removed. Deployment recalculates catalogue scores from published booking reviews.
+
+Admins use `/admin/marketplace` to approve or hide reviews and hide or restore vendors, with an audit reason for every action. An operator grants access through Clerk **private metadata**: `{"smitten":{"role":"admin"}}`. Opening the admin page syncs that trusted role to the account. User-editable unsafe metadata and database roles alone cannot authorize the new APIs. Revoking trusted metadata blocks subsequent API requests immediately. Approval checks the review revision to prevent publishing feedback edited since the admin loaded it.
+
+Vendor hiding covers public discovery, profiles, saved lists, new enquiries and public portfolio endpoints. The separate `moderation_status` survives profile edits and deployment backfills. Existing bookings and messages remain accessible to participants. Restoration preserves onboarding requirements. Previously cached portfolio responses can remain visible for their existing five-minute cache lifetime.
+
+Schema setup adds `booking_reviews`, `marketplace_admin_events`, `bookings.completed_at` and `marketplace_vendors.moderation_status`. Records live in the existing Neon database; code lives in GitHub. After merging, redeploy the existing **smitten-web-test** Coolify web resource. No additional resource or environment variable is required. Admin queues and vendor lists show up to 200 records; the audit feed shows 50 actions and public profiles show 100 reviews. Vendor summaries aggregate all published reviews.
+
+`npm run test:reviews` exercises the isolated PostgreSQL enquiry → quote → booking → completion → review → approval workflow, concurrent repeat submissions, ownership, future/cancelled bookings, trusted admin authorization and revocation, stale approval, rollback, ratings and persistent visibility. Existing vendor and customer suites remain regression checks. DATE fixtures now match PostgreSQL serialization, and quote acceptance preserves Neon's calendar dates. Tests do not contact live Neon or move funds.
+
+After deployment, verify authenticated screens at `dev.smitten.com.ng`:
+1. Create a test booking with a past date, confirm delivery, submit feedback and refresh. It must remain pending and absent publicly.
+2. With a trusted admin account, publish the review with a reason. Check the public profile, rating, vendor Reviews page and audit entry.
+3. Edit feedback as the customer. It returns to pending and leaves the public rating until approved. Approval from an older admin screen must require a refresh.
+4. Hide a vendor, check search and the direct profile, then edit the vendor profile to confirm it stays hidden. Restore it and check discovery again.
+5. Check mobile inputs, navigation, inline moderation confirmation and bottom notifications. Authenticated staging browser verification remains necessary after deployment.

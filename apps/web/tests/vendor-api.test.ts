@@ -35,10 +35,10 @@ before(async () => {
         const result = await db.query<unknown[]>(query, params, { rowMode: "array" });
         results.push({
           fields: result.fields,
-          rows: result.rows.map((row) => row.map((value) => {
+          rows: result.rows.map((row) => row.map((value, index) => {
             if (value === null) return null;
             if (typeof value === "boolean") return value ? "t" : "f";
-            if (value instanceof Date) return value.toISOString();
+            if (value instanceof Date) return result.fields[index].dataTypeID === 1082 ? value.toISOString().slice(0,10) : value.toISOString();
             if (typeof value === "object") return JSON.stringify(value);
             return String(value);
           })),
@@ -84,8 +84,9 @@ test("fresh deployment creates all tables and batches schema and sample setup", 
   const rows = await postgres.query<{ count: number }>(
     "SELECT count(*)::int FROM information_schema.tables WHERE table_schema='public'",
   );
-  assert.equal(rows.rows[0].count, 22);
+  assert.equal(rows.rows[0].count, 24);
   assert.equal((await listMarketplaceVendors()).length, 6);
+  assert.ok((await listMarketplaceVendors()).every((vendor) => vendor.reviewCount === 0 && Number(vendor.rating) === 0));
 });
 
 test("first and repeated API reads use one SELECT and return the existing contract", async () => {

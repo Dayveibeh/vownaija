@@ -379,12 +379,7 @@ export default function DashboardClient({
           <Link href="/dashboard/profile"><Settings size={18} /> Business profile</Link>
           <Link href="/dashboard/profile#packages"><FileText size={18} /> Packages</Link>
           <Link href="/dashboard/profile#portfolio"><ImagePlus size={18} /> Portfolio</Link>
-          <button
-            className={tab === "Reviews" ? "active" : ""}
-            onClick={() => setTab("Reviews")}
-          >
-            <Star size={18} /> Reviews
-          </button>
+          <Link href="/dashboard/reviews"><Star size={18} /> Reviews</Link>
           <button onClick={() => showToast("Insights report opened")}>
             <BarChart3 size={18} /> Insights
           </button>
@@ -498,7 +493,7 @@ export default function DashboardClient({
             />
           )}
           {tab === "Portfolio" && <div className="dash-card"><h2>Your portfolio</h2><Link href="/dashboard/profile#portfolio" className="button button-primary">Manage your portfolio</Link></div>}
-          {tab === "Reviews" && <Reviews showToast={showToast} />}
+          {tab === "Reviews" && <Link className="button button-primary" href="/dashboard/reviews">View booking reviews</Link>}
         </div>
       </section>
 
@@ -1153,98 +1148,6 @@ function Messages({
             </footer>
           </div>
         </article>
-      </section>
-    </>
-  );
-}
-
-function Reviews({ showToast }: { showToast: (message: string) => void }) {
-  return (
-    <>
-      <PageHeading
-        eyebrow="Reputation"
-        title="Reviews"
-        text="Build trust by celebrating feedback and responding thoughtfully."
-        action={
-          <button
-            className="filter-button"
-            onClick={() => showToast("Reviews sorted by newest first")}
-          >
-            Newest first <ChevronDown size={16} />
-          </button>
-        }
-      />
-      <div className="reviews-summary">
-        <div>
-          <strong>4.9</strong>
-          <span>
-            <span>★★★★★</span>Based on 86 verified reviews
-          </span>
-        </div>
-        <div>
-          <p>
-            <span>5</span>
-            <i>
-              <b style={{ width: "92%" }} />
-            </i>
-            <strong>79</strong>
-          </p>
-          <p>
-            <span>4</span>
-            <i>
-              <b style={{ width: "8%" }} />
-            </i>
-            <strong>7</strong>
-          </p>
-          <p>
-            <span>3</span>
-            <i>
-              <b style={{ width: "0%" }} />
-            </i>
-            <strong>0</strong>
-          </p>
-        </div>
-        <p>
-          <Sparkles size={17} />
-          <span>
-            <strong>Top compliment</strong>“Exceptional communication” appears
-            in 64% of your reviews.
-          </span>
-        </p>
-      </div>
-      <section className="review-management">
-        {["Amara Okoye", "Nneka Chukwu"].map((name, index) => (
-          <article className="dash-card" key={name}>
-            <header>
-              <div>
-                <span>{index ? "NC" : "AO"}</span>
-                <p>
-                  <strong>{name}</strong>
-                  <small>
-                    {index
-                      ? "Married in Abuja · February 2026"
-                      : "Married in Lagos · May 2026"}
-                  </small>
-                </p>
-              </div>
-              <small>{index ? "4 days ago" : "Yesterday"}</small>
-            </header>
-            <div className="review-stars">★★★★★</div>
-            <h3>
-              {index
-                ? "Calm, creative and so organised"
-                : "They understood the assignment"}
-            </h3>
-            <p>
-              {index
-                ? "From the first call we felt looked after. Our families could enjoy the day because Aurora handled everything beautifully."
-                : "Adaeze and her team brought our modern Yoruba wedding to life. Every detail was thoughtful and the day ran beautifully."}
-            </p>
-            <button onClick={() => showToast(`Reply started for ${name}`)}>
-              <MessageSquare size={15} /> Reply publicly
-            </button>
-          </article>
-        ))}
       </section>
     </>
   );

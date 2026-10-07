@@ -1,5 +1,7 @@
 "use client";
 
+import { ReviewList } from "../../components/ReviewList";
+import type { ReviewView } from "@/lib/reviews";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState, type FormEvent } from "react";
@@ -21,10 +23,12 @@ import { SessionAccountNav } from "../../components/SessionAccountNav";
 
 export default function VendorProfileClient({
   vendor,
+  reviews,
   autoOpenEnquiry = false,
   initialPackageId = null,
 }: {
   vendor: MarketplaceVendorDetailRecord;
+  reviews: ReviewView[];
   autoOpenEnquiry?: boolean;
   initialPackageId?: string | null;
 }) {
@@ -224,8 +228,9 @@ export default function VendorProfileClient({
             <div className="profile-section-heading"><div><p className="eyebrow"><span /> Reputation</p><h2>Couple reviews</h2></div></div>
             <div className="rating-overview">
               <div><strong>{vendor.reviewCount ? Number(vendor.rating).toFixed(1) : "New"}</strong><span>{vendor.reviewCount > 0 ? `${vendor.reviewCount} marketplace reviews` : "No reviews yet"}</span></div>
-              <p>{vendor.matchReason}</p>
+              <p>Customer feedback from completed Smitten bookings.</p>
             </div>
+            <ReviewList reviews={reviews} />
           </section>
         </article>
 
