@@ -224,6 +224,26 @@ export async function setupDatabaseSchema() {
           updated_at timestamptz NOT NULL DEFAULT now()
         )
     `,
+    sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS completed_at timestamptz`,
+    sql`ALTER TABLE marketplace_vendors ADD COLUMN IF NOT EXISTS moderation_status text NOT NULL DEFAULT 'listed' CHECK (moderation_status IN ('listed','hidden'))`,
+    sql`CREATE TABLE IF NOT EXISTS booking_reviews (
+      id text PRIMARY KEY, booking_id text NOT NULL UNIQUE REFERENCES bookings(id) ON DELETE RESTRICT,
+      vendor_id text NOT NULL REFERENCES marketplace_vendors(id) ON DELETE RESTRICT,
+      customer_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE RESTRICT,
+      revision integer NOT NULL DEFAULT 1, rating integer NOT NULL CHECK (rating BETWEEN 1 AND 5), title text NOT NULL, body text NOT NULL,
+      status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','published','hidden')),
+      created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+    )`,
+    sql`CREATE INDEX IF NOT EXISTS booking_reviews_vendor_idx ON booking_reviews(vendor_id)`,
+    // Serialize with review writes before recalculating existing catalogue scores.
+    // The following statement gets a fresh READ COMMITTED snapshot after locks.
+    sql`SELECT id FROM marketplace_vendors ORDER BY id FOR UPDATE`,
+    sql`UPDATE marketplace_vendors v SET rating=COALESCE((SELECT round(avg(rating),2) FROM booking_reviews WHERE vendor_id=v.id AND status='published'),0),
+      review_count=(SELECT count(*) FROM booking_reviews WHERE vendor_id=v.id AND status='published')`,
+    sql`CREATE TABLE IF NOT EXISTS marketplace_admin_events (
+      id text PRIMARY KEY, actor_clerk_user_id text NOT NULL REFERENCES smitten_users(clerk_user_id) ON DELETE RESTRICT,
+      target_id text NOT NULL, action text NOT NULL, reason text NOT NULL, created_at timestamptz NOT NULL DEFAULT now()
+    )`,
     sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_plan text NOT NULL DEFAULT 'full'`,
     sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS deposit_amount numeric(14,2)`,
     sql`UPDATE bookings SET deposit_amount=total WHERE deposit_amount IS NULL`,

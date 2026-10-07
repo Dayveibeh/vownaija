@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getUserProfile } from "@/lib/accounts";
 import { getBookingForAccount, getQuoteForAccount } from "@/lib/quotes";
 import { getBookingPaymentSummary } from "@/lib/payments";
+import { getBookingReviewState } from "@/lib/reviews";
 import BookingDetailClient from "./booking-detail-client";
 
 export const dynamic = "force-dynamic";
@@ -18,11 +19,12 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
   const booking = await getBookingForAccount(bookingId, userId, profile.role);
   if (!booking) notFound();
 
-  const quote = await getQuoteForAccount(booking.quoteId, userId, profile.role);
-  if (!quote) notFound();
+  const [quote, paymentSummary, reviewState] = await Promise.all([
+    getQuoteForAccount(booking.quoteId, userId, profile.role),
+    getBookingPaymentSummary(booking.id, userId, profile.role),
+    profile.role === "couple" ? getBookingReviewState(booking.id, userId) : Promise.resolve(null),
+  ]);
+  if (!quote || !paymentSummary) notFound();
 
-  const paymentSummary = await getBookingPaymentSummary(booking.id, userId, profile.role);
-  if (!paymentSummary) notFound();
-
-  return <BookingDetailClient booking={booking} quote={quote} role={profile.role} paymentSummary={paymentSummary} />;
+  return <BookingDetailClient reviewState={reviewState} booking={booking} quote={quote} role={profile.role} paymentSummary={paymentSummary} />;
 }

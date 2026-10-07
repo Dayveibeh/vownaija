@@ -23,7 +23,7 @@ const vendorMore: Destination[] = [
   { key: "packages", label: "Packages", href: "/dashboard/profile#packages" },
   { key: "payouts", label: "Payout account", href: "/dashboard/payouts" },
   { key: "portfolio", label: "Portfolio", href: "/dashboard/profile#portfolio" },
-  { key: "reviews", label: "Reviews", href: "/dashboard?view=reviews" },
+  { key: "reviews", label: "Reviews", href: "/dashboard/reviews" },
   { key: "insights", label: "Insights", href: "/dashboard?view=insights" },
   { key: "settings", label: "Settings", href: "/dashboard?view=settings" },
 ];
@@ -57,7 +57,8 @@ const coupleMore: Destination[] = [
 const adminLinks: Destination[] = [
   { key: "finance", label: "Finance", href: "/admin/payments" },
   { key: "notifications", label: "Notifications", href: "/notifications" },
-  { key: "marketplace", label: "Marketplace", href: "/" },
+  { key: "marketplace", label: "Marketplace controls", href: "/admin/marketplace" },
+  { key: "browse", label: "Browse Smitten", href: "/" },
 ];
 
 export function WorkspaceNavigation({

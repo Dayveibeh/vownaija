@@ -9,8 +9,8 @@ export async function seedMarketplace() {
     return {
       id: vendor.id, business_name: vendor.name, category: vendor.category,
       location: vendor.location, state: vendor.state, starting_price: vendor.priceMin,
-      currency_code: vendor.currencyCode, tier: vendor.tier, rating: vendor.rating,
-      review_count: vendor.reviews, image_url: vendor.image, styles: vendor.style,
+      currency_code: vendor.currencyCode, tier: vendor.tier, rating: 0,
+      review_count: 0, image_url: vendor.image, styles: vendor.style,
       match_reason: vendor.reason, about: details?.about ?? vendor.reason,
       travel_distance: details?.travelDistance ?? "Nigeria",
       gallery: details?.gallery ?? [vendor.image], highlights: details?.highlights ?? [],

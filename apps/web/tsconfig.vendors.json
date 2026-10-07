@@ -1,6 +1,8 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "incremental": false },
+  "compilerOptions": {
+    "incremental": false
+  },
   "include": [
     "db/**/*.ts",
     "lib/**/*.ts",
@@ -17,7 +19,20 @@
     "scripts/**/*.ts",
     "tests/vendor-api.test.ts",
     "tests/customer-workspace.test.ts",
-    "tests/session-idle.test.ts"
+    "tests/session-idle.test.ts",
+    "app/api/admin/marketplace/**/*.ts",
+    "app/api/bookings/*/review/**/*.ts",
+    "app/api/bookings/*/complete/**/*.ts",
+    "app/admin/marketplace/**/*.tsx",
+    "app/dashboard/reviews/**/*.tsx",
+    "app/bookings/**/*.tsx",
+    "app/vendor/[vendorId]/**/*.tsx",
+    "tests/reviews.test.ts"
   ],
-  "exclude": ["node_modules", "examples", "worker", "dist"]
+  "exclude": [
+    "node_modules",
+    "examples",
+    "worker",
+    "dist"
+  ]
 }

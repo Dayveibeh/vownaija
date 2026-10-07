@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { MarketplaceVendorDetailRecord } from "@smitten/shared";
 import { getMarketplaceVendor } from "@/lib/marketplace";
+import { listPublicReviews } from "@/lib/reviews";
 import VendorProfileClient from "./vendor-profile-client";
 
 export default async function VendorProfilePage({
@@ -12,7 +13,7 @@ export default async function VendorProfilePage({
 }) {
   const { vendorId } = await params;
   const query = await searchParams;
-  const record = await getMarketplaceVendor(vendorId);
+  const [record, reviews] = await Promise.all([getMarketplaceVendor(vendorId), listPublicReviews(vendorId)]);
   if (!record) notFound();
 
   const vendor: MarketplaceVendorDetailRecord = {
@@ -48,6 +49,7 @@ export default async function VendorProfilePage({
   return (
     <VendorProfileClient
       vendor={vendor}
+      reviews={reviews}
       autoOpenEnquiry={query.enquire === "1"}
       initialPackageId={requestedPackageId}
     />

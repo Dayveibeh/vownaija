@@ -22,7 +22,11 @@ export type BookingView = {
 };
 
 const money = (v: unknown) => Number(v ?? 0);
-const dateOnly = (v: unknown) => v ? String(v).slice(0, 10) : null;
+// Neon returns PostgreSQL DATE as a local calendar Date. Preserve its day
+// rather than slicing Date.toString() or shifting it through UTC.
+const dateOnly = (v: unknown) => v instanceof Date
+  ? `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}-${String(v.getDate()).padStart(2, "0")}`
+  : v ? String(v).slice(0, 10) : null;
 const iso = (v: unknown) => v ? new Date(String(v)).toISOString() : null;
 
 async function mapQuotes(rows: Record<string, unknown>[]): Promise<QuoteView[]> {

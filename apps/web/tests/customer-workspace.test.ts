@@ -53,10 +53,10 @@ before(async () => {
         const result = await db.query<unknown[]>(query, params, { rowMode: "array" });
         results.push({
           fields: result.fields,
-          rows: result.rows.map((row) => row.map((value) => {
+          rows: result.rows.map((row) => row.map((value, index) => {
             if (value === null) return null;
             if (typeof value === "boolean") return value ? "t" : "f";
-            if (value instanceof Date) return value.toISOString();
+            if (value instanceof Date) return result.fields[index].dataTypeID === 1082 ? value.toISOString().slice(0,10) : value.toISOString();
             if (typeof value === "object") return JSON.stringify(value);
             return String(value);
           })),
