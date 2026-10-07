@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { ArrowRight, ImagePlus, Save } from "lucide-react";
+import { ArrowRight, ImagePlus, Save, X } from "lucide-react";
 import { formatNaira } from "@smitten/shared";
 import { WorkspaceHeader } from "../../components/WorkspaceHeader";
 import { saveVendorProfile } from "../../onboarding/actions";
@@ -80,7 +80,6 @@ export default function VendorStudio({ initialProfile, vendorId, imageUrl, galle
         <Link className="button button-primary" href={`/vendor/${vendorId}`}>View public profile <ArrowRight size={17} /></Link></header>
       <nav className={styles.sectionNav} aria-label="Profile sections"><a href="#business">Business details</a><a href="#packages">Packages</a><a href="#portfolio">Portfolio</a></nav>
       {error && <p className={styles.error} role="alert">{error}</p>}
-      {notice && <p className={styles.notice} role="status">{notice}</p>}
       <section id="business" className={styles.card}>
         <h2>Business details</h2><p>Changes appear on your public profile when you save. Contact details stay in your workspace.</p>
         <form onSubmit={saveBusiness}>
@@ -127,5 +126,9 @@ export default function VendorStudio({ initialProfile, vendorId, imageUrl, galle
         </article>)}</div>
       </section>
     </div>
+    {notice && <div className={styles.notice}>
+      <p role="status" aria-atomic="true">{notice}</p>
+      <button type="button" aria-label="Dismiss notification" onClick={() => setNotice("")}><X size={18} aria-hidden="true" /></button>
+    </div>}
   </main>;
 }

@@ -16,9 +16,13 @@
 .about { margin-bottom:24px; }
 .about textarea { resize:vertical; }
 .fieldError, .error { color:#952e3c; }
-.error, .notice { padding:16px 20px; border-radius:10px; line-height:1.6; }
+.error { padding:16px 20px; border-radius:10px; line-height:1.6; }
 .error { background:#fceef0; }
-.notice { background:#edf3e7; color:#354a2e; }
+.notice { position:fixed; bottom:calc(24px + env(safe-area-inset-bottom, 0px)); left:50%; transform:translateX(-50%); z-index:60; display:flex; align-items:center; gap:16px; width:calc(100% - 32px); max-width:560px; padding:16px 16px 16px 20px; border:1px solid #d6e2ce; border-radius:12px; background:#edf3e7; color:#354a2e; box-shadow:0 8px 28px #25331e26; }
+.notice p { flex:1; margin:0; font-size:16px; line-height:1.6; overflow-wrap:anywhere; }
+.notice button { flex:none; display:grid; place-items:center; width:44px; height:44px; border:0; border-radius:8px; background:transparent; color:inherit; cursor:pointer; }
+.notice button:hover { background:#dce8d5; }
+.notice button:focus-visible { outline:2px solid #354a2e; outline-offset:2px; }
 .packageList article { display:flex; justify-content:space-between; gap:20px; padding:22px 0; border-bottom:1px solid var(--line); }
 .packageList small { color:var(--coral); font-weight:650; }
 .packageForm { margin-top:30px; }
