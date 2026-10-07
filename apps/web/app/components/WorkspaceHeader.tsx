@@ -19,8 +19,10 @@ const vendorLinks: Destination[] = [
   { key: "messages", label: "Messages", href: "/dashboard/messages" },
 ];
 const vendorMore: Destination[] = [
+  { key: "profile", label: "Business profile", href: "/dashboard/profile" },
+  { key: "packages", label: "Packages", href: "/dashboard/profile#packages" },
   { key: "payouts", label: "Payout account", href: "/dashboard/payouts" },
-  { key: "portfolio", label: "Portfolio", href: "/dashboard?view=portfolio" },
+  { key: "portfolio", label: "Portfolio", href: "/dashboard/profile#portfolio" },
   { key: "reviews", label: "Reviews", href: "/dashboard?view=reviews" },
   { key: "insights", label: "Insights", href: "/dashboard?view=insights" },
   { key: "settings", label: "Settings", href: "/dashboard?view=settings" },

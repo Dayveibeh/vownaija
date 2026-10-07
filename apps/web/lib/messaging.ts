@@ -71,7 +71,7 @@ export async function createEnquiry(customerClerkUserId: string, input: EnquiryI
   if (input.packageId) {
     const packageRows = await sql`
       SELECT id FROM vendor_packages
-      WHERE id = ${input.packageId} AND vendor_id = ${input.vendorId}
+      WHERE id = ${input.packageId} AND vendor_id = ${input.vendorId} AND active = true
       LIMIT 1
     `;
     if (!packageRows[0]) throw new Error("PACKAGE_NOT_FOUND");

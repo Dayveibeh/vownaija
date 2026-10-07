@@ -1,26 +1,13 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { z } from "zod";
 import { requireUserRole } from "@/lib/accounts";
 import { saveVendorProfileAndListing } from "@/lib/vendor-listings";
+import { vendorProfileSchema, type VendorProfileForm } from "@/lib/vendor-validation";
+import { getOwnedVendor } from "@/lib/vendor-workspace";
 
-const vendorProfileSchema = z.object({
-  businessName: z.string().trim().min(2, "Enter your business name").max(120),
-  contactName: z.string().trim().min(2, "Enter your full name").max(120),
-  businessEmail: z.string().trim().email("Enter a valid business email").max(254),
-  phone: z.string().trim().min(7, "Enter a valid phone number").max(30),
-  yearsInBusiness: z.string().trim().min(1),
-  primaryService: z.string().trim().min(2).max(120),
-  location: z.string().trim().min(2, "Enter the city or area where you work").max(160),
-  travelDistance: z.string().trim().min(1),
-  startingPrice: z.string().trim().max(24),
-  instagram: z.string().trim().max(180),
-  about: z.string().trim().min(20, "Tell couples a little more about your business").max(1200),
-});
-
-export type VendorOnboardingInput = z.infer<typeof vendorProfileSchema>;
-export type VendorOnboardingResult = { ok: true } | { ok: false; message: string; fields?: Record<string, string> };
+export type VendorOnboardingInput = VendorProfileForm;
+export type VendorOnboardingResult = { ok: true; vendorId: string } | { ok: false; message: string; fields?: Record<string, string> };
 
 export async function saveVendorProfile(input: VendorOnboardingInput): Promise<VendorOnboardingResult> {
   const parsed = vendorProfileSchema.safeParse(input);
@@ -37,16 +24,14 @@ export async function saveVendorProfile(input: VendorOnboardingInput): Promise<V
   const { userId } = await auth();
   if (!userId || account.clerkUserId !== userId) return { ok: false, message: "Please sign in again." };
 
-  const numericPrice = parsed.data.startingPrice.replace(/[^0-9.]/g, "");
-  const startingPrice = numericPrice ? numericPrice : null;
-
   try {
     await saveVendorProfileAndListing({
       clerkUserId: userId,
       ...parsed.data,
-      startingPrice,
     });
-    return { ok: true };
+    const vendor = await getOwnedVendor(userId);
+    if (!vendor) throw new Error("PROFILE_NOT_FOUND");
+    return { ok: true, vendorId: String(vendor.id) };
   } catch {
     return { ok: false, message: "We couldn’t save your profile just now. Please try again." };
   }

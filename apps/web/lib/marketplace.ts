@@ -39,11 +39,14 @@ export async function getMarketplaceVendor(vendorId: string) {
     .where(and(eq(marketplaceVendors.id, vendorId), eq(marketplaceVendors.active, true)))
     .limit(1);
   if (!vendor) return null;
+  return { ...vendor, packages: await listVendorPackages(vendorId) };
+}
 
+export async function listVendorPackages(vendorId: string) {
   const rows = await getSql()`
     SELECT id, title, description, price, currency_code, featured, display_order
     FROM vendor_packages
-    WHERE vendor_id = ${vendorId}
+    WHERE vendor_id = ${vendorId} AND active = true
     ORDER BY display_order ASC, created_at ASC
   `;
 
@@ -57,5 +60,5 @@ export async function getMarketplaceVendor(vendorId: string) {
     displayOrder: Number(item.display_order),
   }));
 
-  return { ...vendor, packages };
+  return packages;
 }

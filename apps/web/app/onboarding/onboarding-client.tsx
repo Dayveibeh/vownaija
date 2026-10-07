@@ -6,12 +6,13 @@ import { useState } from "react";
 import { Brand } from "../components/Brand";
 import { saveVendorProfile, type VendorOnboardingInput } from "./actions";
 
-const services = ["Planning & coordination", "Décor & styling", "Photography", "Catering", "Bridal beauty", "Music & entertainment", "Cakes", "Venues"];
+import { nigeriaStates, vendorServices as services, vendorProfileSchema } from "@/lib/vendor-validation";
 
 export default function OnboardingClient({ account }: { account: { fullName: string; email: string } }) {
   const [step, setStep] = useState(1);
   const [service, setService] = useState("Planning & coordination");
-  const [portfolioFile, setPortfolioFile] = useState("");
+  const [portfolioFile, setPortfolioFile] = useState<File | null>(null);
+  const [publicVendorId, setPublicVendorId] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -23,6 +24,7 @@ export default function OnboardingClient({ account }: { account: { fullName: str
     yearsInBusiness: "Just starting",
     primaryService: "Planning & coordination",
     location: "",
+    state: "",
     travelDistance: "My city only",
     startingPrice: "",
     instagram: "",
@@ -47,21 +49,33 @@ export default function OnboardingClient({ account }: { account: { fullName: str
   function continueFromServices() {
     const nextErrors: Record<string, string> = {};
     if (form.location.trim().length < 2) nextErrors.location = "Enter the city or area where you work.";
+    if (!form.state) nextErrors.state = "Choose your state.";
+    const price = vendorProfileSchema.shape.startingPrice.safeParse(form.startingPrice);
+    if (!price.success) nextErrors.startingPrice = price.error.issues[0].message;
     setFieldErrors(nextErrors);
     if (Object.keys(nextErrors).length === 0) setStep(3);
   }
 
   async function completeProfile() {
-    setSaving(true);
-    setError("");
-    const result = await saveVendorProfile({ ...form, primaryService: service });
-    setSaving(false);
-    if (!result.ok) {
-      setError(result.message);
-      setFieldErrors(result.fields ?? {});
-      return;
-    }
-    setStep(4);
+    setSaving(true); setError("");
+    try {
+      const result = await saveVendorProfile({ ...form, primaryService: service });
+      if (!result.ok) {
+        setError(result.message); setFieldErrors(result.fields ?? {});
+        if (result.fields && ["businessName", "contactName", "businessEmail", "phone", "yearsInBusiness"].some((key) => result.fields?.[key])) setStep(1);
+        else if (result.fields && ["primaryService", "location", "state", "travelDistance", "startingPrice"].some((key) => result.fields?.[key])) setStep(2);
+        return;
+      }
+      setPublicVendorId(result.vendorId);
+      if (portfolioFile) {
+        const body = new FormData(); body.set("file", portfolioFile); body.set("cover", "true");
+        const response = await fetch("/api/vendor-workspace/media", { method: "POST", body });
+        const upload = await response.json();
+        if (!response.ok) throw new Error(upload.message || "Your profile was saved, but the cover upload failed. Please try again or remove the cover and add it later.");
+      }
+      setStep(4);
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "We couldn’t save your profile. Please try again."); }
+    finally { setSaving(false); }
   }
 
   return (
@@ -74,8 +88,8 @@ export default function OnboardingClient({ account }: { account: { fullName: str
           <p>Create a profile that feels like your brand, receive qualified enquiries and manage every conversation in one place.</p>
         </div>
         <div className="onboarding-proof">
-          <div><strong>1,200+</strong><span>active vendors</span></div>
-          <div><strong>36</strong><span>states covered</span></div>
+          <div><strong>Your work</strong><span>in one portfolio</span></div>
+          <div><strong>Your business</strong><span>in one workspace</span></div>
         </div>
       </aside>
 
@@ -118,8 +132,9 @@ export default function OnboardingClient({ account }: { account: { fullName: str
               </div>
               <div className="field-grid location-fields">
                 <label>Based in<div className="input-icon"><MapPin size={17} /><input value={form.location} onChange={(event) => updateField("location", event.target.value)} placeholder="Lekki, Lagos" aria-invalid={Boolean(fieldErrors.location)} /></div>{fieldErrors.location && <small>{fieldErrors.location}</small>}</label>
+                <label>State<select value={form.state} onChange={(event) => updateField("state", event.target.value)} aria-invalid={Boolean(fieldErrors.state)}><option value="">Choose your state</option>{nigeriaStates.map((state) => <option key={state}>{state}</option>)}</select>{fieldErrors.state && <small>{fieldErrors.state}</small>}</label>
                 <label>Travel distance<select value={form.travelDistance} onChange={(event) => updateField("travelDistance", event.target.value)}><option>My city only</option><option>My state</option><option>Neighbouring states</option><option>Nationwide</option></select></label>
-                <label className="full-field">Starting price<div className="input-prefix"><span>₦</span><input value={form.startingPrice} onChange={(event) => updateField("startingPrice", event.target.value)} inputMode="numeric" placeholder="850,000" /></div></label>
+                <label className="full-field">Starting price<div className="input-prefix"><span>₦</span><input value={form.startingPrice} onChange={(event) => updateField("startingPrice", event.target.value)} inputMode="numeric" placeholder="850,000" aria-invalid={Boolean(fieldErrors.startingPrice)} /></div>{fieldErrors.startingPrice && <small>{fieldErrors.startingPrice}</small>}</label>
               </div>
               <div className="step-actions"><button className="back-button" onClick={() => setStep(1)}>Back</button><button className="button button-primary" onClick={continueFromServices}>Continue <ArrowRight size={18} /></button></div>
             </div>
@@ -131,11 +146,12 @@ export default function OnboardingClient({ account }: { account: { fullName: str
               <h2>Bring your profile to life</h2>
               <p>Add a social link and a portfolio cover. You can add more later.</p>
               <label className="upload-box">
-                <input type="file" accept="image/*,video/*" onChange={(event) => setPortfolioFile(event.target.files?.[0]?.name ?? "")} />
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0] ?? null; if (file && file.size > 8 * 1024 * 1024) { setError("Choose a cover image under 8 MB."); event.target.value = ""; return; } setError(""); setPortfolioFile(file); }} />
                 <span><ImagePlus size={26} /></span>
-                <strong>{portfolioFile || "Upload a cover image or video"}</strong>
-                <small>JPG, PNG or MP4 · up to 50MB</small>
+                <strong>{portfolioFile?.name || "Upload a cover image (optional)"}</strong>
+                <small>JPG, PNG or WebP · up to 8 MB</small>
               </label>
+              {portfolioFile && <button type="button" className="back-button" onClick={() => setPortfolioFile(null)}>Remove cover</button>}
               <div className="field-grid">
                 <label className="full-field">Instagram<div className="input-icon"><Instagram size={17} /><input placeholder="instagram.com/yourbusiness" value={form.instagram} onChange={(event) => updateField("instagram", event.target.value)} /></div></label>
                 <label className="full-field">About your business<textarea value={form.about} onChange={(event) => updateField("about", event.target.value)} placeholder="Tell couples what makes your work special." rows={4} aria-invalid={Boolean(fieldErrors.about)} />{fieldErrors.about && <small>{fieldErrors.about}</small>}</label>
@@ -149,9 +165,9 @@ export default function OnboardingClient({ account }: { account: { fullName: str
               <div className="success-icon"><Check size={34} /></div>
               <p className="eyebrow"><span /> You’re all set</p>
               <h2>Welcome to Smitten!</h2>
-              <p>Your vendor profile is ready to personalise. Add your packages, portfolio and availability to start receiving enquiries.</p>
+              <p>Your vendor profile is ready to personalise. Add your packages and portfolio, and keep your business details up to date.</p>
               <Link href="/dashboard" className="button button-primary">Open my dashboard <ArrowRight size={18} /></Link>
-              <Link href="/vendor/aurora-events" className="preview-profile-link">Preview my public profile</Link>
+              <Link href={`/vendor/${publicVendorId}`} className="preview-profile-link">Preview my public profile</Link>
             </div>
           )}
         </div>

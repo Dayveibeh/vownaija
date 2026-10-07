@@ -4,7 +4,7 @@ import type { vendorProfiles } from "@/db/schema";
 type VendorProfileInput = Pick<typeof vendorProfiles.$inferInsert,
   "clerkUserId" | "businessName" | "contactName" | "businessEmail" | "phone" |
   "yearsInBusiness" | "primaryService" | "location" | "travelDistance" |
-  "startingPrice" | "instagram" | "about">;
+  "startingPrice" | "instagram" | "about" | "state">;
 
 // Used by profile saves and deployment backfills, never by catalogue reads.
 export function vendorListingQuery(clerkUserId: string | null) {
@@ -18,14 +18,16 @@ export function vendorListingQuery(clerkUserId: string | null) {
     )
     SELECT
       COALESCE(existing.id, 'vendor-' || md5(vp.clerk_user_id)),
-      vp.clerk_user_id, vp.business_name, vp.primary_service, vp.location, vp.state,
-      COALESCE(vp.starting_price, 0), vp.currency_code, 'Premium', 5, 0,
-      'https://ikejabird.com/wp-content/uploads/2025/10/2022-02-01-1.jpg',
-      '[]'::jsonb, 'A newly verified Smitten vendor ready to hear about your celebration.',
+      vp.clerk_user_id, vp.business_name,
+      CASE vp.primary_service WHEN 'Planning & coordination' THEN 'Planning & décor' WHEN 'Décor & styling' THEN 'Planning & décor' WHEN 'Cakes' THEN 'Cakes & desserts' WHEN 'Music & entertainment' THEN 'Music & DJs' ELSE vp.primary_service END,
+      vp.location, vp.state,
+      COALESCE(vp.starting_price, 0), vp.currency_code, 'Mid-range', 0, 0,
+      '/vendor-placeholder.svg',
+      '[]'::jsonb, 'Get to know this vendor and ask about your celebration.',
       COALESCE(vp.about, 'Tell this vendor about your wedding to receive a personalised response.'),
       vp.travel_distance,
-      '["https://ikejabird.com/wp-content/uploads/2025/10/2022-02-01-1.jpg"]'::jsonb,
-      jsonb_build_array('Verified Smitten vendor', vp.years_in_business, vp.travel_distance),
+      '[]'::jsonb,
+      jsonb_build_array(vp.years_in_business, vp.travel_distance),
       vp.instagram, 'Usually replies within 1 business day',
       'Contact vendor to confirm availability', vp.onboarding_complete
     FROM vendor_profiles vp
@@ -60,12 +62,12 @@ export async function saveVendorProfileAndListing(profile: VendorProfileInput) {
       INSERT INTO vendor_profiles (
         clerk_user_id, business_name, contact_name, business_email, phone,
         years_in_business, primary_service, location, travel_distance,
-        starting_price, instagram, about, onboarding_complete
+        starting_price, instagram, about, state, onboarding_complete
       ) VALUES (
         ${profile.clerkUserId}, ${profile.businessName}, ${profile.contactName},
         ${profile.businessEmail}, ${profile.phone}, ${profile.yearsInBusiness},
         ${profile.primaryService}, ${profile.location}, ${profile.travelDistance},
-        ${profile.startingPrice ?? null}, ${profile.instagram ?? null}, ${profile.about ?? null}, true
+        ${profile.startingPrice ?? null}, ${profile.instagram ?? null}, ${profile.about ?? null}, ${profile.state ?? null}, true
       )
       ON CONFLICT (clerk_user_id) DO UPDATE SET
         business_name = EXCLUDED.business_name, contact_name = EXCLUDED.contact_name,
@@ -73,7 +75,7 @@ export async function saveVendorProfileAndListing(profile: VendorProfileInput) {
         years_in_business = EXCLUDED.years_in_business, primary_service = EXCLUDED.primary_service,
         location = EXCLUDED.location, travel_distance = EXCLUDED.travel_distance,
         starting_price = EXCLUDED.starting_price, instagram = EXCLUDED.instagram,
-        about = EXCLUDED.about, onboarding_complete = true, updated_at = now()
+        about = EXCLUDED.about, state = EXCLUDED.state, onboarding_complete = true, updated_at = now()
     `,
     vendorListingQuery(profile.clerkUserId),
   ]);
