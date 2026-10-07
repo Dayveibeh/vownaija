@@ -23,7 +23,8 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { coupleVendors } from "../vendor-data";
+import type { CustomerPlanning } from "@/lib/customer-validation";
+import { formatNaira } from "@smitten/shared";
 import {
   coupleVendorFromMarketplaceRecord,
   type CoupleVendor,
@@ -35,14 +36,19 @@ type MobileTab = "home" | "saved" | "account";
 type DashboardVendor = CoupleVendor & { acceptingEnquiries: boolean };
 
 export default function CoupleDashboardClient({
-  profile,
+  profile, planning,
 }: {
   profile: { fullName: string; email: string };
+  planning: CustomerPlanning;
 }) {
   const { signOut } = useClerk();
   const view = useSearchParams().get("view");
   const accountOpen = view === "settings";
   const mobileTab: MobileTab = accountOpen ? "account" : view === "saved" ? "saved" : "home";
+  const [savingVendor, setSavingVendor] = useState("");
+  const plannedBudget = Number(planning.details.budgetCeiling || 0);
+  const allocatedBudget = planning.budget.reduce((sum, item) => sum + Math.round(Number(item.amount) * 100), 0) / 100;
+  const budgetPercent = plannedBudget > 0 ? Math.round(allocatedBudget / plannedBudget * 100) : 0;
   const [saved, setSaved] = useState<string[]>([]);
   const [favouriteVendors, setFavouriteVendors] = useState<DashboardVendor[]>([]);
   const [loadingFavourites, setLoadingFavourites] = useState(true);
@@ -173,6 +179,8 @@ export default function CoupleDashboardClient({
   }, [notice]);
 
   async function toggleSaved(vendorId: string) {
+    if (savingVendor || loadingFavourites) return;
+    setSavingVendor(vendorId);
     const wasSaved = saved.includes(vendorId);
     setSaved((current) =>
       wasSaved
@@ -187,6 +195,7 @@ export default function CoupleDashboardClient({
         body: JSON.stringify({ vendorId }),
       });
       if (!response.ok) throw new Error("Favourite update failed");
+      setFavouritesReload((value) => value + 1);
     } catch {
       setSaved((current) =>
         wasSaved
@@ -194,11 +203,7 @@ export default function CoupleDashboardClient({
           : current.filter((item) => item !== vendorId),
       );
       setNotice("We couldn’t update your saved vendors. Please try again.");
-    }
-  }
-
-  function showNotice(message: string) {
-    setNotice(message);
+    } finally { setSavingVendor(""); }
   }
 
   function goTo(id: string, message?: string, tab?: MobileTab) {
@@ -229,9 +234,7 @@ export default function CoupleDashboardClient({
     window.history.replaceState(null, "", url);
   }
 
-  const recommendedVendors = liveVendors.length
-    ? liveVendors
-    : coupleVendors.map((vendor) => ({ ...vendor, acceptingEnquiries: false }));
+  const recommendedVendors = liveVendors;
   const vendorById = new Map([...favouriteVendors, ...recommendedVendors].map((vendor) => [vendor.id, vendor]));
   const showingSaved = mobileTab === "saved";
   const visibleVendors = showingSaved
@@ -330,14 +333,14 @@ export default function CoupleDashboardClient({
               </div>
             </article>
             <article>
-              <button type="button" className="couple-stat-action" aria-label="View sample budget snapshot" onClick={() => goTo("couple-budget")} />
+              <button type="button" className="couple-stat-action" aria-label="Manage your budget" onClick={() => { window.location.href = "/couples/planning#budget"; }} />
               <span className="green">
                 <CircleDollarSign />
               </span>
               <div>
-                <p>Sample budget</p>
-                <strong>42%</strong>
-                <small>₦2.1m of ₦5m</small>
+                <p>Your budget</p>
+                <strong>{plannedBudget > 0 ? `${budgetPercent}%` : "Not set"}</strong>
+                <small>{formatNaira(allocatedBudget)} allocated</small>
               </div>
             </article>
             <article>
@@ -383,7 +386,7 @@ export default function CoupleDashboardClient({
                 </div>
               )}
               <div className="shortlist-row">
-                {visibleVendors.map((vendor, index) => (
+                {visibleVendors.map((vendor) => (
                     <article key={vendor.id}>
                       <div>
                         <img
@@ -395,10 +398,11 @@ export default function CoupleDashboardClient({
                         <span>
                           {vendor.acceptingEnquiries
                             ? "Accepting enquiries"
-                            : `${94 - index * 3}% match`}
+                            : "Showcase profile"}
                         </span>
                         <button
                           className={saved.includes(vendor.id) ? "saved" : ""}
+                          disabled={Boolean(savingVendor) || loadingFavourites}
                           onClick={() => void toggleSaved(vendor.id)}
                           aria-label={`${saved.includes(vendor.id) ? "Remove" : "Save"} ${vendor.name}`}
                         >
@@ -439,29 +443,30 @@ export default function CoupleDashboardClient({
                 <div className="couple-card-heading">
                   <div>
                     <h2>Budget snapshot</h2>
-                    <p>Sample vendor budget</p>
+                    <p>Your saved allocations</p>
                   </div>
                 </div>
-                <div className="budget-ring">
+                <div className="budget-ring" style={{ background: `conic-gradient(#b85467 ${Math.min(100, budgetPercent)}%, #efe7e2 0)` }}>
                   <div>
-                    <strong>42%</strong>
+                    <strong>{budgetPercent}%</strong>
                     <small>allocated</small>
                   </div>
                 </div>
                 <div className="budget-numbers">
                   <span>
                     <small>Planned</small>
-                    <strong>₦5,000,000</strong>
+                    <strong>{formatNaira(plannedBudget)}</strong>
                   </span>
                   <span>
                     <small>Allocated</small>
-                    <strong>₦2,100,000</strong>
+                    <strong>{formatNaira(allocatedBudget)}</strong>
                   </span>
                 </div>
                 <div className="budget-remaining">
-                  <span>Remaining</span>
-                  <strong>₦2,900,000</strong>
+                  <span>{allocatedBudget > plannedBudget ? "Over budget" : "Remaining"}</span>
+                  <strong>{formatNaira(Math.abs(plannedBudget - allocatedBudget))}</strong>
                 </div>
+                <Link className="button button-dark button-small" href="/couples/planning#budget">Manage budget</Link>
               </section>
               <section
                 className="couple-dash-card next-steps-card"
@@ -473,27 +478,9 @@ export default function CoupleDashboardClient({
                     <p>Keep things moving</p>
                   </div>
                 </div>
-                <label>
-                  <input type="checkbox" defaultChecked />
-                  <span>
-                    <strong>Set your wedding details</strong>
-                    <small>Completed</small>
-                  </span>
-                </label>
-                <label>
-                  <input type="checkbox" />
-                  <span>
-                    <strong>Request photographer quotes</strong>
-                    <small>2 recommendations ready</small>
-                  </span>
-                </label>
-                <label>
-                  <input type="checkbox" />
-                  <span>
-                    <strong>Shortlist your cake vendor</strong>
-                    <small>Due this week</small>
-                  </span>
-                </label>
+                {planning.checklist.length === 0 && <p className="couple-shortlist-status">Add tasks to start your wedding checklist.</p>}
+                {planning.checklist.slice(0, 3).map((task) => <Link key={task.id} href="/couples/planning#checklist" className="couple-planning-task"><span aria-hidden="true">{task.completed ? "✓" : "○"}</span><span><strong>{task.title}</strong><small>{task.completed ? "Completed" : "To do"}</small></span></Link>)}
+                <Link className="button button-dark button-small" href="/couples/planning#checklist">Manage checklist</Link>
               </section>
             </aside>
           </div>
@@ -522,13 +509,13 @@ export default function CoupleDashboardClient({
                 <X size={17} />
               </button>
             </div>
-            <button onClick={() => showNotice("Wedding settings opened")}>
+            <Link href="/couples/planning#details">
               <Settings size={17} />
               <span>
                 <strong>Wedding settings</strong>
                 <small>Preferences and planning details</small>
               </span>
-            </button>
+            </Link>
             <Link href="/">
               <Search size={17} />
               <span>
@@ -583,7 +570,7 @@ export default function CoupleDashboardClient({
         </button>
       </nav>
 
-      {notice && <div className="dashboard-toast">{notice}</div>}
+      {notice && <div className="dashboard-toast" role="status">{notice}</div>}
     </main>
   );
 }

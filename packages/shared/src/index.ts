@@ -79,7 +79,7 @@ export type VendorMatchPreferences = {
   style: string;
 };
 
-export const serviceOptions = ["Planning & décor", "Photography", "Bridal beauty", "Cakes & desserts", "Venues"];
+export const serviceOptions = ["Planning & décor", "Photography", "Bridal beauty", "Cakes & desserts", "Venues", "Bead styling"];
 export const styleOptions = ["Modern", "Traditional", "Romantic", "Minimal", "Glamorous"];
 export const weddingLocations = ["Lagos", "Abuja", "Port Harcourt", "Ibadan", "Benin City", "Enugu"];
 
@@ -182,8 +182,8 @@ export const coupleVendors: CoupleVendor[] = [
   },
 ];
 
-export function recommendCoupleVendors(preferences: VendorMatchPreferences) {
-  return coupleVendors
+export function recommendCoupleVendors(preferences: VendorMatchPreferences, vendors: CoupleVendor[] = coupleVendors) {
+  return vendors
     .map((vendor) => {
       let score = 72;
       if (vendor.location === preferences.location) score += 9;

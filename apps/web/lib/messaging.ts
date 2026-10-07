@@ -66,7 +66,7 @@ export async function createEnquiry(customerClerkUserId: string, input: EnquiryI
     LIMIT 1
   `;
   const vendor = vendorRows[0];
-  if (!vendor) throw new Error("VENDOR_NOT_FOUND");
+  if (!vendor || !vendor.owner_clerk_user_id) throw new Error("VENDOR_NOT_FOUND");
 
   if (input.packageId) {
     const packageRows = await sql`
@@ -82,7 +82,8 @@ export async function createEnquiry(customerClerkUserId: string, input: EnquiryI
   const firstMessageId = crypto.randomUUID();
   const now = new Date();
 
-  await sql`
+  await sql.transaction([
+    sql`
     INSERT INTO enquiries (
       id, customer_clerk_user_id, vendor_id, package_id, requested_service,
       wedding_date, wedding_location, guest_count, budget_band, contact_name, contact_email, message, status,
@@ -93,9 +94,9 @@ export async function createEnquiry(customerClerkUserId: string, input: EnquiryI
       ${input.guestCount ?? null}, ${input.budgetBand ?? null}, ${input.contactName ?? null}, ${input.contactEmail ?? null}, ${input.message}, 'new',
       ${now}, ${now}
     )
-  `;
+    `,
 
-  await sql`
+    sql`
     INSERT INTO conversations (
       id, enquiry_id, customer_clerk_user_id, vendor_id, vendor_owner_clerk_user_id,
       last_message_at, customer_last_read_at, created_at, updated_at
@@ -103,12 +104,14 @@ export async function createEnquiry(customerClerkUserId: string, input: EnquiryI
       ${conversationId}, ${enquiryId}, ${customerClerkUserId}, ${input.vendorId},
       ${vendor.owner_clerk_user_id ?? null}, ${now}, ${now}, ${now}, ${now}
     )
-  `;
+    `,
 
-  await sql`
+    sql`
     INSERT INTO messages (id, conversation_id, sender_clerk_user_id, body, created_at)
     VALUES (${firstMessageId}, ${conversationId}, ${customerClerkUserId}, ${input.message}, ${now})
-  `;
+    `,
+
+  ]);
 
   return {
     enquiryId,

@@ -35,6 +35,22 @@ export const customerProfiles = pgTable("customer_profiles", {
   index("customer_profiles_state_idx").on(table.weddingState),
 ]);
 
+export const customerBudgetItems = pgTable("customer_budget_items", {
+  id: text("id").primaryKey(),
+  clerkUserId: text("clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "cascade" }),
+  title: text("title").notNull(), amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("customer_budget_items_user_idx").on(table.clerkUserId), check("customer_budget_items_amount_check", sql`${table.amount} >= 0`)]);
+
+export const customerChecklistItems = pgTable("customer_checklist_items", {
+  id: text("id").primaryKey(),
+  clerkUserId: text("clerk_user_id").notNull().references(() => users.clerkUserId, { onDelete: "cascade" }),
+  title: text("title").notNull(), dueDate: date("due_date"), completed: boolean("completed").default(false).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("customer_checklist_items_user_idx").on(table.clerkUserId)]);
+
 export const vendorProfiles = pgTable("vendor_profiles", {
   clerkUserId: text("clerk_user_id").primaryKey().references(() => users.clerkUserId, { onDelete: "cascade" }),
   businessName: text("business_name").notNull(),

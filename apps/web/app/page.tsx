@@ -94,6 +94,8 @@ export default function Home() {
   const [budget, setBudget] = useState("Any budget");
   const [vendorQuery, setVendorQuery] = useState("");
   const [vendors, setVendors] = useState<CoupleVendor[]>([]);
+  const [favouritesLoaded, setFavouritesLoaded] = useState(false);
+  const [savingFavourite, setSavingFavourite] = useState(false);
   const [saved, setSaved] = useState<string[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(true);
   const [marketplaceError, setMarketplaceError] = useState("");
@@ -174,7 +176,7 @@ export default function Home() {
       })
       .catch(() => {
         // Public browsing should still work if the visitor is signed out.
-      });
+      }).finally(() => setFavouritesLoaded(true));
   }, []);
 
   function runSearch(event: FormEvent<HTMLFormElement>) {
@@ -184,6 +186,8 @@ export default function Home() {
   }
 
   async function toggleSaved(vendorId: string) {
+    if (savingFavourite || !favouritesLoaded) return;
+    setSavingFavourite(true);
     const wasSaved = saved.includes(vendorId);
     setSaved((current) =>
       wasSaved
@@ -213,7 +217,7 @@ export default function Home() {
           ? [...new Set([...current, vendorId])]
           : current.filter((item) => item !== vendorId),
       );
-    }
+    } finally { setSavingFavourite(false); }
   }
 
   return (
@@ -487,6 +491,7 @@ export default function Home() {
                     className={
                       saved.includes(vendor.id) ? "ed-save saved" : "ed-save"
                     }
+                    disabled={savingFavourite || !favouritesLoaded}
                     onClick={() => void toggleSaved(vendor.id)}
                     aria-label={`${saved.includes(vendor.id) ? "Remove" : "Save"} ${vendor.name}`}
                     aria-pressed={saved.includes(vendor.id)}

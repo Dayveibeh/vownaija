@@ -137,3 +137,20 @@ volume. Shared media across VPS and Vercel would require a later object-storage 
 archival, media round trips, range responses, file validation and catalogue query counts.
 It never modifies the live Neon database. Authenticated staging UI checks additionally
 require a vendor account and the mounted Coolify volume.
+
+### Customer planning and inactivity logout (Phase 5)
+
+Customers manage wedding details, exact budgets, allocations and checklist tasks at `/couples/planning`. The workspace dashboard reads their saved allocations and tasks instead of sample figures. Planning data and favourites live in Neon under the authenticated Clerk user ID. Deployment `npm run db:setup` adds `customer_budget_items` and `customer_checklist_items` without replacing existing data. No additional Coolify resource or environment variable is needed.
+
+The web app signs out the active Clerk session after **10 minutes without user interaction**, with a warning during the last two minutes. Clicks, typing, touch gestures, mouse movement and wheel scrolling reset the timer. Refreshing, switching tabs, notification polling and API requests do not reset it. Tabs using the same Clerk session share activity; a new sign-in starts a fresh timer. This is the application's idle policy, separate from Clerk's maximum session lifetime. The previous `NEXT_PUBLIC_SESSION_IDLE_TIMEOUT_MINUTES` and warning overrides are no longer used.
+
+Validation: `npm run test:customers` exercises customer APIs, account isolation, persistence, database failure rollback, booking/payment summary reads and the idle timer against isolated PostgreSQL fixtures. `npm run test:vendors` retains the vendor regression checks. Payment tests use recorded fixtures and never contact a payment provider or move funds.
+
+After merging and redeploying the existing web resource from `main`, verify on staging:
+1. Customer workspace → More → Wedding details. Save details and a total budget, refresh, and confirm they remain.
+2. Add/edit/remove a budget allocation. Confirm the workspace summary reflects it.
+3. Add a checklist task, mark it complete, and refresh. Confirm it stays complete.
+4. Save a vendor, sign out and back in (or sign in on another device), and check the saved list.
+5. Leave the signed-in site untouched for ten minutes. Confirm the two-minute warning and sign-out. Interact before expiry to confirm the timer resets; refreshing alone must not reset it.
+
+Authenticated browser checks on the deployed site remain necessary after deployment.

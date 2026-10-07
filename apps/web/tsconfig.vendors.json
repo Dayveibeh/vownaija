@@ -6,12 +6,18 @@
     "lib/**/*.ts",
     "app/onboarding/actions.ts",
     "app/api/vendors/**/*.ts",
+    "app/api/customer/**/*.ts",
+    "app/api/favourites/**/*.ts",
+    "app/couples/**/*.tsx",
+    "app/components/SessionTimeoutGuard.tsx",
     "app/api/vendor-workspace/**/*.ts",
     "app/api/vendor-media/**/*.ts",
     "app/dashboard/profile/**/*.tsx",
     "app/onboarding/**/*.tsx",
     "scripts/**/*.ts",
-    "tests/vendor-api.test.ts"
+    "tests/vendor-api.test.ts",
+    "tests/customer-workspace.test.ts",
+    "tests/session-idle.test.ts"
   ],
   "exclude": ["node_modules", "examples", "worker", "dist"]
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronRight, Heart, MapPin, Sparkles, Star, UsersRound, WalletCards, WandSparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { recommendCoupleVendors, serviceOptions, styleOptions, weddingLocations } from "../vendor-data";
+import { formatNaira, coupleVendorFromMarketplaceRecord, type CoupleVendor, type MarketplaceVendorListResponse } from "@smitten/shared";
 import { WorkspaceHeader } from "../../components/WorkspaceHeader";
 
 function budgetCeiling(budget: string) {
@@ -17,33 +18,45 @@ export default function CoupleMatchPage() {
   const [step, setStep] = useState(0);
   const [location, setLocation] = useState("Lagos");
   const [weddingType, setWeddingType] = useState("Traditional & white wedding");
-  const [weddingDate, setWeddingDate] = useState("2026-12");
+  const [weddingDate, setWeddingDate] = useState("");
   const [guestCount, setGuestCount] = useState("201–350 guests");
+  const [matchingCeiling, setMatchingCeiling] = useState<number | null>(null);
   const [budget, setBudget] = useState("₦1m–₦3m");
   const [services, setServices] = useState(["Planning & décor", "Photography", "Cakes & desserts"]);
   const [style, setStyle] = useState("Modern");
+  const [catalogue, setCatalogue] = useState<CoupleVendor[]>([]);
+  const [savingVendor, setSavingVendor] = useState("");
+  const [catalogueError, setCatalogueError] = useState("");
+  const [savedLoaded, setSavedLoaded] = useState(false);
   const [saved, setSaved] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
 
   const matches = useMemo(() => {
-    return recommendCoupleVendors({ location, budgetCeiling: budgetCeiling(budget), services, style }).slice(0, 4);
-  }, [budget, location, services, style]);
+    return recommendCoupleVendors({ location, budgetCeiling: matchingCeiling ?? budgetCeiling(budget), services, style }, catalogue).slice(0, 4);
+  }, [budget, location, services, style, catalogue, matchingCeiling]);
 
   useEffect(() => {
     let cancelled = false;
     void Promise.all([
       fetch("/api/customer/preferences", { cache: "no-store" }).then((response) => response.ok ? response.json() : null),
       fetch("/api/favourites", { cache: "no-store" }).then((response) => response.ok ? response.json() : null),
-    ]).then(([preferenceResult, favouriteResult]) => {
+      fetch("/api/vendors", { cache: "no-store" }).then((response) => response.ok ? response.json() as Promise<MarketplaceVendorListResponse> : null),
+    ]).then(([preferenceResult, favouriteResult, vendorResult]) => {
       if (cancelled) return;
+      if (vendorResult?.vendors) setCatalogue(vendorResult.vendors.map(coupleVendorFromMarketplaceRecord));
+      else setCatalogueError("We couldn’t load vendors. Please refresh to try again.");
+      setSavedLoaded(true);
       const profile = preferenceResult?.profile;
       if (profile) {
         if (profile.weddingLocation) setLocation(profile.weddingLocation);
         if (profile.weddingType) setWeddingType(profile.weddingType);
-        if (profile.weddingDate) setWeddingDate(String(profile.weddingDate).slice(0, 7));
+        if (profile.weddingDate) setWeddingDate(String(profile.weddingDate).slice(0, 10));
         if (profile.guestCount) setGuestCount(profile.guestCount);
-        if (profile.budgetBand) setBudget(profile.budgetBand);
+        const exact = Number(profile.budgetCeiling);
+        if (Number.isFinite(exact) && exact > 0) setMatchingCeiling(exact);
+        if (["Under ₦1m", "₦1m–₦3m", "₦3m–₦7m", "₦7m+"].includes(profile.budgetBand)) setBudget(profile.budgetBand);
+        else if (exact > 0) setBudget(exact < 1000000 ? "Under ₦1m" : exact <= 3000000 ? "₦1m–₦3m" : exact <= 7000000 ? "₦3m–₦7m" : "₦7m+");
         if (profile.weddingStyle) setStyle(profile.weddingStyle);
         if (Array.isArray(profile.requiredServices) && profile.requiredServices.length) setServices(profile.requiredServices);
       }
@@ -51,7 +64,7 @@ export default function CoupleMatchPage() {
         setSaved(favouriteResult.favourites.map((item: { vendorId: string }) => item.vendorId));
       }
     }).catch(() => {
-      // Signed-out users and temporarily unavailable services keep the local defaults.
+      if (!cancelled) { setSavedLoaded(true); setCatalogueError("We couldn’t load vendors. Please refresh to try again."); }
     });
 
     return () => { cancelled = true; };
@@ -62,6 +75,8 @@ export default function CoupleMatchPage() {
   }
 
   async function toggleSaved(vendorId: string) {
+    if (savingVendor || !savedLoaded) return;
+    setSavingVendor(vendorId);
     const wasSaved = saved.includes(vendorId);
     setSaved((current) => wasSaved ? current.filter((item) => item !== vendorId) : [...current, vendorId]);
 
@@ -72,13 +87,16 @@ export default function CoupleMatchPage() {
         body: JSON.stringify({ vendorId }),
       });
 
-      // Signed-out users can still use favourites for the current session.
-      if (response.status === 401) return;
+      if (response.status === 401) {
+        setSaved((current) => wasSaved ? [...current, vendorId] : current.filter((id) => id !== vendorId));
+        window.location.assign("/couples/sign-up?mode=signin&returnTo=%2Fcouples%2Fmatch");
+        return;
+      }
       if (!response.ok) throw new Error("Favourite update failed");
     } catch {
       setSaved((current) => wasSaved ? [...current, vendorId] : current.filter((item) => item !== vendorId));
       setSaveError("We couldn’t update your saved vendors. Please try again.");
-    }
+    } finally { setSavingVendor(""); }
   }
 
   async function buildShortlist() {
@@ -120,9 +138,9 @@ export default function CoupleMatchPage() {
 
       {step === 0 && <section className="match-welcome">
         <div className="match-spark"><WandSparkles size={38} /><i /><i /><i /></div>
-        <p className="eyebrow"><span /> Meet your AI matchmaker</p>
+        <p className="eyebrow"><span /> Your vendor shortlist</p>
         <h1>Let’s find vendors who<br /><em>fit your kind of wedding.</em></h1>
-        <p>Tell Smitten AI a little about your plans. We’ll balance budget, location, style, reviews and availability to build a personalised shortlist.</p>
+        <p>Tell us a little about your plans. We’ll use location, budget, services and style to help you compare vendors.</p>
         <div className="match-feature-row"><span><MapPin /> Your location</span><span><WalletCards /> Your budget</span><span><Sparkles /> Your style</span></div>
         <button className="button button-primary" onClick={() => setStep(1)}>Find my matches <ArrowRight size={18} /></button>
         <Link href="/couples/dashboard">No thanks, take me to my dashboard</Link>
@@ -131,12 +149,12 @@ export default function CoupleMatchPage() {
       {step > 0 && step < 4 && <section className="match-question-card">
         {step === 1 && <div className="match-step">
           <div className="question-icon"><CalendarDays /></div><p className="step-label">The basics</p><h2>Tell us about your celebration</h2><p>This helps us prioritise vendors who work in your area and at your scale.</p>
-          <div className="match-fields"><label>Wedding location<div className="field-with-icon"><MapPin /><select value={location} onChange={(event) => setLocation(event.target.value)}>{weddingLocations.map((item) => <option key={item}>{item}</option>)}</select></div></label><label>Wedding type<select value={weddingType} onChange={(event) => setWeddingType(event.target.value)}><option>Traditional wedding</option><option>White wedding</option><option>Traditional & white wedding</option><option>Civil ceremony</option><option>Destination wedding</option></select></label><label>Approximate date<input type="month" value={weddingDate} onChange={(event) => setWeddingDate(event.target.value)} /></label><label>Guest count<div className="field-with-icon"><UsersRound /><select value={guestCount} onChange={(event) => setGuestCount(event.target.value)}><option>Under 100 guests</option><option>100–200 guests</option><option>201–350 guests</option><option>351–500 guests</option><option>500+ guests</option></select></div></label></div>
+          <div className="match-fields"><label>Wedding location<div className="field-with-icon"><MapPin /><select value={location} onChange={(event) => setLocation(event.target.value)}>{weddingLocations.map((item) => <option key={item}>{item}</option>)}</select></div></label><label>Wedding type<select value={weddingType} onChange={(event) => setWeddingType(event.target.value)}><option>Traditional wedding</option><option>White wedding</option><option>Traditional & white wedding</option><option>Civil ceremony</option><option>Destination wedding</option></select></label><label>Wedding date<input type="date" value={weddingDate} onChange={(event) => setWeddingDate(event.target.value)} /></label><label>Guest count<div className="field-with-icon"><UsersRound /><select value={guestCount} onChange={(event) => setGuestCount(event.target.value)}><option>Under 100 guests</option><option>100–200 guests</option><option>201–350 guests</option><option>351–500 guests</option><option>500+ guests</option></select></div></label></div>
         </div>}
 
         {step === 2 && <div className="match-step">
           <div className="question-icon"><WalletCards /></div><p className="step-label">Budget & services</p><h2>What are you comfortable spending?</h2><p>Choose the amount you’ve roughly set aside for vendors. We’ll show good options at that level, not pressure you to spend more.</p>
-          <label className="match-field-title">Total vendor budget</label><div className="budget-options">{["Under ₦1m", "₦1m–₦3m", "₦3m–₦7m", "₦7m+"].map((item) => <button key={item} className={budget === item ? "selected" : ""} onClick={() => setBudget(item)}>{budget === item && <Check size={16} />}<strong>{item}</strong><small>{item === "Under ₦1m" ? "Keep it lean" : item === "₦1m–₦3m" ? "Value-focused" : item === "₦3m–₦7m" ? "More flexibility" : "Premium & luxury"}</small></button>)}</div>
+          <label className="match-field-title">Total vendor budget</label><div className="budget-options">{["Under ₦1m", "₦1m–₦3m", "₦3m–₦7m", "₦7m+"].map((item) => <button key={item} className={budget === item ? "selected" : ""} onClick={() => { setBudget(item); setMatchingCeiling(null); }}>{budget === item && <Check size={16} />}<strong>{item}</strong><small>{item === "Under ₦1m" ? "Keep it lean" : item === "₦1m–₦3m" ? "Value-focused" : item === "₦3m–₦7m" ? "More flexibility" : "Premium & luxury"}</small></button>)}</div>
           <label className="match-field-title">Which vendors do you need?</label><div className="service-pills">{serviceOptions.map((service) => <button key={service} className={services.includes(service) ? "selected" : ""} onClick={() => toggleService(service)}>{services.includes(service) && <Check size={14} />}{service}</button>)}</div>
         </div>}
 
@@ -151,10 +169,12 @@ export default function CoupleMatchPage() {
       </section>}
 
       {step === 4 && <section className="match-results">
-        <div className="results-heading"><div><p className="eyebrow"><span /> Your Smitten shortlist</p><h1>We found your<br /><em>strongest matches.</em></h1><p>Based on a {weddingType.toLowerCase()} in {location}, a {budget} vendor budget and your {style.toLowerCase()} style.</p></div><div className="result-summary"><span><strong>{matches.length}</strong>top matches</span><span><strong>{services.length}</strong>services</span><span><strong>{location}</strong>location</span></div></div>
+        <div className="results-heading"><div><p className="eyebrow"><span /> Your Smitten shortlist</p><h1>We found your<br /><em>strongest matches.</em></h1><p>Based on a {weddingType.toLowerCase()} in {location}, a {matchingCeiling !== null ? formatNaira(matchingCeiling) : budget} vendor budget and your {style.toLowerCase()} style.</p></div><div className="result-summary"><span><strong>{matches.length}</strong>top matches</span><span><strong>{services.length}</strong>services</span><span><strong>{location}</strong>location</span></div></div>
         {saveError && <p role="alert" className="form-error">{saveError}</p>}
+        {catalogueError && <p role="alert" className="form-error">{catalogueError}</p>}
+        {!catalogueError && matches.length === 0 && <p role="status">No matches are available yet. Try browsing the marketplace.</p>}
         <div className="match-result-grid">{matches.map((vendor) => <article key={vendor.id}>
-          <div className="result-image"><img src={vendor.image} alt={`${vendor.name} wedding portfolio`} /><span>{vendor.score}% match</span><button className={saved.includes(vendor.id) ? "saved" : ""} onClick={() => void toggleSaved(vendor.id)} aria-label={`${saved.includes(vendor.id) ? "Remove" : "Save"} ${vendor.name}`}><Heart size={17} fill={saved.includes(vendor.id) ? "currentColor" : "none"} /></button></div>
+          <div className="result-image"><img src={vendor.image} alt={`${vendor.name} wedding portfolio`} /><span>{vendor.score}% match</span><button className={saved.includes(vendor.id) ? "saved" : ""} disabled={Boolean(savingVendor) || !savedLoaded} onClick={() => void toggleSaved(vendor.id)} aria-label={`${saved.includes(vendor.id) ? "Remove" : "Save"} ${vendor.name}`}><Heart size={17} fill={saved.includes(vendor.id) ? "currentColor" : "none"} /></button></div>
           <div className="result-card-body"><div className="result-tier"><span>{vendor.category}</span><i>{vendor.tier}</i></div><h2>{vendor.name}</h2><p className="result-location"><MapPin size={14} /> {vendor.location} <span><Star size={13} fill="currentColor" /> {vendor.rating} ({vendor.reviews})</span></p><div className="match-reason"><Sparkles size={15} /><p><strong>Why Smitten picked this</strong>{vendor.reason}</p></div><div className="result-footer"><strong>{vendor.price}</strong><Link href={`/vendor/${vendor.id}`}>View profile <ChevronRight size={16} /></Link></div></div>
         </article>)}</div>
         <div className="results-bottom"><Link href="/couples/dashboard" className="button button-dark">Save shortlist & continue <ArrowRight size={17} /></Link><button onClick={() => setStep(1)}>Change my answers</button></div>
