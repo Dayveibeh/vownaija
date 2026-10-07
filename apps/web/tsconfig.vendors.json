@@ -6,6 +6,10 @@
     "lib/**/*.ts",
     "app/onboarding/actions.ts",
     "app/api/vendors/**/*.ts",
+    "app/api/vendor-workspace/**/*.ts",
+    "app/api/vendor-media/**/*.ts",
+    "app/dashboard/profile/**/*.tsx",
+    "app/onboarding/**/*.tsx",
     "scripts/**/*.ts",
     "tests/vendor-api.test.ts"
   ],

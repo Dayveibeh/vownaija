@@ -104,6 +104,7 @@ export async function setupDatabaseSchema() {
           updated_at timestamptz NOT NULL DEFAULT now()
         )
     `,
+    sql`ALTER TABLE vendor_packages ADD COLUMN IF NOT EXISTS active boolean NOT NULL DEFAULT true`,
     sql`
         CREATE TABLE IF NOT EXISTS enquiries (
           id text PRIMARY KEY,

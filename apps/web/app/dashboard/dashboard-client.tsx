@@ -14,7 +14,6 @@ import {
   CircleDollarSign,
   FileText,
   ImagePlus,
-  Instagram,
   LayoutDashboard,
   LogOut,
   Mail,
@@ -28,7 +27,6 @@ import {
   Sparkles,
   Star,
   Trash2,
-  Upload,
   UserRound,
   Users,
   X,
@@ -151,16 +149,12 @@ const messages = [
   },
 ];
 
-const portfolioImages = [
-  "https://ikejabird.com/wp-content/uploads/2025/10/2022-02-01-1.jpg",
-  "https://naphtalirentals.com/wp-content/uploads/2022/07/291952015_993524448004434_4768468144911484061_n.jpg",
-  "https://www.eventdesignbybe.com/wp-content/uploads/2024/08/Modern-Nigerian-Wedding-Cake-Designs.jpg",
-];
+
 
 export default function DashboardClient({
   profile,
 }: {
-  profile: { fullName: string; email: string; businessName: string };
+  profile: { fullName: string; email: string; businessName: string; vendorId: string | null };
 }) {
   const { signOut } = useClerk();
   const view = useSearchParams().get("view");
@@ -197,7 +191,6 @@ export default function DashboardClient({
     "Hi Amara,\n\nThank you for your message. We can absolutely swap the floral arch for a soft fabric installation and keep the same colour direction. I’ll update your quote and send it across this afternoon.\n\nWarmly,\nAdaeze",
   );
   const [toast, setToast] = useState("");
-  const [uploaded, setUploaded] = useState<string[]>([]);
   const [liveQuoteCount, setLiveQuoteCount] = useState(0);
   const [liveOpenQuoteValue, setLiveOpenQuoteValue] = useState(0);
   const [liveBookingCount, setLiveBookingCount] = useState(0);
@@ -207,7 +200,7 @@ export default function DashboardClient({
     viewed: 0,
     accepted: 0,
   });
-  const [publicVendorId, setPublicVendorId] = useState("");
+  const publicVendorId = profile.vendorId;
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const firstName = profile.fullName.split(/\s+/)[0] || "there";
   const initials =
@@ -236,12 +229,10 @@ export default function DashboardClient({
       fetch("/api/bookings", { cache: "no-store" }).then((response) =>
         response.ok ? response.json() : null,
       ),
-      fetch(`/api/vendors?q=${encodeURIComponent(profile.businessName)}`, {
-        cache: "no-store",
-      }).then((response) => (response.ok ? response.json() : null)),
+
     ])
       .then(
-        ([conversationResult, quoteResult, bookingResult, vendorResult]) => {
+        ([conversationResult, quoteResult, bookingResult]) => {
           if (cancelled) return;
           if (Array.isArray(conversationResult?.conversations))
             setLiveEnquiries(conversationResult.conversations);
@@ -274,14 +265,7 @@ export default function DashboardClient({
           }
           if (Array.isArray(bookingResult?.bookings))
             setLiveBookingCount(bookingResult.bookings.length);
-          if (Array.isArray(vendorResult?.vendors)) {
-            const exact =
-              vendorResult.vendors.find(
-                (vendor: { businessName?: string }) =>
-                  vendor.businessName === profile.businessName,
-              ) ?? vendorResult.vendors[0];
-            if (exact?.id) setPublicVendorId(String(exact.id));
-          }
+
         },
       )
       .catch(() => undefined);
@@ -392,12 +376,9 @@ export default function DashboardClient({
             <Mail size={18} /> Messages
           </Link>
           <small>Business</small>
-          <button
-            className={tab === "Portfolio" ? "active" : ""}
-            onClick={() => setTab("Portfolio")}
-          >
-            <ImagePlus size={18} /> Portfolio
-          </button>
+          <Link href="/dashboard/profile"><Settings size={18} /> Business profile</Link>
+          <Link href="/dashboard/profile#packages"><FileText size={18} /> Packages</Link>
+          <Link href="/dashboard/profile#portfolio"><ImagePlus size={18} /> Portfolio</Link>
           <button
             className={tab === "Reviews" ? "active" : ""}
             onClick={() => setTab("Reviews")}
@@ -516,13 +497,7 @@ export default function DashboardClient({
               showToast={showToast}
             />
           )}
-          {tab === "Portfolio" && (
-            <Portfolio
-              uploaded={uploaded}
-              setUploaded={setUploaded}
-              showToast={showToast}
-            />
-          )}
+          {tab === "Portfolio" && <div className="dash-card"><h2>Your portfolio</h2><Link href="/dashboard/profile#portfolio" className="button button-primary">Manage your portfolio</Link></div>}
           {tab === "Reviews" && <Reviews showToast={showToast} />}
         </div>
       </section>
@@ -1178,148 +1153,6 @@ function Messages({
             </footer>
           </div>
         </article>
-      </section>
-    </>
-  );
-}
-
-function Portfolio({
-  uploaded,
-  setUploaded,
-  showToast,
-}: {
-  uploaded: string[];
-  setUploaded: (value: string[]) => void;
-  showToast: (message: string) => void;
-}) {
-  return (
-    <>
-      <PageHeading
-        eyebrow="Your storefront"
-        title="Portfolio & social"
-        text="Show couples what makes your work special."
-        action={
-          <label className="button button-primary upload-button">
-            <Upload size={17} /> Upload media
-            <input
-              type="file"
-              multiple
-              accept="image/*,video/*"
-              onChange={(event) => {
-                const names = Array.from(event.target.files ?? []).map(
-                  (file) => file.name,
-                );
-                setUploaded([...uploaded, ...names]);
-                showToast(
-                  `${names.length} media file${names.length === 1 ? "" : "s"} added`,
-                );
-              }}
-            />
-          </label>
-        }
-      />
-      <section className="portfolio-layout">
-        <div className="dash-card portfolio-card">
-          <div className="dash-card-title">
-            <div>
-              <h2>Gallery</h2>
-              <p>12 photos · 3 videos</p>
-            </div>
-            <button
-              onClick={() =>
-                showToast(
-                  "Drag-to-reorder is ready in the production workspace",
-                )
-              }
-            >
-              Reorder
-            </button>
-          </div>
-          <div className="portfolio-grid">
-            {portfolioImages.map((image, index) => (
-              <div key={image}>
-                <img src={image} alt={`Aurora Events portfolio ${index + 1}`} />
-                {index === 1 && <span>Cover</span>}
-              </div>
-            ))}
-            {uploaded.map((name) => (
-              <div className="new-upload" key={name}>
-                <ImagePlus />
-                <span>{name}</span>
-              </div>
-            ))}
-            <label className="portfolio-add">
-              <Plus />
-              <span>Add media</span>
-              <input
-                type="file"
-                accept="image/*,video/*"
-                onChange={(event) => {
-                  const name = event.target.files?.[0]?.name;
-                  if (name) {
-                    setUploaded([...uploaded, name]);
-                    showToast("Media added to your portfolio");
-                  }
-                }}
-              />
-            </label>
-          </div>
-        </div>
-        <aside>
-          <section className="dash-card social-card">
-            <div className="dash-card-title">
-              <div>
-                <h2>Social connections</h2>
-                <p>Help couples see more of your work</p>
-              </div>
-            </div>
-            <div>
-              <span className="instagram-icon">
-                <Instagram />
-              </span>
-              <p>
-                <strong>Instagram</strong>
-                <small>@auroraeventsng</small>
-              </p>
-              <i>Connected</i>
-            </div>
-            <div>
-              <span className="tiktok-icon">♪</span>
-              <p>
-                <strong>TikTok</strong>
-                <small>Not connected</small>
-              </p>
-              <button onClick={() => showToast("TikTok connection started")}>
-                Connect
-              </button>
-            </div>
-            <div>
-              <span className="whatsapp-icon">W</span>
-              <p>
-                <strong>WhatsApp</strong>
-                <small>+234 803 456 7890</small>
-              </p>
-              <i>Connected</i>
-            </div>
-          </section>
-          <section className="dash-card profile-copy-card">
-            <div>
-              <Sparkles />
-            </div>
-            <h3>Need help with your profile copy?</h3>
-            <p>
-              Smitten AI can turn a few notes into an engaging business
-              description in your voice.
-            </p>
-            <button
-              onClick={() =>
-                showToast("Smitten AI opened a profile-copy draft")
-              }
-            >
-              Write with AI <ArrowRight size={15} />
-            </button>
-          </section>
-        </aside>
       </section>
     </>
   );

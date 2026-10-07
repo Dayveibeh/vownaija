@@ -26,7 +26,7 @@ import { useEffect, useRef, useState } from "react";
 import DashboardClient from "./dashboard-client";
 import styles from "./dashboard-enhancements.module.css";
 
-type Profile = { fullName: string; email: string; businessName: string };
+type Profile = { fullName: string; email: string; businessName: string; vendorId: string | null };
 type UtilityView = "insights" | "settings" | null;
 
 type NotificationPreferences = {
@@ -202,7 +202,7 @@ export default function DashboardEnhancements({
           >
             <Settings size={17} /> Settings
           </button>
-          <Link href="/vendor/aurora-events" role="menuitem">
+          <Link href={profile.vendorId ? `/vendor/${profile.vendorId}` : "/dashboard/profile"} role="menuitem">
             <ExternalLink size={17} /> View public profile
           </Link>
           <button
@@ -471,7 +471,7 @@ function SettingsView({
             <strong>Nigeria · NGN (₦)</strong>
           </div>
         </div>
-        <Link className={styles.inlineAction} href="/vendor/aurora-events">
+        <Link className={styles.inlineAction} href="/dashboard/profile">
           Manage public profile <ArrowRight size={15} />
         </Link>
       </article>

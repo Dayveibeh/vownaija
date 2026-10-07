@@ -95,6 +95,7 @@ export const vendorPackages = pgTable("vendor_packages", {
   price: numeric("price", { precision: 14, scale: 2 }).notNull(),
   currencyCode: text("currency_code").default("NGN").notNull(),
   featured: boolean("featured").default(false).notNull(),
+  active: boolean("active").default(true).notNull(),
   displayOrder: integer("display_order").default(0).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

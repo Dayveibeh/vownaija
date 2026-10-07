@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
-import { after, before, test } from "node:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { appendPortfolioMedia, archiveOwnedPackage, getOwnedVendor, saveOwnedPackage, updatePortfolioMedia } from "../lib/vendor-workspace";
+import { MediaError, readMedia, storeMedia, validateMedia, validatedMediaName, readMediaForm } from "../lib/vendor-media";
+import { nairaInput, instagramInput, vendorProfileSchema } from "../lib/vendor-validation";
+import { GET as mediaGET } from "../app/api/vendor-media/[name]/route";
+import { after, before, test, mock } from "node:test";
 import { PGlite, type Transaction } from "@electric-sql/pglite";
 import { neonConfig } from "@neondatabase/serverless";
 import { NextRequest } from "next/server";
@@ -175,4 +182,148 @@ test("vendors with identical business names get separate listings", async () => 
   const vendors = await listMarketplaceVendors({ query: "Same Name" });
   assert.equal(vendors.length, 2);
   assert.notEqual(vendors[0].id, vendors[1].id);
+});
+
+
+test("profile edits persist state, normalise categories and keep validation strict", async () => {
+  assert.equal(nairaInput.parse("123,456.78"), "123456.78");
+  for (const price of ["-500", "1.2.3", "₦500", "1,00", "abc", "", "1000000000000"]) assert.equal(nairaInput.safeParse(price).success, false);
+  assert.equal(instagramInput.parse("@beadsandbliss"), "https://www.instagram.com/beadsandbliss");
+  assert.equal(instagramInput.parse("instagram.com/beadsandbliss"), "https://instagram.com/beadsandbliss");
+  for (const url of ["javascript:alert(1)", "https://instagram.com.evil.test/beads", "https://user:password@instagram.com/beads"]) assert.equal(instagramInput.safeParse(url).success, false);
+  const input = { ...profile, state: "Lagos", travelDistance: "Nationwide", instagram: "@beads", primaryService: "Planning & coordination" };
+  assert.equal(vendorProfileSchema.safeParse(input).success, true);
+  assert.equal(vendorProfileSchema.safeParse({ ...input, state: "Not a state" }).success, false);
+  await saveVendorProfileAndListing(input);
+  const vendor = await getOwnedVendor(profile.clerkUserId);
+  const published = await getMarketplaceVendor(String(vendor?.id));
+  assert.equal(published?.state, "Lagos");
+  assert.equal(published?.category, "Planning & décor");
+  assert.equal((await listMarketplaceVendors({ category: "Planning & décor", query: profile.businessName })).length, 1);
+});
+
+test("package creation, editing and archival persist and enforce ownership", async () => {
+  const vendor = await getOwnedVendor(profile.clerkUserId);
+  const input = { title: "Bridal beads", description: "Custom bridal beads with a fitting", price: "25000", featured: true, displayOrder: 0 };
+  const id = await saveOwnedPackage(profile.clerkUserId, input);
+  assert.equal((await getMarketplaceVendor(String(vendor?.id)))?.packages.find((item) => item.id === id)?.price, 25000);
+  await assert.rejects(saveOwnedPackage("vendor-test-two", { ...input, id, price: "1" }), /NOT_FOUND/);
+  await assert.rejects(archiveOwnedPackage("vendor-test-two", id), /NOT_FOUND/);
+  await saveOwnedPackage(profile.clerkUserId, { ...input, id, price: "30000", title: "Updated beads" });
+  assert.equal((await getMarketplaceVendor(String(vendor?.id)))?.packages.find((item) => item.id === id)?.title, "Updated beads");
+  await archiveOwnedPackage(profile.clerkUserId, id);
+  assert.equal((await getMarketplaceVendor(String(vendor?.id)))?.packages.some((item) => item.id === id), false);
+  assert.equal((await postgres.query<{ active: boolean }>("SELECT active FROM vendor_packages WHERE id=$1", [id])).rows[0].active, false);
+  await seedMarketplace();
+  assert.equal((await getMarketplaceVendor(String(vendor?.id)))?.packages.some((item) => item.id === id), false);
+});
+
+test("portfolio bytes and database links survive reload, enforce ownership, cover and removal", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "smitten-media-test-"));
+  const previous = process.env.SMITTEN_MEDIA_DIR;
+  process.env.SMITTEN_MEDIA_DIR = directory;
+  try {
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=", "base64");
+    const saved = await storeMedia(new File([png], "unsafe-original-name.png", { type: "image/png" }));
+    assert.ok(validatedMediaName(saved.name));
+    assert.deepEqual(await readMedia(saved.name), png);
+    assert.equal((await mediaGET(new Request(`https://smitten.example${saved.url}`), { params: Promise.resolve({ name: saved.name }) })).status, 404);
+    await appendPortfolioMedia(profile.clerkUserId, saved.url, true);
+    const vendor = await getOwnedVendor(profile.clerkUserId);
+    assert.equal((await getMarketplaceVendor(String(vendor?.id)))?.imageUrl, saved.url);
+    assert.ok((await getMarketplaceVendor(String(vendor?.id)))?.gallery.includes(saved.url));
+    const response = await mediaGET(new Request(`https://smitten.example${saved.url}`), { params: Promise.resolve({ name: saved.name }) });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("content-type"), "image/png");
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()), png);
+    await assert.rejects(updatePortfolioMedia("vendor-test-two", saved.url, "cover"), /NOT_FOUND/);
+    await assert.rejects(updatePortfolioMedia("vendor-test-two", saved.url, "remove"), /NOT_FOUND/);
+    const ranged = await mediaGET(new Request(`https://smitten.example${saved.url}`, { headers: { Range: "bytes=0-7" } }), { params: Promise.resolve({ name: saved.name }) });
+    assert.equal(ranged.status, 206);
+    assert.deepEqual(Buffer.from(await ranged.arrayBuffer()), png.subarray(0, 8));
+    const invalid = await mediaGET(new Request(`https://smitten.example${saved.url}`, { headers: { Range: "bytes=900-999" } }), { params: Promise.resolve({ name: saved.name }) });
+    assert.equal(invalid.status, 416);
+    await seedMarketplace();
+    assert.equal((await getMarketplaceVendor(String(vendor?.id)))?.imageUrl, saved.url);
+    await updatePortfolioMedia(profile.clerkUserId, saved.url, "remove");
+    assert.equal((await getMarketplaceVendor(String(vendor?.id)))?.gallery.includes(saved.url), false);
+    assert.equal((await getMarketplaceVendor(String(vendor?.id)))?.imageUrl, "/vendor-placeholder.svg");
+    assert.equal((await mediaGET(new Request(`https://smitten.example${saved.url}`), { params: Promise.resolve({ name: saved.name }) })).status, 404);
+    assert.deepEqual(await readMedia(saved.name), png); // removal is recoverable at the storage layer
+  } finally {
+    if (previous === undefined) delete process.env.SMITTEN_MEDIA_DIR; else process.env.SMITTEN_MEDIA_DIR = previous;
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("uploads reject unsupported formats, false MIME, oversize input and unsafe paths", async () => {
+  assert.throws(() => validateMedia(Buffer.from("<svg onload='alert(1)'/>"), "image/svg+xml"), MediaError);
+  assert.throws(() => validateMedia(Buffer.from([255, 216, 255, 0]), "image/png"), MediaError);
+  const oversize = Buffer.alloc(8 * 1024 * 1024 + 1); oversize.set([255, 216, 255]);
+  assert.throws(() => validateMedia(oversize, "image/jpeg"), (error: unknown) => error instanceof MediaError && error.status === 413);
+  assert.equal(validatedMediaName("../../secret.png"), false);
+  await assert.rejects(readMedia("../../secret.png"), /Media not found/);
+  await assert.rejects(readMediaForm(new Request("https://smitten.example/upload", { method: "POST", body: "tiny", headers: { "content-length": String(30 * 1024 * 1024) } })), (error: unknown) => error instanceof MediaError && error.status === 413);
+  const originalVercel = process.env.VERCEL;
+  process.env.VERCEL = "1";
+  try { await assert.rejects(storeMedia(new File([Buffer.from([255,216,255])], "image.jpg", { type: "image/jpeg" })), (error: unknown) => error instanceof MediaError && error.status === 503); }
+  finally { if (originalVercel === undefined) delete process.env.VERCEL; else process.env.VERCEL = originalVercel; }
+});
+
+test("concurrent media writes append without losing items and enforce gallery limit", async () => {
+  const vendor = await getOwnedVendor("vendor-test-two");
+  await Promise.all(Array.from({ length: 6 }, (_, i) => appendPortfolioMedia("vendor-test-two", `/api/vendor-media/test-${i}.jpg`)));
+  assert.equal((await getOwnedVendor("vendor-test-two"))?.gallery.length, 6);
+  await postgres.query("UPDATE marketplace_vendors SET gallery=$1::jsonb WHERE id=$2", [JSON.stringify(Array.from({ length: 24 }, (_, i) => `https://example.test/${i}.jpg`)), vendor?.id]);
+  await assert.rejects(appendPortfolioMedia("vendor-test-two", "/api/vendor-media/too-many.jpg"), /GALLERY_FULL/);
+  await assert.rejects(updatePortfolioMedia("vendor-test-two", "https://example.test/file.mp4", "cover"), /IMAGE_COVER_REQUIRED/);
+});
+
+
+test("authenticated API writes reject guests, couples, cross-origin submissions and other owners", async () => {
+  let apiUserId: string | null = null;
+  const directory = await mkdtemp(path.join(tmpdir(), "smitten-api-media-test-"));
+  const previousDirectory = process.env.SMITTEN_MEDIA_DIR;
+  process.env.SMITTEN_MEDIA_DIR = directory;
+  const clerkMock = mock.module("@clerk/nextjs/server", { namedExports: { auth: async () => ({ userId: apiUserId }), currentUser: async () => null } });
+  try {
+    const packages = await import("../app/api/vendor-workspace/packages/route");
+    const media = await import("../app/api/vendor-workspace/media/route");
+    const request = (body: unknown, origin = "https://smitten.example") => new Request("https://smitten.example/api/vendor-workspace/packages", { method: "POST", headers: { "Content-Type": "application/json", origin }, body: JSON.stringify(body) });
+    const input = { title: "API package", description: "An API-created service package", price: "35000", featured: false, displayOrder: 0 };
+    assert.equal((await packages.POST(request(input))).status, 401);
+    assert.equal((await media.POST(request(input))).status, 401);
+    apiUserId = "couple-api-test";
+    await postgres.query("INSERT INTO smitten_users(clerk_user_id,email,full_name,role) VALUES ($1,$2,'Test couple','couple')", [apiUserId, "api-couple@example.test"]);
+    assert.equal((await packages.POST(request(input))).status, 403);
+    assert.equal((await media.PATCH(request({ action: "cover", url: "anything" }))).status, 403);
+    apiUserId = profile.clerkUserId;
+    assert.equal((await packages.POST(request(input, "https://other.example"))).status, 403);
+    const { rejectCrossOriginWrite } = await import("../lib/vendor-api-auth");
+    assert.equal(rejectCrossOriginWrite(new Request("http://localhost:3000/api/vendor-workspace/media", { headers: { host: "dev.smitten.com.ng", origin: "https://dev.smitten.com.ng" } })), null);
+    assert.equal(rejectCrossOriginWrite(new Request("https://smitten.example/api", { headers: { origin: "not-a-url" } }))?.status, 403);
+    assert.equal((await packages.POST(request({ ...input, price: "-1" }))).status, 400);
+    const saved = await packages.POST(request(input));
+    assert.equal(saved.status, 200);
+    const { id } = await saved.json();
+    apiUserId = "vendor-test-two";
+    assert.equal((await packages.POST(request({ ...input, id, price: "1" }))).status, 404);
+    assert.equal((await packages.DELETE(request({ id }))).status, 404);
+    apiUserId = profile.clerkUserId;
+    assert.equal((await packages.DELETE(request({ id }))).status, 200);
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=", "base64");
+    const form = new FormData(); form.set("file", new File([png], "cover.png", { type: "image/png" })); form.set("cover", "true");
+    const uploaded = await media.POST(new Request("https://smitten.example/api/vendor-workspace/media", { method: "POST", body: form, headers: { origin: "https://smitten.example" } }));
+    assert.equal(uploaded.status, 201);
+    const { url } = await uploaded.json();
+    assert.equal((await getOwnedVendor(profile.clerkUserId))?.image_url, url);
+    apiUserId = "vendor-test-two";
+    assert.equal((await media.PATCH(request({ url, action: "remove" }))).status, 404);
+    apiUserId = profile.clerkUserId;
+    assert.equal((await media.PATCH(request({ url, action: "remove" }))).status, 200);
+  } finally {
+    clerkMock.restore();
+    if (previousDirectory === undefined) delete process.env.SMITTEN_MEDIA_DIR; else process.env.SMITTEN_MEDIA_DIR = previousDirectory;
+    await rm(directory, { recursive: true, force: true });
+  }
 });

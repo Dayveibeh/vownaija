@@ -18,7 +18,7 @@
     "db:setup": "TSX_TSCONFIG_PATH=tsconfig.json node --import tsx scripts/setup-database.ts",
     "prestart": "npm run db:setup",
     "predev": "npm run db:setup",
-    "test:vendors": "TSX_TSCONFIG_PATH=tsconfig.json node --import tsx --test tests/vendor-api.test.ts",
+    "test:vendors": "TSX_TSCONFIG_PATH=tsconfig.json node --experimental-test-module-mocks --import tsx --test tests/vendor-api.test.ts",
     "benchmark:vendors": "TSX_TSCONFIG_PATH=tsconfig.json node --import tsx scripts/benchmark-vendors.ts",
     "typecheck:vendors": "tsc --noEmit -p tsconfig.vendors.json"
   },

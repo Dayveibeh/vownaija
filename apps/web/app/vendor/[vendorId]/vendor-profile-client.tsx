@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState, type FormEvent } from "react";
 import {
   ArrowLeft,
-  BadgeCheck,
   Check,
   ChevronRight,
   Heart,
@@ -150,8 +150,8 @@ export default function VendorProfileClient({
   }
 
   const gallery = vendor.gallery.length ? vendor.gallery : [vendor.imageUrl];
-  const galleryMain = gallery[0] ?? vendor.imageUrl;
-  const secondary = gallery.slice(1, 3);
+  const galleryMain = vendor.imageUrl;
+  const secondary = gallery.filter((url) => url !== galleryMain).slice(0, 2);
   const location = vendor.state && vendor.state !== vendor.location
     ? vendor.location + ", " + vendor.state
     : vendor.location;
@@ -174,18 +174,18 @@ export default function VendorProfileClient({
 
       <section className="profile-gallery">
         <div className="gallery-main"><img src={galleryMain} alt={vendor.businessName + " wedding portfolio"} /></div>
-        <div>{secondary.map((image, index) => <img key={image + index} src={image} alt={vendor.businessName + " portfolio " + (index + 2)} />)}</div>
-        <span className="gallery-count">{gallery.length} portfolio photos</span>
+        <div>{secondary.map((media, index) => media.endsWith(".mp4") ? <video key={media} src={media} controls preload="metadata" aria-label={vendor.businessName + " portfolio video"} /> : <img key={media} src={media} alt={vendor.businessName + " portfolio " + (index + 2)} />)}</div>
+        <span className="gallery-count">{vendor.gallery.length} portfolio files</span>
       </section>
 
       <section className="profile-body">
         <article className="profile-content">
           <div className="profile-title-block">
             <p className="vendor-category">{vendor.category}</p>
-            <h1>{vendor.businessName} <BadgeCheck size={25} /></h1>
+            <h1>{vendor.businessName}</h1>
             <div className="profile-subline">
               <span><MapPin size={15} /> {location} · {vendor.travelDistance}</span>
-              <span><Star size={15} fill="currentColor" /> <strong>{Number(vendor.rating).toFixed(1)}</strong> · {vendor.reviewCount} reviews</span>
+              <span><Star size={15} fill="currentColor" /> <strong>{vendor.reviewCount ? Number(vendor.rating).toFixed(1) : "New vendor"}</strong>{vendor.reviewCount > 0 && ` · ${vendor.reviewCount} reviews`}</span>
             </div>
             <div className="profile-actions">
               <button className={saved ? "saved" : ""} onClick={() => void toggleSaved()}><Heart size={17} fill={saved ? "currentColor" : "none"} /> {saved ? "Saved" : "Save"}</button>
@@ -203,9 +203,12 @@ export default function VendorProfileClient({
             <div className="profile-highlights">{vendor.highlights.map((item) => <span key={item}><Check size={16} /> {item}</span>)}</div>
           </section>
 
+          {vendor.gallery.length > 0 && <section className="profile-section"><h2>Portfolio</h2><div className="vendor-public-media">{vendor.gallery.map((media, index) => media.endsWith(".mp4") ? <video key={media} src={media} controls preload="metadata" aria-label={`${vendor.businessName} portfolio video ${index + 1}`} /> : <Image key={media} src={media} width={800} height={600} unoptimized={!media.startsWith("/api/vendor-media/")} alt={`${vendor.businessName} portfolio ${index + 1}`} />)}</div></section>}
+
           <section id="packages" className="profile-section">
             <div className="profile-section-heading"><div><p className="eyebrow"><span /> Services</p><h2>Packages</h2></div><small>Prices shown in NGN · Custom quotes available</small></div>
             <div className="package-list">
+              {vendor.packages.length === 0 && <p>Contact this vendor for a personalised quote.</p>}
               {vendor.packages.map((item) => <article key={item.id}>
                 <div>{item.featured ? <span>Most popular</span> : null}<h3>{item.title}</h3><p>{item.description}</p></div>
                 <div><strong>From {formatNaira(item.price)}</strong><button onClick={() => openEnquiry(item.id)}>Get this quote <ChevronRight size={16} /></button></div>
@@ -216,7 +219,7 @@ export default function VendorProfileClient({
           <section id="reviews" className="profile-section reviews-section">
             <div className="profile-section-heading"><div><p className="eyebrow"><span /> Reputation</p><h2>Couple reviews</h2></div></div>
             <div className="rating-overview">
-              <div><strong>{Number(vendor.rating).toFixed(1)}</strong><span><span>★★★★★</span>{vendor.reviewCount} marketplace reviews</span></div>
+              <div><strong>{vendor.reviewCount ? Number(vendor.rating).toFixed(1) : "New"}</strong><span>{vendor.reviewCount > 0 ? `${vendor.reviewCount} marketplace reviews` : "No reviews yet"}</span></div>
               <p>{vendor.matchReason}</p>
             </div>
           </section>
