@@ -1,7 +1,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { ensureDatabaseSchema, getDb } from "@/db";
+import { getDb } from "@/db";
 import { customerProfiles, users, vendorProfiles, type SmittenUser, type UserRole } from "@/db/schema";
 
 export function isClerkConfigured() {
@@ -38,19 +38,16 @@ function nameFromMetadata(metadata: Record<string, unknown> | undefined) {
 }
 
 export async function getUserProfile(clerkUserId: string) {
-  await ensureDatabaseSchema();
   const [profile] = await getDb().select().from(users).where(eq(users.clerkUserId, clerkUserId)).limit(1);
   return profile ?? null;
 }
 
 export async function getCustomerProfile(clerkUserId: string) {
-  await ensureDatabaseSchema();
   const [profile] = await getDb().select().from(customerProfiles).where(eq(customerProfiles.clerkUserId, clerkUserId)).limit(1);
   return profile ?? null;
 }
 
 export async function getVendorProfile(clerkUserId: string) {
-  await ensureDatabaseSchema();
   const [profile] = await getDb().select().from(vendorProfiles).where(eq(vendorProfiles.clerkUserId, clerkUserId)).limit(1);
   return profile ?? null;
 }
@@ -77,7 +74,6 @@ export async function syncCurrentUserProfile(fallbackRole: UserRole = "couple"):
   const unsafeMetadata = clerkUser.unsafeMetadata as Record<string, unknown> | undefined;
   const privateMetadata = clerkUser.privateMetadata as Record<string, unknown> | undefined;
 
-  await ensureDatabaseSchema();
   const [existingProfile] = await getDb().select().from(users).where(eq(users.clerkUserId, userId)).limit(1);
   const fallback = existingProfile?.role === "admin" ? "couple" : (existingProfile?.role ?? fallbackRole);
   const role = roleFromMetadata(unsafeMetadata, privateMetadata, fallback);

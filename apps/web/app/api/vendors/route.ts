@@ -8,6 +8,7 @@ function numberParam(value: string | null) {
 }
 
 export async function GET(request: NextRequest) {
+  const startedAt = performance.now();
   const params = request.nextUrl.searchParams;
 
   try {
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
         active: vendor.active,
         acceptingEnquiries: Boolean(vendor.ownerClerkUserId),
       })),
-    });
+    }, { headers: { "Server-Timing": `vendors;dur=${(performance.now() - startedAt).toFixed(1)}` } });
   } catch (error) {
     console.error("Failed to load marketplace vendors", error);
     return NextResponse.json({ message: "Unable to load vendors right now." }, { status: 500 });

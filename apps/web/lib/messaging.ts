@@ -1,5 +1,4 @@
-import { ensureDatabaseSchema, getSql } from "@/db";
-import { ensureMarketplaceSeed } from "@/lib/marketplace";
+import { getSql } from "@/db";
 
 export type EnquiryInput = {
   vendorId: string;
@@ -59,7 +58,6 @@ function asDate(value: unknown) {
 }
 
 export async function createEnquiry(customerClerkUserId: string, input: EnquiryInput) {
-  await ensureMarketplaceSeed();
   const sql = getSql();
   const vendorRows = await sql`
     SELECT id, business_name, owner_clerk_user_id
@@ -121,8 +119,6 @@ export async function createEnquiry(customerClerkUserId: string, input: EnquiryI
 }
 
 export async function listConversationSummaries(clerkUserId: string, role: "couple" | "vendor" | "admin") {
-  await ensureDatabaseSchema();
-  await ensureMarketplaceSeed();
   const sql = getSql();
   const rows = await sql`
     SELECT
@@ -189,7 +185,6 @@ export async function listConversationSummaries(clerkUserId: string, role: "coup
 }
 
 export async function getConversationDetail(conversationId: string, clerkUserId: string, role: "couple" | "vendor" | "admin") {
-  await ensureDatabaseSchema();
   const sql = getSql();
   const rows = await sql`
     SELECT
@@ -272,7 +267,6 @@ export async function getConversationDetail(conversationId: string, clerkUserId:
 }
 
 export async function sendConversationMessage(conversationId: string, clerkUserId: string, body: string) {
-  await ensureDatabaseSchema();
   const sql = getSql();
   const membership = await sql`
     SELECT id, enquiry_id, customer_clerk_user_id, vendor_owner_clerk_user_id

@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { ensureDatabaseSchema, getSql } from "@/db";
+import { getSql } from "@/db";
 
 export type NotificationView = {
   id: string;
@@ -124,7 +124,6 @@ export async function createNotification(input: {
   href?: string | null;
   uniqueKey: string;
 }) {
-  await ensureDatabaseSchema();
   const sql = getSql();
   const id = crypto.randomUUID();
   const wantsEmail = emailConfigured();
@@ -211,7 +210,6 @@ async function bookingPaidTotal(bookingId: string) {
 }
 
 export async function notifyPaymentPaid(paymentOrderId: string) {
-  await ensureDatabaseSchema();
   const context = await paymentContext(paymentOrderId);
   if (!context) return;
 
@@ -302,7 +300,6 @@ export async function notifyPaymentPaid(paymentOrderId: string) {
 }
 
 export async function notifyPayoutReleased(paymentOrderId: string, simulated = false) {
-  await ensureDatabaseSchema();
   const context = await paymentContext(paymentOrderId);
   if (!context) return;
 
@@ -336,7 +333,6 @@ export async function notifyPayoutReleased(paymentOrderId: string, simulated = f
 }
 
 export async function notifyPayoutProcessing(paymentOrderId: string) {
-  await ensureDatabaseSchema();
   const context = await paymentContext(paymentOrderId);
   if (!context) return;
   const bookingId = String(context.booking_id);
@@ -362,7 +358,6 @@ export async function notifyPayoutProcessing(paymentOrderId: string) {
 }
 
 export async function notifyPayoutFailed(paymentOrderId: string, reversed = false) {
-  await ensureDatabaseSchema();
   const context = await paymentContext(paymentOrderId);
   if (!context) return;
   const bookingId = String(context.booking_id);
@@ -397,7 +392,6 @@ export async function notifyPayoutFailed(paymentOrderId: string, reversed = fals
 }
 
 export async function notifyDisputeOpened(paymentOrderId: string, reason: string) {
-  await ensureDatabaseSchema();
   const context = await paymentContext(paymentOrderId);
   if (!context) return;
   const bookingId = String(context.booking_id);
@@ -434,7 +428,6 @@ export async function notifyDisputeOpened(paymentOrderId: string, reason: string
 }
 
 export async function notifyDisputeResolved(paymentOrderId: string) {
-  await ensureDatabaseSchema();
   const context = await paymentContext(paymentOrderId);
   if (!context) return;
   const bookingId = String(context.booking_id);
@@ -463,7 +456,6 @@ export async function notifyRefundStatus(
   paymentOrderId: string,
   status: "processing" | "needs_attention" | "processed" | "failed",
 ) {
-  await ensureDatabaseSchema();
   const context = await paymentContext(paymentOrderId);
   if (!context) return;
   const bookingId = String(context.booking_id);
@@ -526,7 +518,6 @@ export async function notifyRefundStatus(
 }
 
 export async function listNotifications(userId: string, limit = 60): Promise<NotificationView[]> {
-  await ensureDatabaseSchema();
   const safeLimit = Math.min(100, Math.max(1, Math.floor(limit)));
   const rows = await getSql()`
     SELECT id,type,title,body,href,read_at,created_at
@@ -548,7 +539,6 @@ export async function listNotifications(userId: string, limit = 60): Promise<Not
 }
 
 export async function getUnreadNotificationCount(userId: string) {
-  await ensureDatabaseSchema();
   const rows = await getSql()`
     SELECT COUNT(*)::int AS count
     FROM notifications
@@ -558,7 +548,6 @@ export async function getUnreadNotificationCount(userId: string) {
 }
 
 export async function markNotificationRead(userId: string, notificationId: string) {
-  await ensureDatabaseSchema();
   await getSql()`
     UPDATE notifications
     SET read_at=COALESCE(read_at,now())
@@ -567,7 +556,6 @@ export async function markNotificationRead(userId: string, notificationId: strin
 }
 
 export async function markAllNotificationsRead(userId: string) {
-  await ensureDatabaseSchema();
   await getSql()`
     UPDATE notifications
     SET read_at=COALESCE(read_at,now())

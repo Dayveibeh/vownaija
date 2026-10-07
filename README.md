@@ -47,6 +47,33 @@ npm run build:web
 
 The repository-level `npm run dev` and `npm run build` commands remain available for the Sites preview and deployment workflow.
 
+## Database setup and deployment
+
+Provide `DATABASE_URL` (or `POSTGRES_URL`) for the intended Neon database before running
+`npm run db:setup`. The command batches schema changes, inserts missing sample vendors
+and packages, and publishes existing vendor profiles. Re-running it preserves existing
+sample edits, vendor URLs, favourites and packages. Database setup no longer runs inside
+page or API requests.
+
+Vercel's `npm run build:vercel` command runs setup before building. The database variable
+must therefore be available at build time. In Coolify, keep the repository root as the
+base directory, use `npm run build:vercel` to build and `npm run web:start` to start;
+the start command also runs setup before accepting traffic. Do not use a bare `next start`
+command unless `npm run db:setup` has been configured as a separate deployment step.
+For Sites deployments, run the setup command explicitly before starting the app.
+
+Vendor profile saves publish the listing atomically. Public catalogue reads run a single
+SELECT and expose handler duration in the `Server-Timing` response header. No catalogue
+cache is added, so saved profile changes appear immediately.
+
+Run `npm run test:vendors` for isolated PostgreSQL integration tests and
+`npm run typecheck:vendors` for the vendor API and setup scripts. Run
+`npm run benchmark:vendors` with a database URL to measure three read-only API handler
+requests; this excludes frontend and browser-to-server network time. Tests use PGlite
+and never access your Neon data.
+
+## Native app
+
 Start the iOS app on macOS with Xcode Simulator:
 
 ```bash

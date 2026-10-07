@@ -1,4 +1,4 @@
-import { ensureDatabaseSchema, getSql } from "@/db";
+import { getSql } from "@/db";
 
 export type QuoteView = {
   id: string; conversationId: string; enquiryId: string; vendorId: string;
@@ -77,7 +77,6 @@ function mapBooking(row: Record<string, unknown>): BookingView {
 }
 
 export async function loadConversationQuotes(conversationId:string,userId:string,role:"couple"|"vendor"|"admin") {
-  await ensureDatabaseSchema();
   const sql=getSql();
   const access=await sql`
     SELECT id FROM conversations WHERE id=${conversationId}
@@ -110,7 +109,7 @@ export async function createConversationQuote(conversationId:string,vendorUserId
   paymentPlan?:"full"|"deposit"; depositType?:"percentage"|"fixed"|null; depositValue?:number;
   items:Array<{title:string;description?:string|null;quantity:number;unitPrice:number}>;
 }) {
-  await ensureDatabaseSchema(); const sql=getSql();
+  const sql=getSql();
   const rows=await sql`
     SELECT c.enquiry_id,c.vendor_id,c.customer_clerk_user_id
     FROM conversations c WHERE c.id=${conversationId} AND c.vendor_owner_clerk_user_id=${vendorUserId} LIMIT 1
@@ -146,7 +145,7 @@ export async function createConversationQuote(conversationId:string,vendorUserId
 }
 
 export async function respondToQuote(quoteId:string,customerUserId:string,action:"accept"|"decline") {
-  await ensureDatabaseSchema(); const sql=getSql();
+  const sql=getSql();
   const rows=await sql`
     SELECT q.*,e.wedding_date,e.wedding_location,mv.business_name vendor_name,COALESCE(e.contact_name,u.full_name) customer_name
     FROM quotes q JOIN enquiries e ON e.id=q.enquiry_id JOIN marketplace_vendors mv ON mv.id=q.vendor_id
@@ -176,7 +175,7 @@ export async function respondToQuote(quoteId:string,customerUserId:string,action
 }
 
 export async function listAccountQuotes(userId:string,role:"couple"|"vendor"|"admin") {
-  await ensureDatabaseSchema(); const rows=await getSql()`
+  const rows=await getSql()`
     SELECT q.*,mv.business_name vendor_name,COALESCE(e.contact_name,u.full_name) customer_name
     FROM quotes q JOIN marketplace_vendors mv ON mv.id=q.vendor_id JOIN enquiries e ON e.id=q.enquiry_id JOIN smitten_users u ON u.clerk_user_id=q.customer_clerk_user_id
     WHERE ((${role}='couple' AND q.customer_clerk_user_id=${userId}) OR (${role}<>'couple' AND q.vendor_owner_clerk_user_id=${userId}))
@@ -185,7 +184,7 @@ export async function listAccountQuotes(userId:string,role:"couple"|"vendor"|"ad
 }
 
 export async function listAccountBookings(userId:string,role:"couple"|"vendor"|"admin") {
-  await ensureDatabaseSchema(); const rows=await getSql()`
+  const rows=await getSql()`
     SELECT b.*,mv.business_name vendor_name,COALESCE(e.contact_name,u.full_name) customer_name
     FROM bookings b JOIN marketplace_vendors mv ON mv.id=b.vendor_id JOIN enquiries e ON e.id=b.enquiry_id JOIN smitten_users u ON u.clerk_user_id=b.customer_clerk_user_id
     WHERE ((${role}='couple' AND b.customer_clerk_user_id=${userId}) OR (${role}<>'couple' AND b.vendor_owner_clerk_user_id=${userId}))
@@ -199,7 +198,6 @@ export async function getQuoteForAccount(
   userId: string,
   role: "couple" | "vendor" | "admin",
 ) {
-  await ensureDatabaseSchema();
   const sql = getSql();
   const rows = await sql`
     SELECT
@@ -228,7 +226,6 @@ export async function getBookingForAccount(
   userId: string,
   role: "couple" | "vendor" | "admin",
 ) {
-  await ensureDatabaseSchema();
   const rows = await getSql()`
     SELECT
       b.*,

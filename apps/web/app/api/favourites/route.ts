@@ -1,10 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { ensureDatabaseSchema, getDb } from "@/db";
+import { getDb } from "@/db";
 import { favourites, marketplaceVendors } from "@/db/schema";
 import { isClerkConfigured } from "@/lib/accounts";
-import { ensureMarketplaceSeed } from "@/lib/marketplace";
 
 function authUnavailable() {
   return NextResponse.json({ message: "Sign in required." }, { status: 401 });
@@ -21,7 +20,6 @@ export async function GET() {
   if (!userId) return authUnavailable();
 
   try {
-    await ensureMarketplaceSeed();
     const rows = await getDb()
       .select({
         vendorId: favourites.vendorId,
@@ -56,8 +54,6 @@ export async function POST(request: Request) {
   if (!vendorId) return NextResponse.json({ message: "Vendor is required." }, { status: 400 });
 
   try {
-    await ensureMarketplaceSeed();
-    await ensureDatabaseSchema();
 
     const [vendor] = await getDb().select({ id: marketplaceVendors.id })
       .from(marketplaceVendors)
@@ -83,7 +79,6 @@ export async function DELETE(request: Request) {
   if (!vendorId) return NextResponse.json({ message: "Vendor is required." }, { status: 400 });
 
   try {
-    await ensureDatabaseSchema();
     await getDb().delete(favourites).where(and(
       eq(favourites.clerkUserId, userId),
       eq(favourites.vendorId, vendorId),
