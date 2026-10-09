@@ -1,7 +1,7 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getUserProfile } from "@/lib/accounts";
+import { adminApiIdentity } from "@/lib/admin-api-auth";
+import { rejectCrossOriginWrite } from "@/lib/vendor-api-auth";
 import { initiatePaymentRefund, reconcileAdminPayment, resolvePaymentDispute } from "@/lib/payments";
 
 const schema = z.object({
@@ -11,13 +11,9 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
-
-  const profile = await getUserProfile(userId);
-  if (!profile || profile.role !== "admin") {
-    return NextResponse.json({ message: "Smitten admin access required." }, { status: 403 });
-  }
+  const identity = await adminApiIdentity(); if (identity instanceof Response) return identity;
+  const userId = identity;
+  const rejected = rejectCrossOriginWrite(request); if (rejected) return rejected;
 
   let body: unknown;
   try { body = await request.json(); }
@@ -61,6 +57,6 @@ export async function POST(request: Request) {
     if (known[code]) return NextResponse.json({ message: known[code] }, { status: 409 });
 
     console.error("Admin finance action failed", error);
-    return NextResponse.json({ message: code || "The finance action could not be completed." }, { status: 500 });
+    return NextResponse.json({ message: "The finance action could not be completed." }, { status: 500 });
   }
 }

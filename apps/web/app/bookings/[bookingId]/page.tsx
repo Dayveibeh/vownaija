@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { notFound, redirect } from "next/navigation";
-import { getUserProfile } from "@/lib/accounts";
+import { requireActiveUserProfile } from "@/lib/accounts";
 import { getBookingForAccount, getQuoteForAccount } from "@/lib/quotes";
 import { getBookingPaymentSummary } from "@/lib/payments";
 import { getBookingReviewState } from "@/lib/reviews";
@@ -12,7 +12,7 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
   const { userId } = await auth();
   if (!userId) redirect("/couples/sign-up?mode=signin");
 
-  const profile = await getUserProfile(userId);
+  const profile = await requireActiveUserProfile(userId);
   if (!profile) redirect("/account/setup");
 
   const { bookingId } = await params;

@@ -22,7 +22,8 @@
     "benchmark:vendors": "TSX_TSCONFIG_PATH=tsconfig.json node --import tsx scripts/benchmark-vendors.ts",
     "typecheck:vendors": "tsc --noEmit -p tsconfig.vendors.json",
     "test:customers": "TSX_TSCONFIG_PATH=tsconfig.json node --experimental-test-module-mocks --import tsx --test tests/customer-workspace.test.ts tests/session-idle.test.ts",
-    "test:reviews": "TSX_TSCONFIG_PATH=tsconfig.json node --experimental-test-module-mocks --import tsx --test tests/reviews.test.ts"
+    "test:reviews": "TSX_TSCONFIG_PATH=tsconfig.json node --experimental-test-module-mocks --import tsx --test tests/reviews.test.ts",
+    "test:admin": "TSX_TSCONFIG_PATH=tsconfig.json node --experimental-test-module-mocks --import tsx --test tests/admin-workspace.test.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.7.7",

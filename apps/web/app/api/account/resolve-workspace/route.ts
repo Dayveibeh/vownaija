@@ -29,7 +29,11 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ message: "Invalid account transition." }, { status: 400 });
 
   const fallbackRole: UserRole = parsed.data.intent === "vendor" ? "vendor" : "couple";
-  const profile = await syncCurrentUserProfile(fallbackRole);
+  const profile = await syncCurrentUserProfile(fallbackRole).catch((error: unknown) => {
+    if (error instanceof Error && error.message === "ACCOUNT_RESTRICTED") return null;
+    throw error;
+  });
+  if (!profile) return NextResponse.json({ destination: "/account/restricted" });
   const requestedReturn = safeReturnTo(parsed.data.returnTo);
 
   if (requestedReturn) {
@@ -42,7 +46,7 @@ export async function POST(request: Request) {
 
   if (profile.role === "admin") {
     return NextResponse.json({
-      destination: "/admin/payments",
+      destination: "/admin",
       role: profile.role,
       fullName: profile.fullName,
     });

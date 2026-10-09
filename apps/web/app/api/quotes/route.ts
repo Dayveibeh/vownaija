@@ -1,3 +1,4 @@
+import { accountAccessResponse } from "@/lib/account-access";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getUserProfile } from "@/lib/accounts";
@@ -7,6 +8,7 @@ export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
   const profile = await getUserProfile(userId);
+  const restricted = accountAccessResponse(profile); if (restricted) return restricted;
   if (!profile) return NextResponse.json({ message: "Account setup required." }, { status: 409 });
   const quotes = await listAccountQuotes(userId, profile.role);
   return NextResponse.json({ quotes, role: profile.role });

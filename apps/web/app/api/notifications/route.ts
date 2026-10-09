@@ -1,3 +1,5 @@
+import { getUserProfile } from "@/lib/accounts";
+import { accountAccessResponse } from "@/lib/account-access";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -19,6 +21,7 @@ export async function GET(request: Request) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
 
+  const restricted = accountAccessResponse(await getUserProfile(userId)); if (restricted) return restricted;
   const url = new URL(request.url);
   const unreadCount = await getUnreadNotificationCount(userId);
 
@@ -34,6 +37,7 @@ export async function PATCH(request: Request) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
 
+  const restricted = accountAccessResponse(await getUserProfile(userId)); if (restricted) return restricted;
   let body: unknown;
   try { body = await request.json(); }
   catch { return NextResponse.json({ message: "Invalid request." }, { status: 400 }); }

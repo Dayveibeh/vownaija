@@ -1,3 +1,4 @@
+import { activeVendorOwner } from "./account-access";
 import { and, eq, gte, ilike, lte, or, type SQL } from "drizzle-orm";
 import { getDb, getSql } from "@/db";
 import { marketplaceVendors } from "@/db/schema";
@@ -11,7 +12,7 @@ export type VendorFilters = {
 };
 
 export async function listMarketplaceVendors(filters: VendorFilters = {}) {
-  const conditions: SQL[] = [eq(marketplaceVendors.active, true), eq(marketplaceVendors.moderationStatus, "listed")];
+  const conditions: SQL[] = [eq(marketplaceVendors.active, true), eq(marketplaceVendors.moderationStatus, "listed"), activeVendorOwner()];
   if (filters.category) conditions.push(eq(marketplaceVendors.category, filters.category));
   if (filters.location) {
     conditions.push(or(
@@ -36,7 +37,7 @@ export async function getMarketplaceVendor(vendorId: string) {
   const [vendor] = await getDb()
     .select()
     .from(marketplaceVendors)
-    .where(and(eq(marketplaceVendors.id, vendorId), eq(marketplaceVendors.active, true), eq(marketplaceVendors.moderationStatus, "listed")))
+    .where(and(eq(marketplaceVendors.id, vendorId), eq(marketplaceVendors.active, true), eq(marketplaceVendors.moderationStatus, "listed"), activeVendorOwner()))
     .limit(1);
   if (!vendor) return null;
   return { ...vendor, packages: await listVendorPackages(vendorId) };

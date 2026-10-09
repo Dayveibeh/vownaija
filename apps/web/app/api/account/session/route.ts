@@ -1,3 +1,4 @@
+import { accountAccessResponse } from "@/lib/account-access";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getUserProfile, syncCurrentUserProfile } from "@/lib/accounts";
@@ -14,6 +15,7 @@ export async function GET() {
 
   try {
     const profile = (await getUserProfile(userId)) ?? await syncCurrentUserProfile("couple");
+    const restricted = accountAccessResponse(profile); if (restricted) return restricted;
     return NextResponse.json({
       signedIn: true,
       profile: {

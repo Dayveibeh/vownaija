@@ -1,3 +1,4 @@
+import { accountAccessResponse } from "./account-access";
 import { auth } from "@clerk/nextjs/server";
 import { getUserProfile } from "./accounts";
 
@@ -5,6 +6,7 @@ export async function customerApiIdentity(): Promise<string | Response> {
   const { userId } = await auth();
   if (!userId) return Response.json({ message: "Sign in to your planning account." }, { status: 401 });
   const profile = await getUserProfile(userId);
+  const restricted = accountAccessResponse(profile); if (restricted) return restricted;
   if (profile?.role !== "couple") return Response.json({ message: "A couple account is required." }, { status: 403 });
   return userId;
 }

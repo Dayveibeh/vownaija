@@ -31,7 +31,8 @@
     "benchmark:vendors": "npm --workspace @smitten/web run benchmark:vendors",
     "typecheck:vendors": "npm --workspace @smitten/web run typecheck:vendors",
     "test:customers": "npm --workspace @smitten/web run test:customers",
-    "test:reviews": "npm --workspace @smitten/web run test:reviews"
+    "test:reviews": "npm --workspace @smitten/web run test:reviews",
+    "test:admin": "npm --workspace @smitten/web run test:admin"
   },
   "type": "module",
   "displayName": "Smitten"

@@ -1,7 +1,6 @@
 "use client";
 import { useRef, useState, type FormEvent } from "react";
 import type { AdminMarketplace } from "@/lib/reviews";
-import { WorkspaceHeader } from "../../components/WorkspaceHeader";
 import { ReviewList } from "../../components/ReviewList";
 import styles from "../../components/reviews.module.css";
 
@@ -29,7 +28,7 @@ export default function AdminMarketplaceClient({ initialMarketplace }: { initial
   }
   const reviews = marketplace.reviews.filter((r) => filter === "all" || r.status === filter);
   const vendors = marketplace.vendors.filter((v) => `${v.name} ${v.category} ${v.location}`.toLowerCase().includes(query.toLowerCase()));
-  return <main className={styles.workspace}><WorkspaceHeader role="admin" activeSection="marketplace" /><div className={styles.content}>
+  return <main className={styles.workspace}><div className={styles.content}>
     <p className="eyebrow">Marketplace oversight</p><h1>Reviews and vendor visibility</h1><p>Approve booking reviews and manage which vendor profiles appear publicly.</p>
     {selected && <section className={styles.section}><h2>{selected.action === "publish" ? "Publish review" : selected.action === "restore" ? "Restore vendor" : `Hide ${selected.target}`}</h2><p>{selected.name}</p>{selected.target === "vendor" && <p>Visibility changes affect discovery and new enquiries. Existing bookings and messages remain accessible to their owners.</p>}
       <form className={styles.form} onSubmit={(event) => void moderate(event)}><label>Reason for this action<textarea ref={reasonField} value={reason} onChange={(event) => setReason(event.target.value)} minLength={5} maxLength={500} required /></label><div className={styles.actions}><button disabled={busy}>{busy ? "Saving…" : "Confirm action"}</button><button type="button" disabled={busy} onClick={() => setSelected(null)}>Cancel</button></div></form>

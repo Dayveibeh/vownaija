@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { notFound, redirect } from "next/navigation";
-import { getUserProfile } from "@/lib/accounts";
+import { requireActiveUserProfile } from "@/lib/accounts";
 import { getConversationDetail } from "@/lib/messaging";
 import ConversationClient from "./conversation-client";
 
@@ -10,7 +10,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ c
   const { userId } = await auth();
   if (!userId) redirect("/couples/sign-up?mode=signin");
 
-  const profile = await getUserProfile(userId);
+  const profile = await requireActiveUserProfile(userId);
   if (!profile) redirect("/account/setup");
 
   const { conversationId } = await params;
