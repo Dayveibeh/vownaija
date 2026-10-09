@@ -55,10 +55,12 @@ const coupleMore: Destination[] = [
   },
 ];
 const adminLinks: Destination[] = [
-  { key: "finance", label: "Finance", href: "/admin/payments" },
-  { key: "notifications", label: "Notifications", href: "/notifications" },
-  { key: "marketplace", label: "Marketplace controls", href: "/admin/marketplace" },
-  { key: "browse", label: "Browse Smitten", href: "/" },
+  { key: "overview", label: "Overview", href: "/admin" },
+  { key: "users", label: "Users", href: "/admin/users" },
+  { key: "transactions", label: "Transactions", href: "/admin/transactions" },
+  { key: "finance", label: "Finance controls", href: "/admin/payments" },
+  { key: "marketplace", label: "Marketplace", href: "/admin/marketplace" },
+  { key: "activity", label: "Activity log", href: "/admin/activity" },
 ];
 
 export function WorkspaceNavigation({

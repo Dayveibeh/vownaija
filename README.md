@@ -175,3 +175,27 @@ After deployment, verify authenticated screens at `dev.smitten.com.ng`:
 3. Edit feedback as the customer. It returns to pending and leaves the public rating until approved. Approval from an older admin screen must require a refresh.
 4. Hide a vendor, check search and the direct profile, then edit the vendor profile to confirm it stays hidden. Restore it and check discovery again.
 5. Check mobile inputs, navigation, inline moderation confirmation and bottom notifications. Authenticated staging browser verification remains necessary after deployment.
+
+### Admin workspace and account safety (Phase 5)
+
+The admin home is `/admin`, with shared navigation to Users, Transactions, Finance controls, Marketplace and Activity log. Admin access requires an active Smitten account and Clerk **private metadata** `{"smitten":{"role":"admin"}}` in the same Clerk instance as the deployment. An email address or a database role alone does not grant administrative API access. Existing financial actions and admin receipt access also check trusted metadata.
+
+Users (`/admin/users`) supports name/email/user-ID search, role/access/risk filters, and pages of 25 accounts. Admins can suspend, restore, remove, flag or clear a suspicious flag on customer and vendor accounts. Every action requires a reason and writes an audit record atomically with the account change. Removal additionally requires typing the account email. Admin accounts are protected from these controls, and revision checks reject stale actions from another admin screen.
+
+Suspension and removal disable **Smitten access**, including existing-session API actions; they do not delete or ban the identity in Clerk. Restricted users are redirected to `/account/restricted`, and sign-in/bootstrap cannot reset their status. Removed accounts retain bookings, payments and audit history and can be restored. Suspended/removed vendor listings are excluded from discovery, saved lists, new enquiries, public reviews and portfolio access. Previously cached portfolio responses retain their existing five-minute lifetime. Restoration preserves independent listing moderation and suspicious flags. Flags alone do not restrict access. Provider callbacks and settlement processing continue to preserve financial records.
+
+Transactions (`/admin/transactions`) includes paid, pending, created, failed, cancelled and refunded orders, with reference/name/email/ID search, payment/funds filters and inclusive date ranges in Nigeria time. Pages contain 25 records. Detail views show safe payment events, dispute/refund cases and payout status; provider authorization payloads and bank details are not exposed. Totals represent recorded order amounts, including unpaid attempts, rather than money received. Financial operations remain in the existing Finance controls. The Activity log shows the 100 most recent account and marketplace actions; financial events appear in transaction details.
+
+Schema setup adds `smitten_users.account_status`, `suspicious` and `admin_revision` idempotently and preserves restrictions on redeploy. Code is in GitHub; status, flags, transactions and audit records are in the existing Neon database. After merge, redeploy **smitten-web-test** in Coolify. No new resource or environment variable is required.
+
+`npm run test:admin` exercises trusted admin authorization and revocation, cross-origin rejection, flags, stale revisions, suspension with existing sessions, bootstrap protection, typed removal, record retention, restoration, pagination, date filters, safe financial detail views and rollback when an audit write fails. It uses isolated PostgreSQL and never contacts the live database or moves funds.
+
+After deployment:
+
+1. Sign in to `dev.smitten.com.ng` as the trusted admin and open `/admin`. Check all six navigation destinations and the account/financial summaries.
+2. Find a disposable customer/vendor account, flag it with a reason, and check the risk filter and Activity log. The flagged account should keep access.
+3. Suspend that account while it has another browser session open. Its API actions should fail and workspace pages should redirect to the restricted-account page; vendor discovery should hide its listings. Restore it and check that the suspicious flag remains.
+4. Remove the disposable account by typing its email and providing a reason. Its prior bookings and payments must remain visible to the admin. Restore access when finished.
+5. Search Transactions by a known reference/email, try status and Nigeria-date filters, and inspect event/case/payout history. Check pagination and mobile readability. An ordinary customer/vendor and an admin with revoked trusted metadata must not be able to read admin APIs or use finance controls.
+
+Authenticated staging browser verification remains necessary after deployment.

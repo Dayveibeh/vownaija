@@ -1,10 +1,11 @@
+import { accountAccessResponse, activeVendorOwner } from "@/lib/account-access";
 import { auth } from "@clerk/nextjs/server";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { favourites, marketplaceVendors } from "@/db/schema";
 import { rejectCrossOriginWrite } from "@/lib/vendor-api-auth";
-import { isClerkConfigured } from "@/lib/accounts";
+import { getUserProfile, isClerkConfigured } from "@/lib/accounts";
 
 function authUnavailable() {
   return NextResponse.json({ message: "Sign in required." }, { status: 401 });
@@ -13,11 +14,14 @@ function authUnavailable() {
 async function authenticatedUserId() {
   if (!isClerkConfigured()) return null;
   const { userId } = await auth();
-  return userId;
+  if (!userId) return null;
+  const restricted = accountAccessResponse(await getUserProfile(userId));
+  return restricted || userId;
 }
 
 export async function GET() {
   const userId = await authenticatedUserId();
+  if (userId instanceof Response) return userId;
   if (!userId) return authUnavailable();
 
   try {
@@ -29,7 +33,7 @@ export async function GET() {
       })
       .from(favourites)
       .innerJoin(marketplaceVendors, eq(favourites.vendorId, marketplaceVendors.id))
-      .where(and(eq(favourites.clerkUserId, userId), eq(marketplaceVendors.active, true), eq(marketplaceVendors.moderationStatus, "listed")));
+      .where(and(eq(favourites.clerkUserId, userId), eq(marketplaceVendors.active, true), eq(marketplaceVendors.moderationStatus, "listed"), activeVendorOwner()));
 
     return NextResponse.json({ currency: "NGN", favourites: rows }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
@@ -49,6 +53,7 @@ async function vendorIdFromRequest(request: Request) {
 
 export async function POST(request: Request) {
   const userId = await authenticatedUserId();
+  if (userId instanceof Response) return userId;
   if (!userId) return authUnavailable();
 
   const rejected = rejectCrossOriginWrite(request); if (rejected) return rejected;
@@ -59,7 +64,7 @@ export async function POST(request: Request) {
 
     const [vendor] = await getDb().select({ id: marketplaceVendors.id })
       .from(marketplaceVendors)
-      .where(and(eq(marketplaceVendors.id, vendorId), eq(marketplaceVendors.active, true), eq(marketplaceVendors.moderationStatus, "listed")))
+      .where(and(eq(marketplaceVendors.id, vendorId), eq(marketplaceVendors.active, true), eq(marketplaceVendors.moderationStatus, "listed"), activeVendorOwner()))
       .limit(1);
     if (!vendor) return NextResponse.json({ message: "Vendor not found." }, { status: 404 });
 
@@ -75,6 +80,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   const userId = await authenticatedUserId();
+  if (userId instanceof Response) return userId;
   if (!userId) return authUnavailable();
 
   const rejected = rejectCrossOriginWrite(request); if (rejected) return rejected;

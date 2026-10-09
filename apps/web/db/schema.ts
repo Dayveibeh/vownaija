@@ -6,13 +6,18 @@ export const users = pgTable("smitten_users", {
   email: text("email").notNull().unique(),
   fullName: text("full_name").notNull(),
   role: text("role", { enum: ["couple", "vendor", "admin"] }).notNull(),
+  accountStatus: text("account_status", { enum: ["active", "suspended", "removed"] }).default("active").notNull(),
+  suspicious: boolean("suspicious").default(false).notNull(),
+  adminRevision: integer("admin_revision").default(1).notNull(),
   countryCode: text("country_code").default("NG").notNull(),
   currencyCode: text("currency_code").default("NGN").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("smitten_users_role_idx").on(table.role),
+  index("smitten_users_status_idx").on(table.accountStatus),
   check("smitten_users_role_check", sql`${table.role} in ('couple', 'vendor', 'admin')`),
+  check("smitten_users_status_check", sql`${table.accountStatus} in ('active', 'suspended', 'removed')`),
 ]);
 
 export const customerProfiles = pgTable("customer_profiles", {

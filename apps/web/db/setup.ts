@@ -19,6 +19,10 @@ export async function setupDatabaseSchema() {
     `,
     sql`ALTER TABLE smitten_users ADD COLUMN IF NOT EXISTS country_code text NOT NULL DEFAULT 'NG'`,
     sql`ALTER TABLE smitten_users ADD COLUMN IF NOT EXISTS currency_code text NOT NULL DEFAULT 'NGN'`,
+    sql`ALTER TABLE smitten_users ADD COLUMN IF NOT EXISTS account_status text NOT NULL DEFAULT 'active' CHECK (account_status IN ('active','suspended','removed'))`,
+    sql`ALTER TABLE smitten_users ADD COLUMN IF NOT EXISTS suspicious boolean NOT NULL DEFAULT false`,
+    sql`ALTER TABLE smitten_users ADD COLUMN IF NOT EXISTS admin_revision integer NOT NULL DEFAULT 1`,
+    sql`CREATE INDEX IF NOT EXISTS smitten_users_status_idx ON smitten_users(account_status)`,
     sql`ALTER TABLE smitten_users DROP CONSTRAINT IF EXISTS smitten_users_role_check`,
     sql`ALTER TABLE smitten_users ADD CONSTRAINT smitten_users_role_check CHECK (role IN ('couple', 'vendor', 'admin'))`,
     sql`

@@ -1,3 +1,4 @@
+import { accountAccessResponse } from "@/lib/account-access";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
   if (!userId) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
 
   const profile = await getUserProfile(userId);
+  const restricted = accountAccessResponse(profile); if (restricted) return restricted;
   if (!profile || profile.role !== "couple") {
     return NextResponse.json({ message: "Only the customer can release this payout." }, { status: 403 });
   }

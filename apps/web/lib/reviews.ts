@@ -62,7 +62,7 @@ export async function listPublicReviews(vendorId: string) {
   const rows = await sql`SELECT r.id,r.revision,r.rating,r.title,r.body,r.status,r.updated_at,split_part(u.full_name,' ',1) AS reviewer
     FROM booking_reviews r JOIN smitten_users u ON u.clerk_user_id=r.customer_clerk_user_id
     JOIN marketplace_vendors v ON v.id=r.vendor_id
-    WHERE r.vendor_id=${vendorId} AND r.status='published' AND v.active=true AND v.moderation_status='listed'
+    WHERE r.vendor_id=${vendorId} AND r.status='published' AND v.active=true AND v.moderation_status='listed' AND (v.owner_clerk_user_id IS NULL OR EXISTS (SELECT 1 FROM smitten_users owner WHERE owner.clerk_user_id=v.owner_clerk_user_id AND owner.account_status='active'))
     ORDER BY r.updated_at DESC,r.id LIMIT 100`;
   return rows.map(mapReview);
 }

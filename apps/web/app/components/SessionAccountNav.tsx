@@ -54,7 +54,11 @@ export function SessionAccountNav({
     const refreshSession = async () => {
       const [accountResult, notificationResult] = await Promise.all([
         fetch("/api/account/session", { cache: "no-store" })
-          .then(async (response) => response.ok ? response.json() : null)
+          .then(async (response) => {
+            const result = await response.json();
+            if (response.status === 403 && result.code === "ACCOUNT_RESTRICTED" && window.location.pathname !== "/account/restricted") window.location.assign("/account/restricted");
+            return response.ok ? result : null;
+          })
           .catch(() => null),
         fetch("/api/notifications?summary=1", { cache: "no-store" })
           .then(async (response) => response.ok ? response.json() : null)
@@ -83,8 +87,8 @@ export function SessionAccountNav({
   const role = account?.role ?? metadataRole;
   const fullName = account?.fullName ?? user?.fullName ?? user?.primaryEmailAddress?.emailAddress?.split("@")[0] ?? "Smitten member";
   const initials = useMemo(() => initialsFor(fullName), [fullName]);
-  const dashboardHref = role === "admin" ? "/admin/payments" : role === "vendor" ? "/dashboard" : "/couples/dashboard";
-  const dashboardLabel = role === "admin" ? "Admin finance" : role === "vendor" ? "Vendor workspace" : "My planning";
+  const dashboardHref = role === "admin" ? "/admin" : role === "vendor" ? "/dashboard" : "/couples/dashboard";
+  const dashboardLabel = role === "admin" ? "Admin workspace" : role === "vendor" ? "Vendor workspace" : "My planning";
 
   if (!isLoaded) {
     return <span className={`session-account-loading session-account-${variant}`} aria-hidden="true" />;

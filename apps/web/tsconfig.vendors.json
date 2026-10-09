@@ -27,7 +27,11 @@
     "app/dashboard/reviews/**/*.tsx",
     "app/bookings/**/*.tsx",
     "app/vendor/[vendorId]/**/*.tsx",
-    "tests/reviews.test.ts"
+    "tests/reviews.test.ts",
+    "app/admin/**/*.tsx",
+    "app/api/admin/**/*.ts",
+    "app/account/restricted/**/*.tsx",
+    "tests/admin-workspace.test.ts"
   ],
   "exclude": [
     "node_modules",

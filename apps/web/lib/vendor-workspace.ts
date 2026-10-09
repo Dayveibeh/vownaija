@@ -58,6 +58,6 @@ export async function updatePortfolioMedia(userId: string, url: string, action: 
 }
 
 export async function isPublishedMedia(url: string) {
-  const rows = await getSql()`SELECT id FROM marketplace_vendors WHERE active=true AND moderation_status='listed' AND (image_url=${url} OR gallery @> ${JSON.stringify([url])}::jsonb) LIMIT 1`;
+  const rows = await getSql()`SELECT id FROM marketplace_vendors WHERE active=true AND moderation_status='listed' AND (owner_clerk_user_id IS NULL OR EXISTS (SELECT 1 FROM smitten_users owner WHERE owner.clerk_user_id=marketplace_vendors.owner_clerk_user_id AND owner.account_status='active')) AND (image_url=${url} OR gallery @> ${JSON.stringify([url])}::jsonb) LIMIT 1`;
   return Boolean(rows.length);
 }

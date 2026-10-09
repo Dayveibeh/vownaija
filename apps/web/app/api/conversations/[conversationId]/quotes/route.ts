@@ -1,3 +1,4 @@
+import { accountAccessResponse } from "@/lib/account-access";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -27,6 +28,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ con
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
   const profile = await getUserProfile(userId);
+  const restricted = accountAccessResponse(profile); if (restricted) return restricted;
   if (!profile) return NextResponse.json({ message: "Account setup required." }, { status: 409 });
   const { conversationId } = await params;
   try {
@@ -41,6 +43,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ con
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
   const profile = await getUserProfile(userId);
+  const restricted = accountAccessResponse(profile); if (restricted) return restricted;
   if (!profile || (profile.role !== "vendor" && profile.role !== "admin")) {
     return NextResponse.json({ message: "Only the vendor can create a quote." }, { status: 403 });
   }

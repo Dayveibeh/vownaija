@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { notFound, redirect } from "next/navigation";
-import { getUserProfile } from "@/lib/accounts";
+import { requireActiveUserProfile } from "@/lib/accounts";
 import { getQuoteForAccount } from "@/lib/quotes";
 import QuoteDetailClient from "./quote-detail-client";
 
@@ -10,7 +10,7 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ qu
   const { userId } = await auth();
   if (!userId) redirect("/couples/sign-up?mode=signin");
 
-  const profile = await getUserProfile(userId);
+  const profile = await requireActiveUserProfile(userId);
   if (!profile) redirect("/account/setup");
 
   const { quoteId } = await params;
